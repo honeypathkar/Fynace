@@ -68,12 +68,11 @@ export const AuthProvider = ({ children }) => {
     setTokenState(authToken);
   }, []);
 
-  const requestOtp = useCallback(async ({ email, phone }) => {
+  const requestOtp = useCallback(async ({ email }) => {
     try {
       setLoading(true);
       const response = await apiClient.post('/auth/otp/send', {
         email,
-        phone,
       });
       const requestedUserId = response.data?.userId;
       setOtpRequestId(requestedUserId);
@@ -87,13 +86,12 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const verifyOtp = useCallback(
-    async ({ otp, userId, phone, email }) => {
+    async ({ otp, userId, email }) => {
       try {
         setLoading(true);
         const response = await apiClient.post('/auth/otp/verify', {
           otp,
           userId: userId || otpRequestId,
-          phone,
           email,
         });
 
@@ -111,6 +109,56 @@ export const AuthProvider = ({ children }) => {
       }
     },
     [otpRequestId, persistToken]
+  );
+
+  const login = useCallback(
+    async ({ email, password }) => {
+      try {
+        setLoading(true);
+        const response = await apiClient.post('/auth/login', {
+          email,
+          password,
+        });
+
+        const authToken = response.data?.token;
+        if (authToken) {
+          await persistToken(authToken);
+          setUser(response.data?.user);
+        }
+      } catch (error) {
+        const apiError = parseApiError(error);
+        throw apiError;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [persistToken]
+  );
+
+  const register = useCallback(
+    async ({ name, email, password, phone }) => {
+      try {
+        setLoading(true);
+        const response = await apiClient.post('/auth/register', {
+          name,
+          email,
+          password,
+          phone,
+        });
+
+        const authToken = response.data?.token;
+        if (authToken) {
+          await persistToken(authToken);
+          setUser(response.data?.user);
+        }
+      } catch (error) {
+        const apiError = parseApiError(error);
+        throw apiError;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [persistToken]
   );
 
   const logout = useCallback(async () => {
@@ -145,6 +193,8 @@ export const AuthProvider = ({ children }) => {
       otpRequestId,
       requestOtp,
       verifyOtp,
+      login,
+      register,
       logout,
       refreshProfile,
       updateProfile,
@@ -157,6 +207,8 @@ export const AuthProvider = ({ children }) => {
       otpRequestId,
       requestOtp,
       verifyOtp,
+      login,
+      register,
       logout,
       refreshProfile,
       updateProfile,

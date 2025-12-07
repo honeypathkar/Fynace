@@ -12,10 +12,15 @@ const expenseSchema = new mongoose.Schema({
     required: true,
     // Format: YYYY-MM (e.g., "2024-01")
   },
-  category: {
+  itemName: {
     type: String,
     required: true,
     trim: true,
+  },
+  category: {
+    type: String,
+    trim: true,
+    default: '',
   },
   amount: {
     type: Number,
@@ -63,4 +68,5 @@ expenseSchema.index({ userId: 1, category: 1 });
 expenseSchema.index({ userId: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Expense', expenseSchema);
+
 

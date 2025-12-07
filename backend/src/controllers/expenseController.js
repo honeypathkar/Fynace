@@ -1,4 +1,5 @@
 const Expense = require('../models/Expense');
+const MoneyIn = require('../models/MoneyIn');
 const { body, validationResult } = require('express-validator');
 
 // Upload expenses in bulk from JSON
@@ -17,7 +18,8 @@ const uploadExpenses = async (req, res) => {
     const expensesToSave = expenses.map((expense) => ({
       userId,
       month: expense.month || expense.Month,
-      category: expense.category || expense.Category,
+      itemName: expense.itemName || expense.ItemName || expense.category || expense.Category || 'Expense',
+      category: expense.category || expense.Category || '',
       amount: expense.amount || expense.Amount || 0,
       notes: expense.notes || expense.Notes || '',
       moneyIn: expense.moneyIn || expense.MoneyIn || 0,
@@ -66,7 +68,7 @@ const addExpense = async (req, res) => {
       });
     }
 
-    const { month, category, amount, notes, moneyIn, moneyOut, remaining } = req.body;
+    const { month, itemName, category, amount, notes, moneyIn, moneyOut, remaining } = req.body;
     const userId = req.userId;
 
     // Validate month format
@@ -78,20 +80,33 @@ const addExpense = async (req, res) => {
       });
     }
 
+    // Validate itemName
+    if (!itemName || !itemName.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Item name is required',
+      });
+    }
+
+    // If amount is provided but moneyOut is not, set moneyOut = amount
+    const finalMoneyOut = moneyOut || (amount > 0 ? amount : 0);
+    const finalMoneyIn = moneyIn || 0;
+
     // Calculate remaining if not provided
     let calculatedRemaining = remaining;
     if (calculatedRemaining === undefined || calculatedRemaining === null) {
-      calculatedRemaining = (moneyIn || 0) - (moneyOut || 0);
+      calculatedRemaining = finalMoneyIn - finalMoneyOut;
     }
 
     const expense = await Expense.create({
       userId,
       month,
-      category,
+      itemName: itemName.trim(),
+      category: category ? category.trim() : '',
       amount: amount || 0,
       notes: notes || '',
-      moneyIn: moneyIn || 0,
-      moneyOut: moneyOut || 0,
+      moneyIn: finalMoneyIn,
+      moneyOut: finalMoneyOut,
       remaining: calculatedRemaining,
     });
 
@@ -109,10 +124,20 @@ const addExpense = async (req, res) => {
   }
 };
 
-// Get all expenses for a specific month
-const getExpensesByMonth = async (req, res) => {
+// Update an existing expense
+const updateExpense = async (req, res) => {
   try {
-    const { month } = req.params;
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation errors',
+        errors: errors.array(),
+      });
+    }
+
+    const { id } = req.params;
+    const { month, itemName, category, amount, notes, moneyIn, moneyOut, remaining } = req.body;
     const userId = req.userId;
 
     // Validate month format
@@ -124,16 +149,134 @@ const getExpensesByMonth = async (req, res) => {
       });
     }
 
-    const expenses = await Expense.find({ userId, month }).sort({ createdAt: -1 });
+    // Validate itemName
+    if (!itemName || !itemName.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Item name is required',
+      });
+    }
+
+    // Find the expense and verify ownership
+    const expense = await Expense.findOne({ _id: id, userId });
+    if (!expense) {
+      return res.status(404).json({
+        success: false,
+        message: 'Expense not found or you do not have permission to update it',
+      });
+    }
+
+    // If amount is provided but moneyOut is not, set moneyOut = amount
+    const finalMoneyOut = moneyOut !== undefined ? moneyOut : (amount > 0 ? amount : expense.moneyOut);
+    const finalMoneyIn = moneyIn !== undefined ? moneyIn : expense.moneyIn;
+
+    // Calculate remaining if not provided
+    let calculatedRemaining = remaining;
+    if (calculatedRemaining === undefined || calculatedRemaining === null) {
+      calculatedRemaining = finalMoneyIn - finalMoneyOut;
+    }
+
+    // Update the expense
+    const updatedExpense = await Expense.findByIdAndUpdate(
+      id,
+      {
+        month,
+        itemName: itemName.trim(),
+        category: category ? category.trim() : '',
+        amount: amount || 0,
+        notes: notes || '',
+        moneyIn: finalMoneyIn,
+        moneyOut: finalMoneyOut,
+        remaining: calculatedRemaining,
+        updatedAt: Date.now(),
+      },
+      { new: true, runValidators: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Expense updated successfully',
+      expense: updatedExpense,
+    });
+  } catch (error) {
+    console.error('Error in updateExpense:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to update expense',
+    });
+  }
+};
+
+// Get all expenses for a specific month
+const getExpensesByMonth = async (req, res) => {
+  try {
+    const { month } = req.params;
+    const userId = req.userId;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    // Validate month format
+    const monthRegex = /^\d{4}-\d{2}$/;
+    if (!monthRegex.test(month)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid month format. Expected format: YYYY-MM',
+      });
+    }
+
+    const expenses = await Expense.find({ userId, month })
+      .sort({ month: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const totalCount = await Expense.countDocuments({ userId, month });
 
     res.status(200).json({
       success: true,
       count: expenses.length,
+      total: totalCount,
+      page,
+      limit,
+      hasMore: skip + expenses.length < totalCount,
       month,
       expenses,
     });
   } catch (error) {
     console.error('Error in getExpensesByMonth:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to get expenses',
+    });
+  }
+};
+
+// Get all expenses (not filtered by month) with pagination
+const getAllExpenses = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const expenses = await Expense.find({ userId })
+      .sort({ month: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const totalCount = await Expense.countDocuments({ userId });
+
+    res.status(200).json({
+      success: true,
+      count: expenses.length,
+      total: totalCount,
+      page,
+      limit,
+      hasMore: skip + expenses.length < totalCount,
+      expenses,
+    });
+  } catch (error) {
+    console.error('Error in getAllExpenses:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to get expenses',
@@ -159,9 +302,27 @@ const getExpenseSummary = async (req, res) => {
     // Get all expenses for the month
     const expenses = await Expense.find({ userId, month });
 
-    // Calculate totals
-    const totalMoneyIn = expenses.reduce((sum, exp) => sum + (exp.moneyIn || 0), 0);
-    const totalMoneyOut = expenses.reduce((sum, exp) => sum + (exp.moneyOut || 0), 0);
+    // Get MoneyIn entries for the month
+    const startDate = new Date(`${month}-01`);
+    const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0, 23, 59, 59);
+    const moneyInEntries = await MoneyIn.find({
+      userId,
+      date: { $gte: startDate, $lte: endDate },
+    });
+
+    // Calculate totals from expenses
+    // If moneyOut is 0 but amount > 0, use amount as moneyOut
+    let totalMoneyIn = expenses.reduce((sum, exp) => sum + (exp.moneyIn || 0), 0);
+    const totalMoneyOut = expenses.reduce((sum, exp) => {
+      const moneyOut = exp.moneyOut || 0;
+      const amount = exp.amount || 0;
+      // Use amount if moneyOut is 0 but amount exists
+      return sum + (moneyOut > 0 ? moneyOut : amount);
+    }, 0);
+    
+    // Add MoneyIn entries to total
+    totalMoneyIn += moneyInEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
+    
     const remaining = totalMoneyIn - totalMoneyOut;
 
     // Category-wise breakdown
@@ -178,7 +339,10 @@ const getExpenseSummary = async (req, res) => {
       }
       categoryBreakdown[category].totalAmount += expense.amount || 0;
       categoryBreakdown[category].totalMoneyIn += expense.moneyIn || 0;
-      categoryBreakdown[category].totalMoneyOut += expense.moneyOut || 0;
+      // If moneyOut is 0 but amount > 0, use amount as moneyOut
+      const moneyOut = expense.moneyOut || 0;
+      const amount = expense.amount || 0;
+      categoryBreakdown[category].totalMoneyOut += (moneyOut > 0 ? moneyOut : amount);
       categoryBreakdown[category].count += 1;
     });
 
@@ -297,11 +461,57 @@ const compareExpenses = async (req, res) => {
   }
 };
 
+// Get all-time expense summary (not limited to a specific month)
+const getAllTimeSummary = async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    // Get all expenses for the user
+    const expenses = await Expense.find({ userId });
+
+    // Get all MoneyIn entries for the user
+    const moneyInEntries = await MoneyIn.find({ userId });
+
+    // Calculate totals from expenses
+    let totalMoneyIn = expenses.reduce((sum, exp) => sum + (exp.moneyIn || 0), 0);
+    const totalMoneyOut = expenses.reduce((sum, exp) => {
+      const moneyOut = exp.moneyOut || 0;
+      const amount = exp.amount || 0;
+      // Use amount if moneyOut is 0 but amount exists
+      return sum + (moneyOut > 0 ? moneyOut : amount);
+    }, 0);
+    
+    // Add MoneyIn entries to total
+    totalMoneyIn += moneyInEntries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
+    
+    const remaining = totalMoneyIn - totalMoneyOut;
+
+    res.status(200).json({
+      success: true,
+      summary: {
+        totalMoneyIn,
+        totalMoneyOut,
+        remaining,
+        totalExpenses: expenses.length,
+      },
+    });
+  } catch (error) {
+    console.error('Error in getAllTimeSummary:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to get all-time expense summary',
+    });
+  }
+};
+
 module.exports = {
   uploadExpenses,
   addExpense,
+  updateExpense,
   getExpensesByMonth,
+  getAllExpenses,
   getExpenseSummary,
   compareExpenses,
+  getAllTimeSummary,
 };
 

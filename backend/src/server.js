@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const os = require('os');
 const connectDB = require('./config/database');
 const errorHandler = require('./middleware/errorHandler');
 
@@ -8,6 +9,8 @@ const errorHandler = require('./middleware/errorHandler');
 const authRoutes = require('./routes/authRoutes');
 const expenseRoutes = require('./routes/expenseRoutes');
 const chartRoutes = require('./routes/chartRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
+const moneyInRoutes = require('./routes/moneyInRoutes');
 
 // Initialize Express app
 const app = express();
@@ -23,12 +26,31 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Get network IP address
+const getNetworkIP = () => {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      // Skip internal (loopback) and non-IPv4 addresses
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  return 'localhost';
+};
+
+const PORT = process.env.PORT || 3000;
+const networkIP = getNetworkIP();
+
 // Health check route
 app.get('/health', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Expense Tracker API is running',
     timestamp: new Date().toISOString(),
+    localUrl: `http://localhost:${PORT}`,
+    networkUrl: `http://${networkIP}:${PORT}`,
   });
 });
 
@@ -36,6 +58,8 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/chart', chartRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/money-in', moneyInRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -48,12 +72,10 @@ app.use('*', (req, res) => {
 // Error handler middleware (must be last)
 app.use(errorHandler);
 
-// Start server
-const PORT = process.env.PORT || 3000;
-
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 Health check: http://localhost:${PORT}/health`);
+  console.log(`🌐 Local: http://localhost:${PORT}/health`);
+  console.log(`🌐 Network: http://${networkIP}:${PORT}/health`);
 });
 

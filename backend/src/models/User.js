@@ -18,9 +18,13 @@ const userSchema = new mongoose.Schema({
     trim: true,
     sparse: true,
   },
+  password: {
+    type: String,
+    select: false, // Don't return password by default
+  },
   authMethod: {
     type: String,
-    enum: ['otp', 'google'],
+    enum: ['otp', 'google', 'password'],
     required: true,
   },
   googleId: {
@@ -46,10 +50,25 @@ const userSchema = new mongoose.Schema({
 });
 
 // Update the updatedAt field before saving
-userSchema.pre('save', function (next) {
+userSchema.pre('save', async function (next) {
   this.updatedAt = Date.now();
+
+  // Hash password if modified
+  if (!this.isModified('password')) {
+    next();
+  }
+  
+  if (this.password) {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+  }
   next();
 });
+
+// Match user entered password to hashed password in database
+userSchema.methods.matchPassword = async function (enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
+};
 
 // Index for faster queries
 userSchema.index({ email: 1 });

@@ -1,55 +1,98 @@
-import React, { useEffect, useRef } from 'react';
-import {
-  Animated,
-  Dimensions,
-  Image,
-  StatusBar,
-  StyleSheet,
-  View,
-} from 'react-native';
+import React, { useEffect } from 'react';
+import { ActivityIndicator, Image, StyleSheet, Text, View, StatusBar } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
+import { useTheme } from 'react-native-paper';
+import PrimaryButton from '../../components/PrimaryButton';
+import { themeAssets } from '../../theme';
 import { useAuth } from '../../hooks/useAuth';
+import Fonts from '../../../assets/fonts';
 
-const { width, height } = Dimensions.get('window');
-const CIRCLE_SIZE = Math.sqrt(width ** 2 + height ** 2);
-
+// Welcome screen (replaces prior splash auto-redirect)
 const SplashScreen = () => {
   const navigation = useNavigation();
-  const { token } = useAuth();
-  const scale = useRef(new Animated.Value(0)).current;
-  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const { token, initializing } = useAuth();
+  const paperTheme = useTheme();
 
   useEffect(() => {
-    Animated.timing(scale, {
-      toValue: 1,
-      duration: 1000,
-      delay: 250,
-      useNativeDriver: true,
-    }).start();
+    if (!initializing && token) {
+      // Token exists, navigate to AppTabs
+      navigation.reset({ index: 0, routes: [{ name: 'AppTabs' }] });
+    }
+  }, [token, initializing, navigation]);
 
-    Animated.timing(logoOpacity, {
-      toValue: 1,
-      duration: 500,
-      delay: 1500,
-      useNativeDriver: true,
-    }).start(({ finished }) => {
-      if (finished) {
-        navigation.replace(token ? 'AppTabs' : 'Login');
-      }
-    });
-  }, [logoOpacity, navigation, scale, token]);
+  // Show loading while checking for token
+  if (initializing) {
+    return (
+      <>
+        <StatusBar
+          barStyle="light-content"
+          backgroundColor={"#0b0f1a"}
+        />
+        <LinearGradient
+          colors={['#0b0f1a', '#0a0f1e', '#070c16']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.container}>
+          <View style={styles.loadingContainer}>
+            <Text style={styles.brand}>Spendo</Text>
+            <ActivityIndicator size="large" color="#E8F0FF" style={styles.loader} />
+          </View>
+        </LinearGradient>
+      </>
+    );
+  }
+
+  // If token exists, don't show welcome screen (navigation will happen in useEffect)
+  if (token) {
+    return (
+      <>
+        <StatusBar
+          barStyle="light-content"
+          backgroundColor={"#0b0f1a"}
+        />
+        <LinearGradient
+          colors={['#0b0f1a', '#0a0f1e', '#070c16']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.container}>
+          <View style={styles.loadingContainer}>
+            <Text style={styles.brand}>Spendo</Text>
+            <ActivityIndicator size="large" color="#E8F0FF" style={styles.loader} />
+          </View>
+        </LinearGradient>
+      </>
+    );
+  }
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f6e088" />
-      <Animated.View style={[styles.dot, { transform: [{ scale }] }]} />
-      <Animated.View style={[styles.logoContainer, { opacity: logoOpacity }]}>
+    <>
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={"#0b0f1a"}
+      />
+      <LinearGradient
+        colors={['#0b0f1a', '#0a0f1e', '#070c16']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.container}>
+        <Text style={styles.brand}>Spendo</Text>
         <Image
-          source={{ uri: 'https://dummyimage.com/200x200/0f172a/ffffff&text=Spendo' }}
-          style={styles.logo}
+          source={{
+            uri: 'https://images.unsplash.com/photo-1563986768494-4dee2763ff3f?q=80&w=1600&auto=format&fit=crop',
+          }}
+          style={styles.hero}
         />
-      </Animated.View>
-    </View>
+        <View style={styles.copy}>
+          <Text style={styles.headline}>Smarter Spending{'\n'}Starts Here.</Text>
+        </View>
+        <View style={styles.cta}>
+          <PrimaryButton title="Sign Up" onPress={() => navigation.navigate('Signup')} style={styles.primary} />
+          <View style={styles.spacer} />
+          <PrimaryButton title="Login" onPress={() => navigation.navigate('Login')} style={styles.primary} />
+        </View>
+      </LinearGradient>
+    </>
   );
 };
 
@@ -58,24 +101,51 @@ export default SplashScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: '#000000',
+    paddingHorizontal: 24,
+    paddingTop: 40,
+    paddingBottom: 24,
+  },
+  brand: {
+    fontSize: 34,
+    fontFamily: Fonts.bold,
+    color: '#E8F0FF',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  hero: {
+    width: '100%',
+    height: 360,
+    borderRadius: 8,
+    resizeMode: 'cover',
+    marginBottom: 28,
+  },
+  copy: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  headline: {
+    fontSize: 32,
+    lineHeight: 40,
+    textAlign: 'center',
+    color: '#E8F0FF',
+    fontFamily: Fonts.bold,
+  },
+  cta: {
+    marginTop: 'auto',
+  },
+  primary: {
+    borderRadius: 18,
+  },
+  spacer: {
+    height: 16,
+  },
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  dot: {
-    width: CIRCLE_SIZE,
-    height: CIRCLE_SIZE,
-    borderRadius: CIRCLE_SIZE / 2,
-    backgroundColor: '#f6e088',
-    position: 'absolute',
-  },
-  logoContainer: {
-    position: 'absolute',
-  },
-  logo: {
-    width: 120,
-    height: 120,
-    resizeMode: 'contain',
-    borderRadius: 24,
+  loader: {
+    marginTop: 24,
   },
 });

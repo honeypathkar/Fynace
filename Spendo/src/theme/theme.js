@@ -1,19 +1,21 @@
 export const palette = {
-  primary: '#3A6FF8',
+  primary: '#3A6FF8', // Blue from Login button
   onPrimary: '#FFFFFF',
-  primaryContainer: '#D9E3FF',
-  onPrimaryContainer: '#0C1D5D',
-  secondary: '#F97316',
+  primaryContainer: '#1E293B', // Darker blue/slate
+  onPrimaryContainer: '#FFFFFF',
+  secondary: '#F97316', // Orange
   onSecondary: '#FFFFFF',
-  background: '#F5F7FB',
-  surface: '#FFFFFF',
-  surfaceVariant: '#EDF1FA',
-  outline: '#94A3B8',
+  background: '#0F172A', // Dark background from Login screen
+  surface: '#1E293B', // Card background
+  surfaceVariant: '#334155', // Input fields background
+  outline: '#475569',
   success: '#22C55E',
   warning: '#FACC15',
   error: '#EF4444',
-  text: '#0F172A',
-  subtext: '#475569',
+  text: '#F8FAFC', // White/Light text
+  subtext: '#94A3B8', // Gray text
+  placeholder: '#64748B',
+  border: '#334155',
 };
 
 export const spacing = [0, 4, 8, 12, 16, 20, 24, 32];
@@ -35,9 +37,16 @@ export const typography = {
   },
 };
 
+export const themeAssets = {
+  palette,
+  spacing,
+  typography,
+};
+
 export default {
   palette,
   spacing,
   typography,
+  themeAssets,
 };
 

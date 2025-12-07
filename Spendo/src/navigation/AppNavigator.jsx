@@ -3,52 +3,56 @@ import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from 'react-native-paper';
-import { Home, PieChart, UserRound } from 'lucide-react-native';
+import { Home, PieChart } from 'lucide-react-native';
 import SplashScreen from '../screens/Auth/SplashScreen';
 import LoginScreen from '../screens/Auth/LoginScreen';
 import SignupScreen from '../screens/Auth/SignupScreen';
 import HomeScreen from '../screens/Home/HomeScreen';
 import ExpensesScreen from '../screens/Expenses/ExpensesScreen';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
-
-const TAB_ICONS = {
-  Home,
-  Expenses: PieChart,
-  Profile: UserRound,
-};
-
-const renderTabIcon = (routeName, color, size) => {
-  const IconComponent = TAB_ICONS[routeName] || TAB_ICONS.Home;
-  return <IconComponent color={color} size={size + 2} />;
-};
+import EditProfileScreen from '../screens/Profile/EditProfileScreen';
+import MoneyInScreen from '../screens/MoneyIn/MoneyInScreen';
+import ExcelUploadScreen from '../screens/Expenses/ExcelUploadScreen';
+import CustomTabBar from './CustomTabBar';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 const AppTabs = () => {
-  const paperTheme = useTheme();
-
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
+      screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: paperTheme.colors.primary,
-        tabBarInactiveTintColor: paperTheme.colors.outline,
-        tabBarStyle: {
-          backgroundColor: paperTheme.colors.surface,
-          borderTopColor: paperTheme.colors.surfaceVariant,
-          height: 64,
-          paddingBottom: 10,
-          paddingTop: 8,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-        },
-        tabBarIcon: ({ color, size }) => renderTabIcon(route.name, color, size),
-      })}>
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Expenses" component={ExpensesScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      }}
+      tabBar={(props) => <CustomTabBar {...props} />}>
+      <Tab.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{
+          title: 'Home',
+          tabBarIcon: ({ color, size, focused }) => (
+            <Home
+              color={color}
+              size={size || 24}
+              strokeWidth={focused ? 2.5 : 2}
+            />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Expenses"
+        component={ExpensesScreen}
+        options={{
+          title: 'Expenses',
+          tabBarIcon: ({ color, size, focused }) => (
+            <PieChart
+              color={color}
+              size={size || 24}
+              strokeWidth={focused ? 2.5 : 2}
+            />
+          ),
+        }}
+      />
     </Tab.Navigator>
   );
 };
@@ -75,10 +79,14 @@ const AppNavigator = () => {
   return (
     <NavigationContainer theme={navigationTheme}>
       <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="Splash" component={SplashScreen} />
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="Signup" component={SignupScreen} />
-        <Stack.Screen name="AppTabs" component={AppTabs} />
+        <Stack.Screen name="Splash" component={SplashScreen} options={{animation: "fade"}}/>
+        <Stack.Screen name="Login" component={LoginScreen} options={{animation: "fade"}}/>
+        <Stack.Screen name="Signup" component={SignupScreen} options={{animation: "fade"}}/>
+        <Stack.Screen name="AppTabs" component={AppTabs} options={{animation: "fade"}}/>
+        <Stack.Screen name="Profile" component={ProfileScreen} options={{animation: "slide_from_right"}}/>
+        <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{animation: "fade"}}/>
+        <Stack.Screen name="MoneyIn" component={MoneyInScreen} options={{animation: "fade"}}/>
+        <Stack.Screen name="ExcelUpload" component={ExcelUploadScreen} options={{animation: "fade"}}/>
       </Stack.Navigator>
     </NavigationContainer>
   );

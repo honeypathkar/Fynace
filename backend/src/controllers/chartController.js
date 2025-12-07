@@ -1,4 +1,5 @@
 const Expense = require('../models/Expense');
+const MoneyIn = require('../models/MoneyIn');
 
 // Get monthly totals for chart visualization
 const getMonthlyTotals = async (req, res) => {
@@ -8,6 +9,9 @@ const getMonthlyTotals = async (req, res) => {
 
     // Get all expenses grouped by month
     const expenses = await Expense.find({ userId }).sort({ month: -1 });
+
+    // Get all MoneyIn entries
+    const moneyInEntries = await MoneyIn.find({ userId });
 
     // Group by month
     const monthlyData = {};
@@ -22,8 +26,26 @@ const getMonthlyTotals = async (req, res) => {
         };
       }
       monthlyData[month].totalMoneyIn += expense.moneyIn || 0;
-      monthlyData[month].totalMoneyOut += expense.moneyOut || 0;
+      // If moneyOut is 0 but amount > 0, use amount as moneyOut
+      const moneyOut = expense.moneyOut || 0;
+      const amount = expense.amount || 0;
+      monthlyData[month].totalMoneyOut += (moneyOut > 0 ? moneyOut : amount);
       monthlyData[month].totalExpenses += 1;
+    });
+
+    // Add MoneyIn entries to monthly totals
+    moneyInEntries.forEach((entry) => {
+      const entryDate = new Date(entry.date);
+      const month = `${entryDate.getFullYear()}-${String(entryDate.getMonth() + 1).padStart(2, '0')}`;
+      if (!monthlyData[month]) {
+        monthlyData[month] = {
+          month,
+          totalMoneyIn: 0,
+          totalMoneyOut: 0,
+          totalExpenses: 0,
+        };
+      }
+      monthlyData[month].totalMoneyIn += entry.amount || 0;
     });
 
     // Convert to array and calculate remaining
@@ -86,7 +108,10 @@ const getCategoryDistribution = async (req, res) => {
       }
       categoryData[category].totalAmount += expense.amount || 0;
       categoryData[category].totalMoneyIn += expense.moneyIn || 0;
-      categoryData[category].totalMoneyOut += expense.moneyOut || 0;
+      // If moneyOut is 0 but amount > 0, use amount as moneyOut
+      const moneyOut = expense.moneyOut || 0;
+      const amount = expense.amount || 0;
+      categoryData[category].totalMoneyOut += (moneyOut > 0 ? moneyOut : amount);
       categoryData[category].count += 1;
     });
 
@@ -127,6 +152,9 @@ const getTrends = async (req, res) => {
     // Get all expenses
     const expenses = await Expense.find({ userId }).sort({ month: -1, createdAt: -1 });
 
+    // Get all MoneyIn entries
+    const moneyInEntries = await MoneyIn.find({ userId });
+
     // Group by month
     const monthlyData = {};
     expenses.forEach((expense) => {
@@ -144,10 +172,31 @@ const getTrends = async (req, res) => {
         monthlyData[month].moneyIn.push(expense.moneyIn);
         monthlyData[month].totalMoneyIn += expense.moneyIn;
       }
-      if (expense.moneyOut > 0) {
-        monthlyData[month].moneyOut.push(expense.moneyOut);
-        monthlyData[month].totalMoneyOut += expense.moneyOut;
+      // If moneyOut is 0 but amount > 0, use amount as moneyOut
+      const moneyOut = expense.moneyOut || 0;
+      const amount = expense.amount || 0;
+      const finalMoneyOut = moneyOut > 0 ? moneyOut : amount;
+      if (finalMoneyOut > 0) {
+        monthlyData[month].moneyOut.push(finalMoneyOut);
+        monthlyData[month].totalMoneyOut += finalMoneyOut;
       }
+    });
+
+    // Add MoneyIn entries to trends
+    moneyInEntries.forEach((entry) => {
+      const entryDate = new Date(entry.date);
+      const month = `${entryDate.getFullYear()}-${String(entryDate.getMonth() + 1).padStart(2, '0')}`;
+      if (!monthlyData[month]) {
+        monthlyData[month] = {
+          month,
+          moneyIn: [],
+          moneyOut: [],
+          totalMoneyIn: 0,
+          totalMoneyOut: 0,
+        };
+      }
+      monthlyData[month].moneyIn.push(entry.amount);
+      monthlyData[month].totalMoneyIn += entry.amount || 0;
     });
 
     // Convert to array

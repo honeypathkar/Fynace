@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { BASE_URL } from '../utils/BASE_URL';
 
-const DEFAULT_BASE_URL = 'http://localhost:3000/api';
+const DEFAULT_BASE_URL = BASE_URL;
 
 const resolveBaseUrl = () => {
   const envFromProcess =

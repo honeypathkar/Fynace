@@ -4,47 +4,41 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  View,
+  TouchableOpacity,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
-import {
-  Button,
-  Card,
-  HelperText,
-  Text,
-  TextInput,
-} from 'react-native-paper';
+import { Button, Text } from 'react-native-paper';
+import { StatusBar } from 'react-native';
+import TextInputField from '../../components/TextInputField';
+import { UserPlus } from 'lucide-react-native';
 import GlobalHeader from '../../components/GlobalHeader';
+import PrimaryButton from '../../components/PrimaryButton';
 import { useAuth } from '../../hooks/useAuth';
 import { themeAssets } from '../../theme';
+import Fonts from '../../../assets/fonts';
 
 const SignupScreen = () => {
   const navigation = useNavigation();
-  const { requestOtp, verifyOtp, updateProfile, loading } = useAuth();
+  const { register, loading } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
-  const [stage, setStage] = useState('request');
+  const [password, setPassword] = useState('');
+  const [secureTextEntry, setSecureTextEntry] = useState(true);
   const [error, setError] = useState(null);
 
-  const handleRequestOtp = async () => {
+  const handleSignup = async () => {
     try {
       setError(null);
-      await requestOtp({ email, phone });
-      setStage('verify');
+      if (!name.trim() || !email.trim() || !password.trim()) {
+        setError('Please fill in all fields.');
+        return;
+      }
+      await register({ name, email, password });
+      // Navigation is handled by the AuthContext/AppNavigator based on user state
     } catch (apiError) {
-      setError(apiError.message);
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    try {
-      setError(null);
-      await verifyOtp({ otp, email, phone });
-      await updateProfile({ name, email, phone });
-      navigation.reset({ index: 0, routes: [{ name: 'AppTabs' }] });
-    } catch (apiError) {
-      setError(apiError.message);
+      setError(apiError.message || 'Registration failed. Please try again.');
     }
   };
 
@@ -52,84 +46,87 @@ const SignupScreen = () => {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.select({ ios: 'padding', android: undefined })}>
-      <GlobalHeader
-        title="Create your account"
-        subtitle="Sign up to start using Spendo"
-        rightElement={
-          <Button mode="text" onPress={() => navigation.navigate('Login')}>
-            Log in
-          </Button>
-        }
-      />
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text variant="titleMedium" style={styles.cardTitle}>
-              {stage === 'request' ? 'Tell us about you' : 'Verify OTP'}
+      <LinearGradient
+        colors={['#0b0f1a', '#0a0f1e', '#070c16']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradient}>
+        <GlobalHeader
+          backgroundColor="transparent"
+          // showLeftIcon
+          // leftIconColor="#E8F0FF"
+          // onLeftIconPress={() => navigation.goBack()}
+          renderRightComponent={() => null}
+        />
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+
+          <View style={styles.headerContainer}>
+            <View style={styles.iconContainer}>
+              <UserPlus color="#3A6FF8" size={32} />
+            </View>
+            <Text variant="headlineMedium" style={styles.title}>
+              Create Account
             </Text>
-            <TextInput
-              label="Full name"
+            <Text variant="bodyLarge" style={styles.subtitle}>
+              Join Spendo to track your expenses effortlessly.
+            </Text>
+          </View>
+
+          <View style={styles.formContainer}>
+            <TextInputField
+              label="Full Name"
               value={name}
               onChangeText={setName}
-              style={styles.input}
-              editable={stage === 'request'}
+              placeholder="Enter your full name"
+              autoCapitalize="words"
             />
-            <TextInput
-              label="Email"
+
+            <TextInputField
+              label="Email Address"
               value={email}
               onChangeText={setEmail}
+              placeholder="Enter your email"
               keyboardType="email-address"
               autoCapitalize="none"
-              style={styles.input}
-              editable={stage === 'request'}
             />
-            <HelperText type="info">
-              We will send your OTP to this email address.
-            </HelperText>
-            <TextInput
-              label="Phone (optional)"
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-              style={styles.input}
-              editable={stage === 'request'}
+
+            <TextInputField
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Create a password"
+              secureTextEntry
+              isSecureVisible={!secureTextEntry}
+              onToggleSecureEntry={() => setSecureTextEntry(!secureTextEntry)}
             />
-            {stage === 'verify' ? (
-              <TextInput
-                label="OTP"
-                value={otp}
-                onChangeText={setOtp}
-                keyboardType="number-pad"
-                maxLength={6}
-                style={styles.input}
-              />
-            ) : null}
+
             {error ? (
-              <Text variant="bodyMedium" style={styles.error}>
+              <Text variant="bodyMedium" style={styles.errorText}>
                 {error}
               </Text>
             ) : null}
-            <Button
-              mode="contained"
-              onPress={stage === 'request' ? handleRequestOtp : handleVerifyOtp}
+
+            <PrimaryButton
+              title="Sign Up"
+              onPress={handleSignup}
               loading={loading}
-              style={styles.primaryButton}>
-              {stage === 'request' ? 'Send OTP' : 'Verify & Finish'}
-            </Button>
-            {stage === 'verify' ? (
-              <Button
-                mode="text"
-                onPress={() => {
-                  setStage('request');
-                  setOtp('');
-                }}
-                disabled={loading}>
-                Edit details
-              </Button>
-            ) : null}
-          </Card.Content>
-        </Card>
-      </ScrollView>
+              style={styles.signupButton}
+            />
+          </View>
+
+          <View style={styles.footer}>
+            <Text variant="bodyMedium" style={styles.footerText}>
+              Already have an account?
+            </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+              <Text variant="bodyMedium" style={styles.loginLink}>
+                Log In
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </LinearGradient>
     </KeyboardAvoidingView>
   );
 };
@@ -139,27 +136,63 @@ export default SignupScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: themeAssets.palette.background,
+    backgroundColor: '#0F172A',
+  },
+  gradient: {
+    flex: 1,
   },
   content: {
-    paddingHorizontal: themeAssets.spacing[5],
-    paddingBottom: themeAssets.spacing[6],
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+    justifyContent: 'center',
   },
-  card: {
-    borderRadius: 20,
-    marginTop: themeAssets.spacing[4],
+  headerContainer: {
+    alignItems: 'center',
+    marginBottom: 40,
   },
-  cardTitle: {
-    marginBottom: themeAssets.spacing[3],
+  iconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(58, 111, 248, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
   },
-  input: {
-    marginBottom: themeAssets.spacing[2],
+  title: {
+    color: '#F8FAFC',
+    fontFamily: Fonts.bold,
+    marginBottom: 8,
   },
-  primaryButton: {
-    marginTop: themeAssets.spacing[3],
+  subtitle: {
+    color: '#94A3B8',
+    textAlign: 'center',
   },
-  error: {
-    color: themeAssets.palette.error,
-    marginBottom: themeAssets.spacing[2],
+  formContainer: {
+    width: '100%',
+    gap: 16,
+  },
+  signupButton: {
+    marginTop: 8,
+  },
+  errorText: {
+    color: '#EF4444',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 32,
+    gap: 8,
+  },
+  footerText: {
+    color: '#94A3B8',
+  },
+  loginLink: {
+    color: '#3A6FF8',
+    fontFamily: Fonts.bold,
   },
 });

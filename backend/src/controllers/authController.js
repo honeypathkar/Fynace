@@ -9,6 +9,109 @@ const client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_SECRET
 );
 
+// Register user
+const register = async (req, res) => {
+  try {
+    const { name, email, password, phone } = req.body;
+
+    // Check if user exists
+    let user = await User.findOne({ email });
+    if (user) {
+      return res.status(400).json({
+        success: false,
+        message: 'User already exists',
+      });
+    }
+
+    // Create user
+    user = await User.create({
+      name,
+      email,
+      password,
+      phone,
+      authMethod: 'password',
+      isVerified: true, // Password users are verified by default for now, or add email verification later
+    });
+
+    // Generate token
+    const token = generateToken(user._id);
+
+    res.status(201).json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        authMethod: user.authMethod,
+      },
+    });
+  } catch (error) {
+    console.error('Error in register:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server Error',
+    });
+  }
+};
+
+// Login user
+const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Validate email & password
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide an email and password',
+      });
+    }
+
+    // Check for user
+    const user = await User.findOne({ email }).select('+password');
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials',
+      });
+    }
+
+    // Check if password matches
+    const isMatch = await user.matchPassword(password);
+
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials',
+      });
+    }
+
+    // Generate token
+    const token = generateToken(user._id);
+
+    res.status(200).json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        authMethod: user.authMethod,
+      },
+    });
+  } catch (error) {
+    console.error('Error in login:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server Error',
+    });
+  }
+};
+
 // Send OTP for phone-based login
 const sendOTPForLogin = async (req, res) => {
   try {
@@ -307,6 +410,8 @@ const updateProfile = async (req, res) => {
 };
 
 module.exports = {
+  register,
+  login,
   sendOTPForLogin,
   verifyOTP,
   googleSignIn,

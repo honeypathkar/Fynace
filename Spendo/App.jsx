@@ -12,6 +12,7 @@ import { Provider as PaperProvider } from 'react-native-paper';
 import AppNavigator from './src/navigation/AppNavigator';
 import { buildPaperTheme } from './src/theme';
 import { AuthProvider } from './src/hooks/useAuth';
+import { BottomBarProvider } from './src/context/BottomBarContext';
 
 function App() {
   const scheme = useColorScheme();
@@ -21,11 +22,13 @@ function App() {
     <SafeAreaProvider>
       <PaperProvider theme={paperTheme}>
         <AuthProvider>
-          <StatusBar
-            barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'}
-            backgroundColor={paperTheme.colors.background}
-          />
-          <AppNavigator />
+          <BottomBarProvider>
+            <StatusBar
+              barStyle="light-content"
+              backgroundColor={paperTheme.colors.background}
+            />
+            <AppNavigator />
+          </BottomBarProvider>
         </AuthProvider>
       </PaperProvider>
     </SafeAreaProvider>
