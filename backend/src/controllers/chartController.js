@@ -75,23 +75,31 @@ const getMonthlyTotals = async (req, res) => {
   }
 };
 
-// Get category-wise expense distribution for a specific month
+// Get category-wise expense distribution for a specific month or all-time
 const getCategoryDistribution = async (req, res) => {
   try {
     const { month } = req.params;
     const userId = req.userId;
 
-    // Validate month format
-    const monthRegex = /^\d{4}-\d{2}$/;
-    if (!monthRegex.test(month)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid month format. Expected format: YYYY-MM',
-      });
-    }
+    let expenses;
 
-    // Get all expenses for the month
-    const expenses = await Expense.find({ userId, month });
+    // Check if requesting all-time data
+    if (month === 'all-time' || month === 'all') {
+      // Get all expenses for all time
+      expenses = await Expense.find({ userId });
+    } else {
+      // Validate month format
+      const monthRegex = /^\d{4}-\d{2}$/;
+      if (!monthRegex.test(month)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid month format. Expected format: YYYY-MM or "all-time"',
+        });
+      }
+
+      // Get all expenses for the specific month
+      expenses = await Expense.find({ userId, month });
+    }
 
     // Group by category
     const categoryData = {};
@@ -129,7 +137,7 @@ const getCategoryDistribution = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      month,
+      month: month === 'all-time' || month === 'all' ? 'all-time' : month,
       count: categoryArray.length,
       totalMoneyOut,
       data: categoryArrayWithPercentages,

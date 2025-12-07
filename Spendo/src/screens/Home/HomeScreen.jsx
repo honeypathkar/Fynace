@@ -89,13 +89,14 @@ const HomeScreen = () => {
   );
 
   const fetchCategoryDistribution = useCallback(
-    async (month) => {
+    async () => {
       if (!token) {
         return;
       }
 
       try {
-        const response = await apiClient.get(`/chart/category/${month}`);
+        // Fetch all-time category distribution
+        const response = await apiClient.get('/chart/category/all-time');
         const data = response.data?.data;
         // Ensure data is always an array
         setCategoryData(Array.isArray(data) ? data : []);
@@ -133,21 +134,15 @@ const HomeScreen = () => {
       const summaryData = allTimeSummaryResponse?.data?.summary;
       setAllTimeSummary(summaryData || null);
 
-      const activeMonth =
-        selectedMonth || months[months.length - 1]?.month || undefined;
-      if (activeMonth) {
-        await fetchCategoryDistribution(activeMonth);
-        setSelectedMonth(activeMonth);
-      } else {
-        setCategoryData([]);
-      }
+      // Fetch all-time category distribution
+      await fetchCategoryDistribution();
     } catch (err) {
       const apiError = parseApiError(err);
       setError(apiError.message);
     } finally {
       setLoading(false);
     }
-  }, [fetchCategoryDistribution, selectedMonth, token]);
+  }, [fetchCategoryDistribution, token]);
 
   useFocusEffect(
     useCallback(() => {
@@ -475,7 +470,7 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     padding: 16,
-    borderRadius: 20,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#334155',
   },
@@ -509,7 +504,7 @@ const styles = StyleSheet.create({
   },
   chartCard: {
     backgroundColor: '#1E293B',
-    borderRadius: 24,
+    borderRadius: 12,
     padding: 20,
     borderWidth: 1,
     borderColor: '#334155',

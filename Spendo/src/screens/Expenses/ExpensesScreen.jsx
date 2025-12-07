@@ -174,6 +174,7 @@ const ExpensesScreen = () => {
     all: [],
   });
   const [loadingCategories, setLoadingCategories] = useState(false);
+  const [creatingCategory, setCreatingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [page, setPage] = useState(1);
@@ -485,8 +486,9 @@ const ExpensesScreen = () => {
 
   const createCategory = useCallback(
     async categoryName => {
-      if (!token || !categoryName.trim()) return;
+      if (!token || !categoryName.trim() || creatingCategory) return;
       try {
+        setCreatingCategory(true);
         await apiClient.post('/categories', { name: categoryName.trim() });
         await fetchCategories();
         setNewCategoryName('');
@@ -499,9 +501,11 @@ const ExpensesScreen = () => {
             ToastAndroid.LONG,
           );
         }
+      } finally {
+        setCreatingCategory(false);
       }
     },
-    [token, fetchCategories],
+    [token, fetchCategories, creatingCategory],
   );
 
   useFocusEffect(
@@ -1488,15 +1492,18 @@ const ExpensesScreen = () => {
                   selectedMonth === month && styles.filterSheetItemSelected,
                 ]}
                 onPress={async () => {
-                  setSelectedMonth(month);
-                  setPage(1);
-                  setHasMore(true);
-                  pageRef.current = 1;
-                  hasMoreRef.current = true;
-                  setExpenses([]); // Clear current expenses
-                  await fetchExpenses(month, 1, false);
                   setFilterSheetVisible(false);
                   filterSheetRef.current?.close();
+                  // Small delay to allow sheet to start closing
+                  setTimeout(async () => {
+                    setSelectedMonth(month);
+                    setPage(1);
+                    setHasMore(true);
+                    pageRef.current = 1;
+                    hasMoreRef.current = true;
+                    setExpenses([]); // Clear current expenses
+                    await fetchExpenses(month, 1, false);
+                  }, 100);
                 }}
                 activeOpacity={0.7}
               >
@@ -1530,9 +1537,12 @@ const ExpensesScreen = () => {
                     styles.filterSheetItemSelected,
                 ]}
                 onPress={() => {
-                  setSelectedCategory(category);
                   setFilterSheetVisible(false);
                   filterSheetRef.current?.close();
+                  // Small delay to allow sheet to start closing
+                  setTimeout(() => {
+                    setSelectedCategory(category);
+                  }, 100);
                 }}
                 activeOpacity={0.7}
               >
@@ -1604,11 +1614,18 @@ const ExpensesScreen = () => {
                         <X size={20} color="#94A3B8" />
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={styles.addCategorySaveButton}
+                        style={[
+                          styles.addCategorySaveButton,
+                          (creatingCategory || !newCategoryName.trim()) &&
+                            styles.addCategorySaveButtonDisabled,
+                        ]}
                         onPress={() => createCategory(newCategoryName)}
-                        disabled={!newCategoryName.trim()}
+                        disabled={creatingCategory || !newCategoryName.trim()}
+                        activeOpacity={0.7}
                       >
-                        <Text style={styles.addCategorySaveText}>Add</Text>
+                        <Text style={styles.addCategorySaveText}>
+                          {creatingCategory ? 'Adding...' : 'Add'}
+                        </Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -1671,6 +1688,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: themeAssets.spacing[5],
     paddingBottom: themeAssets.spacing[6],
     gap: themeAssets.spacing[3],
+    marginBottom: 50,
   },
   listHeader: {
     gap: themeAssets.spacing[3],
@@ -2175,6 +2193,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 20,
     backgroundColor: '#3A6FF8',
+  },
+  addCategorySaveButtonDisabled: {
+    opacity: 0.5,
   },
   addCategorySaveText: {
     color: '#F8FAFC',

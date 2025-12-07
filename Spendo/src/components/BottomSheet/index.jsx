@@ -19,7 +19,7 @@ import { X } from 'lucide-react-native';
 import { themeAssets } from '../../theme';
 import styles from './styles';
 
-const renderMedia = (media) => {
+const renderMedia = media => {
   if (!media) {
     return null;
   }
@@ -43,27 +43,17 @@ const renderMedia = (media) => {
 };
 
 const BottomSheet = forwardRef(
-  (
-    {
-      title,
-      children,
-      image,
-      footer,
-      containerStyle,
-      onClose,
-    },
-    ref
-  ) => {
+  ({ title, children, image, footer, containerStyle, onClose }, ref) => {
     const [isVisible, setIsVisible] = useState(false);
     const translateY = useRef(new Animated.Value(400)).current;
     const dragY = useRef(new Animated.Value(0)).current;
 
-    const animateTo = (value) =>
+    const animateTo = value =>
       Animated.spring(translateY, {
         toValue: value,
         useNativeDriver: true,
-        friction: 9,
-        tension: 80,
+        friction: 7,
+        tension: 90,
       }).start();
 
     const resetDrag = () =>
@@ -85,11 +75,10 @@ const BottomSheet = forwardRef(
         animateTo(400);
         setTimeout(() => {
           setIsVisible(false);
-          // Call onClose after animation completes, not during close
           if (onClose) {
-            setTimeout(() => onClose(), 50);
+            onClose();
           }
-        }, 180);
+        }, 250);
       },
     }));
 
@@ -101,13 +90,12 @@ const BottomSheet = forwardRef(
         if (onClose) {
           onClose();
         }
-      }, 180);
+      }, 250);
     };
 
     const panResponder = useRef(
       PanResponder.create({
-        onMoveShouldSetPanResponder: (_, gesture) =>
-          Math.abs(gesture.dy) > 5,
+        onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dy) > 5,
         onPanResponderMove: (_, gesture) => {
           if (gesture.dy > 0) {
             dragY.setValue(gesture.dy);
@@ -120,7 +108,7 @@ const BottomSheet = forwardRef(
             resetDrag();
           }
         },
-      })
+      }),
     ).current;
 
     return (
@@ -128,7 +116,8 @@ const BottomSheet = forwardRef(
         transparent
         animationType="none"
         visible={isVisible}
-        onRequestClose={handleClose}>
+        onRequestClose={handleClose}
+      >
         <View style={styles.modalOverlay}>
           <TouchableWithoutFeedback onPress={handleClose}>
             <View style={styles.modalBackdrop} />
@@ -141,11 +130,13 @@ const BottomSheet = forwardRef(
                 transform: [{ translateY: Animated.add(translateY, dragY) }],
               },
             ]}
-            {...panResponder.panHandlers}>
+            {...panResponder.panHandlers}
+          >
             <TouchableOpacity
               style={styles.sheetHandleWrapper}
               activeOpacity={0.8}
-              onPress={handleClose}>
+              onPress={handleClose}
+            >
               <View style={styles.sheetHandle} />
             </TouchableOpacity>
             <View style={styles.modalHeader}>
@@ -153,7 +144,8 @@ const BottomSheet = forwardRef(
               <TouchableOpacity
                 onPress={handleClose}
                 style={styles.modalCloseButton}
-                activeOpacity={0.85}>
+                activeOpacity={0.85}
+              >
                 <X size={20} color="#F8FAFC" />
               </TouchableOpacity>
             </View>
@@ -162,18 +154,15 @@ const BottomSheet = forwardRef(
                 {renderMedia(image)}
               </View>
             ) : null}
-            <View style={styles.modalContent}>
-              {children}
-            </View>
+            <View style={styles.modalContent}>{children}</View>
             {footer ? <View style={styles.sheetFooter}>{footer}</View> : null}
           </Animated.View>
         </View>
       </Modal>
     );
-  }
+  },
 );
 
 BottomSheet.displayName = 'BottomSheet';
 
 export default BottomSheet;
-
