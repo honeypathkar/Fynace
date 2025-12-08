@@ -1,4 +1,4 @@
-package com.spendo
+package com.fynace
 
 import android.app.Application
 import com.facebook.react.PackageList

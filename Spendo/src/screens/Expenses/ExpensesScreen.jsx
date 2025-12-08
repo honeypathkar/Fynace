@@ -9,7 +9,6 @@ import {
   Animated,
   FlatList,
   LayoutAnimation,
-  StyleSheet,
   View,
   Platform,
   ToastAndroid,
@@ -17,7 +16,6 @@ import {
   ScrollView,
   UIManager,
   Easing,
-  Modal,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Button, Card, Chip, Text, useTheme } from 'react-native-paper';
@@ -40,18 +38,27 @@ import { themeAssets } from '../../theme';
 import { useBottomBar } from '../../context/BottomBarContext';
 import {
   Plus,
-  FileText,
-  FileSpreadsheet,
-  MessageSquare,
   Search,
   Filter,
   ChevronDown,
-  X,
   Pencil,
 } from 'lucide-react-native';
-import { TouchableOpacity, TextInput as RNTextInput } from 'react-native';
+import { TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Fonts from '../../../assets/fonts';
+import {
+  SkeletonPulse,
+  AnimatedExpenseCard,
+  ExpenseCard,
+  ExpenseSummary,
+  ExpenseSearch,
+  ExpenseComparison,
+  FABMenu,
+  MonthPicker,
+  FilterSheet,
+  CategoryPicker,
+} from '../../components/expenses';
+import expenseStyles from '../../components/expenses/styles';
 
 const defaultFormState = {
   month: '',
@@ -68,80 +75,6 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const SkeletonPulse = ({ style }) => {
-  const animation = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(animation, {
-          toValue: 1,
-          duration: 950,
-          useNativeDriver: false,
-          easing: Easing.inOut(Easing.ease),
-        }),
-        Animated.timing(animation, {
-          toValue: 0,
-          duration: 950,
-          useNativeDriver: false,
-          easing: Easing.inOut(Easing.ease),
-        }),
-      ]),
-    );
-    loop.start();
-    return () => {
-      loop.stop();
-      animation.stopAnimation();
-    };
-  }, [animation]);
-
-  const backgroundColor = animation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['#1E293B', '#334155'],
-  });
-
-  return (
-    <Animated.View style={[styles.skeletonBase, style, { backgroundColor }]} />
-  );
-};
-
-const AnimatedExpenseCard = ({ index, children, skipAnimation = false }) => {
-  const translateY = useRef(new Animated.Value(skipAnimation ? 0 : 24)).current;
-  const opacity = useRef(new Animated.Value(skipAnimation ? 1 : 0)).current;
-
-  useEffect(() => {
-    if (skipAnimation) {
-      // Skip animation for paginated items
-      return;
-    }
-
-    // Only animate first 10 items with delay, rest animate quickly
-    const delay = index < 10 ? index * 30 : 0;
-    const duration = index < 10 ? 300 : 150;
-
-    Animated.parallel([
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration,
-        delay,
-        useNativeDriver: true,
-        easing: Easing.out(Easing.exp),
-      }),
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: duration - 50,
-        delay,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [index, opacity, translateY, skipAnimation]);
-
-  return (
-    <Animated.View style={{ transform: [{ translateY }], opacity }}>
-      {children}
-    </Animated.View>
-  );
-};
 
 const ExpensesScreen = () => {
   const { token } = useAuth();
@@ -787,6 +720,30 @@ const ExpensesScreen = () => {
     }, 200);
   };
 
+  const handleFilterMonth = useCallback(async (month) => {
+    setFilterSheetVisible(false);
+    filterSheetRef.current?.close();
+    // Small delay to allow sheet to start closing
+    setTimeout(async () => {
+      setSelectedMonth(month);
+      setPage(1);
+      setHasMore(true);
+      pageRef.current = 1;
+      hasMoreRef.current = true;
+      setExpenses([]); // Clear current expenses
+      await fetchExpenses(month, 1, false);
+    }, 100);
+  }, [fetchExpenses]);
+
+  const handleFilterCategory = useCallback((category) => {
+    setFilterSheetVisible(false);
+    filterSheetRef.current?.close();
+    // Small delay to allow sheet to start closing
+    setTimeout(() => {
+      setSelectedCategory(category);
+    }, 100);
+  }, []);
+
   const handleAddExpense = async () => {
     try {
       setSavingExpense(true);
@@ -845,7 +802,7 @@ const ExpensesScreen = () => {
 
   if (!token) {
     return (
-      <View style={styles.container}>
+      <View style={expenseStyles.container}>
         <GlobalHeader
           title="Track expenses effortlessly"
           subtitle="Log in from the Profile tab to manage your spending"
@@ -855,9 +812,9 @@ const ExpensesScreen = () => {
   }
 
   return (
-    <SafeAreaView edges={['top']} style={styles.container}>
+    <SafeAreaView edges={['top']} style={expenseStyles.container}>
     <KeyboardAvoidingView
-        style={styles.keyboardView}
+        style={expenseStyles.keyboardView}
         behavior={Platform.select({ ios: 'padding', android: undefined })}
       >
       <GlobalHeader
@@ -872,54 +829,54 @@ const ExpensesScreen = () => {
         subtitleColor="#94A3B8"
       />
       {loading && initialLoad ? (
-        <ScrollView contentContainerStyle={styles.skeletonContainer}>
-          <Card style={styles.summaryCard}>
+        <ScrollView contentContainerStyle={expenseStyles.skeletonContainer}>
+          <Card style={expenseStyles.summaryCard}>
             <Card.Content>
-              <View style={styles.summaryHeader}>
-                <SkeletonPulse style={styles.skeletonTitleShort} />
-                <SkeletonPulse style={styles.skeletonButton} />
+              <View style={expenseStyles.summaryHeader}>
+                <SkeletonPulse style={expenseStyles.skeletonTitleShort} />
+                <SkeletonPulse style={expenseStyles.skeletonButton} />
         </View>
-              <View style={styles.summaryGrid}>
+              <View style={expenseStyles.summaryGrid}>
                 {[0, 1, 2, 3].map(index => (
                   <View
                     key={`summary-skeleton-${index}`}
-                    style={styles.summaryItem}
+                    style={expenseStyles.summaryItem}
                   >
-                    <SkeletonPulse style={styles.skeletonLabel} />
-                    <SkeletonPulse style={styles.skeletonValue} />
+                    <SkeletonPulse style={expenseStyles.skeletonLabel} />
+                    <SkeletonPulse style={expenseStyles.skeletonValue} />
                   </View>
                 ))}
               </View>
             </Card.Content>
           </Card>
-          <Card style={styles.comparisonCard}>
+          <Card style={expenseStyles.comparisonCard}>
             <Card.Content>
               {[0, 1, 2].map(index => (
                 <View
                   key={`comparison-skeleton-${index}`}
-                  style={styles.comparisonRow}
+                  style={expenseStyles.comparisonRow}
                 >
-                  <SkeletonPulse style={styles.skeletonLabelWide} />
-                  <View style={styles.comparisonValues}>
-                    <SkeletonPulse style={styles.skeletonChipValue} />
-                    <SkeletonPulse style={styles.skeletonChip} />
+                  <SkeletonPulse style={expenseStyles.skeletonLabelWide} />
+                  <View style={expenseStyles.comparisonValues}>
+                    <SkeletonPulse style={expenseStyles.skeletonChipValue} />
+                    <SkeletonPulse style={expenseStyles.skeletonChip} />
                   </View>
                 </View>
               ))}
             </Card.Content>
           </Card>
           {[0, 1, 2].map(index => (
-            <Card key={`list-skeleton-${index}`} style={styles.expenseItem}>
+            <Card key={`list-skeleton-${index}`} style={expenseStyles.expenseItem}>
               <Card.Content>
-                <SkeletonPulse style={styles.skeletonLabelWide} />
-                <SkeletonPulse style={styles.skeletonNotes} />
+                <SkeletonPulse style={expenseStyles.skeletonLabelWide} />
+                <SkeletonPulse style={expenseStyles.skeletonNotes} />
               </Card.Content>
             </Card>
           ))}
         </ScrollView>
       ) : (
         <FlatList
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={expenseStyles.listContent}
           data={filteredExpenses}
           keyExtractor={item => item._id}
           onEndReached={loadMoreExpenses}
@@ -941,20 +898,20 @@ const ExpensesScreen = () => {
           scrollEventThrottle={16}
           ListFooterComponent={
             loadingMore ? (
-              <View style={styles.loadMoreContainer}>
-                <Text style={styles.loadMoreText}>Loading more...</Text>
+              <View style={expenseStyles.loadMoreContainer}>
+                <Text style={expenseStyles.loadMoreText}>Loading more...</Text>
               </View>
             ) : null
           }
           ListHeaderComponent={
-            <View style={styles.listHeader}>
+            <View style={expenseStyles.listHeader}>
               {error ? (
-                <Card style={styles.errorCard}>
+                <Card style={expenseStyles.errorCard}>
                   <Card.Content>
-                    <Text variant="titleSmall" style={styles.errorTitle}>
+                    <Text variant="titleSmall" style={expenseStyles.errorTitle}>
                       Something went wrong
                     </Text>
-                    <Text variant="bodyMedium" style={styles.errorText}>
+                    <Text variant="bodyMedium" style={expenseStyles.errorText}>
                       {error}
                     </Text>
                     <Button onPress={fetchMonthsAndData}>Retry</Button>
@@ -962,125 +919,20 @@ const ExpensesScreen = () => {
                 </Card>
               ) : null}
 
-              <Card style={styles.summaryCard}>
-                <Card.Content>
-                  <View style={styles.summaryHeader}>
-                    <Text variant="titleMedium" style={styles.summaryTitle}>
-                      Summary
-                    </Text>
-                    <TouchableOpacity
-                      style={styles.summaryAddButton}
-                      onPress={openForm}
-                      activeOpacity={0.7}
-                    >
-                      <Plus size={18} color="#3A6FF8" />
-                      <Text style={styles.summaryAddButtonText}>Add</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.summaryGrid}>
-                    <View style={styles.summaryItem}>
-                      <Text variant="labelMedium" style={styles.summaryLabel}>
-                        Money In
-                      </Text>
-                      <Text
-                        variant="headlineSmall"
-                        style={styles.summaryValueIn}
-                      >
-                        ₹{allTimeSummary?.totalMoneyIn?.toLocaleString() || 0}
-                      </Text>
-                    </View>
-                    <View style={styles.summaryItem}>
-                      <Text variant="labelMedium" style={styles.summaryLabel}>
-                        Money Out
-                      </Text>
-                      <Text
-                        variant="headlineSmall"
-                        style={styles.summaryValueOut}
-                      >
-                        ₹{allTimeSummary?.totalMoneyOut?.toLocaleString() || 0}
-                      </Text>
-                    </View>
-                    <View style={styles.summaryItem}>
-                      <Text variant="labelMedium" style={styles.summaryLabel}>
-                        Remaining
-                      </Text>
-                      <Text
-                        variant="headlineSmall"
-                        style={styles.summaryValueRemaining}
-                      >
-                        ₹{allTimeSummary?.remaining?.toLocaleString() || 0}
-                      </Text>
-                    </View>
-                    <View style={styles.summaryItem}>
-                      <Text variant="labelMedium" style={styles.summaryLabel}>
-                        Entries
-                      </Text>
-                      <Text
-                        variant="headlineSmall"
-                        style={styles.summaryGeneric}
-                      >
-                        {allTimeSummary?.totalExpenses || 0}
-                      </Text>
-                    </View>
-                  </View>
-                </Card.Content>
-              </Card>
+              <ExpenseSummary
+                allTimeSummary={allTimeSummary}
+                onAddPress={openForm}
+              />
 
-              {comparison ? (
-                <Card style={styles.comparisonCard}>
-                  <Card.Title
-                    title="Month-over-month change"
-                    titleStyle={styles.comparisonTitle}
-                  />
-                  <Card.Content>
-                    {comparisonKeys.map(key => (
-                      <View key={key} style={styles.comparisonRow}>
-                        <Text
-                          variant="bodyLarge"
-                          style={styles.comparisonLabel}
-                        >
-                          {key === 'moneyIn'
-                            ? 'Money In'
-                            : key === 'moneyOut'
-                            ? 'Money Out'
-                            : 'Remaining'}
-                        </Text>
-                        <View style={styles.comparisonValues}>
-                          <Text variant="bodyMedium">
-                            {comparison[key].difference >= 0 ? '+' : ''}
-                            {comparison[key].difference.toLocaleString()}
-                          </Text>
-                          <Chip
-                            compact
-                            style={[
-                              styles.comparisonChip,
-                              comparison[key].difference >= 0
-                                ? comparisonChipStyles.positive
-                                : comparisonChipStyles.negative,
-                            ]}
-                          >
-                            {comparison[key].percentageChange.toFixed(1)}%
-                          </Chip>
-                        </View>
-                      </View>
-                    ))}
-                  </Card.Content>
-                </Card>
-              ) : null}
+              <ExpenseComparison comparison={comparison} />
 
-              <View style={styles.searchContainer}>
-                <Search size={20} color="#94A3B8" style={styles.searchIcon} />
-                <RNTextInput
-                  placeholder="Search by item name, category or notes"
-                  placeholderTextColor="#94A3B8"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                  style={styles.searchInput}
-                />
-              </View>
+              <ExpenseSearch
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+              />
 
               <TouchableOpacity
-                style={styles.filterButton}
+                style={expenseStyles.filterButton}
                 onPress={() => {
                   setFilterSheetVisible(true);
                   filterSheetRef.current?.open();
@@ -1088,83 +940,41 @@ const ExpensesScreen = () => {
                 activeOpacity={0.7}
               >
                 <Filter size={20} color="#94A3B8" />
-                <Text style={styles.filterButtonText}>Filters</Text>
+                <Text style={expenseStyles.filterButtonText}>Filters</Text>
                 <ChevronDown size={18} color="#94A3B8" />
               </TouchableOpacity>
-            </View>
+                  </View>
           }
           renderItem={({ item, index }) => {
-            // Skip animation for items beyond the first page (index >= 20) to prevent empty space delay
             const skipAnimation = index >= 20;
             return (
               <AnimatedExpenseCard index={index} skipAnimation={skipAnimation}>
-            <Card style={styles.expenseItem}>
-              <Card.Title
-                    title={item.itemName || item.category}
-                    subtitle={
-                      item.category
-                        ? `${item.category} • ${transformMonthLabel(
-                            item.month,
-                          )}`
-                        : transformMonthLabel(item.month)
-                    }
-                    titleStyle={styles.expenseTitle}
-                    subtitleStyle={styles.expenseSubtitle}
-                // eslint-disable-next-line react/no-unstable-nested-components
-                right={() => (
-                  <View style={styles.expenseAmounts}>
-                        {item.amount > 0 ? (
-                          <Text style={styles.expenseAmount}>
-                            ₹{item.amount.toLocaleString()}
-                          </Text>
-                        ) : item.moneyOut > 0 ? (
-                          <Text style={styles.moneyOut}>
-                            -₹{item.moneyOut.toLocaleString()}
-                          </Text>
-                        ) : item.moneyIn > 0 ? (
-                          <Text style={styles.moneyIn}>
-                            +₹{item.moneyIn.toLocaleString()}
-                          </Text>
-                    ) : null}
-                        <TouchableOpacity
-                          onPress={() => openForm(item)}
-                          style={styles.editButton}
-                          activeOpacity={0.7}
-                        >
-                          <Pencil size={18} color="#94A3B8" />
-                        </TouchableOpacity>
-                  </View>
-                )}
-              />
-              {item.notes ? (
-                <Card.Content>
-                  <Text variant="bodyMedium" style={styles.expenseNotes}>
-                    {item.notes}
-                  </Text>
-                </Card.Content>
-              ) : null}
-            </Card>
+                <ExpenseCard
+                  item={item}
+                  transformMonthLabel={transformMonthLabel}
+                  onEdit={openForm}
+                />
               </AnimatedExpenseCard>
             );
           }}
           ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text variant="titleMedium" style={styles.emptyTitle}>
+            <View style={expenseStyles.emptyState}>
+              <Text variant="titleMedium" style={expenseStyles.emptyTitle}>
                 No expenses yet
-              </Text>
-              <Text variant="bodyMedium" style={styles.emptySubtitle}>
+                      </Text>
+              <Text variant="bodyMedium" style={expenseStyles.emptySubtitle}>
                 Add your first expense or import from a spreadsheet to begin
                 tracking.
-              </Text>
+                      </Text>
               <TouchableOpacity
-                style={styles.emptyButton}
+                style={expenseStyles.emptyButton}
                 onPress={openForm}
                 activeOpacity={0.8}
               >
                 <Plus size={20} color="#F8FAFC" />
-                <Text style={styles.emptyButtonText}>Add expense</Text>
+                <Text style={expenseStyles.emptyButtonText}>Add expense</Text>
               </TouchableOpacity>
-            </View>
+                    </View>
           }
           refreshing={refreshing}
           onRefresh={handleRefresh}
@@ -1176,25 +986,25 @@ const ExpensesScreen = () => {
         title={editingExpenseId ? 'Edit Expense' : 'Add Expense'}
         onClose={handleFormClose}
         footer={
-          <View style={styles.formActions}>
-            <Button
-              mode="outlined"
+          <View style={expenseStyles.formActions}>
+                    <Button
+                      mode="outlined"
               onPress={() => {
                 bottomSheetRef.current?.close();
               }}
               textColor="#94A3B8"
-              style={styles.formButton}
+              style={expenseStyles.formButton}
             >
               Cancel
-            </Button>
+                    </Button>
             <PrimaryButton
               title={editingExpenseId ? 'Update' : 'Save'}
               onPress={handleAddExpense}
               loading={savingExpense}
-              style={styles.formButton}
+              style={expenseStyles.formButton}
               buttonColor="#3A6FF8"
             />
-          </View>
+                    </View>
         }
       >
         <ScrollView
@@ -1203,50 +1013,50 @@ const ExpensesScreen = () => {
           keyboardShouldPersistTaps="handled"
           nestedScrollEnabled={true}
         >
-          <View style={styles.inputWrapper}>
-            <Text style={styles.inputLabel}>Month</Text>
+          <View style={expenseStyles.inputWrapper}>
+            <Text style={expenseStyles.inputLabel}>Month</Text>
             <TouchableOpacity
-              style={styles.monthPickerButton}
+              style={expenseStyles.monthPickerButton}
               onPress={() => setMonthPickerVisible(true)}
               activeOpacity={0.7}
             >
               <Text
                 style={[
-                  styles.monthPickerText,
-                  !formValues.month && styles.monthPickerPlaceholder,
+                  expenseStyles.monthPickerText,
+                  !formValues.month && expenseStyles.monthPickerPlaceholder,
                 ]}
               >
                 {formValues.month
                   ? transformMonthLabel(formValues.month)
                   : 'Select a month'}
-              </Text>
+                      </Text>
               <ChevronDown size={20} color="#94A3B8" />
             </TouchableOpacity>
-          </View>
+                    </View>
           <TextInputField
             label="Item Name"
             value={formValues.itemName}
             onChangeText={value => updateFormValue('itemName', value)}
             placeholder="Enter item name"
           />
-          <View style={styles.inputWrapper}>
-            <Text style={styles.inputLabel}>Category (Optional)</Text>
+          <View style={expenseStyles.inputWrapper}>
+            <Text style={expenseStyles.inputLabel}>Category (Optional)</Text>
             <TouchableOpacity
-              style={styles.monthPickerButton}
+              style={expenseStyles.monthPickerButton}
               onPress={() => setCategoryPickerVisible(true)}
               activeOpacity={0.7}
             >
               <Text
                 style={[
-                  styles.monthPickerText,
-                  !formValues.category && styles.monthPickerPlaceholder,
+                  expenseStyles.monthPickerText,
+                  !formValues.category && expenseStyles.monthPickerPlaceholder,
                 ]}
               >
                 {formValues.category || 'Select a category'}
-              </Text>
+                      </Text>
               <ChevronDown size={20} color="#94A3B8" />
             </TouchableOpacity>
-          </View>
+                    </View>
           <TextInputField
                 label="Amount"
                 value={formValues.amount}
@@ -1267,8 +1077,8 @@ const ExpensesScreen = () => {
 
       {/* FAB Button */}
       <TouchableOpacity
-        style={[
-          styles.fabButton,
+                            style={[
+          expenseStyles.fabButton,
           { bottom: isBottomBarVisible ? 100 : 20 },
         ]}
         onPress={toggleFab}
@@ -1278,1015 +1088,56 @@ const ExpensesScreen = () => {
       </TouchableOpacity>
 
       {/* Action Menu Bottom Sheet */}
-      <BottomSheet
-        ref={fabMenuSheetRef}
-        title="Add Expense"
+      <FABMenu
+        sheetRef={fabMenuSheetRef}
         onClose={() => setFabOpen(false)}
-        footer={
-          <View style={styles.actionMenuFooter}>
-            <Button
-              mode="outlined"
-              onPress={() => {
-                setFabOpen(false);
-                fabMenuSheetRef.current?.close();
-              }}
-              textColor="#94A3B8"
-              style={styles.actionMenuButton}
-            >
-              Cancel
-            </Button>
-          </View>
-        }
-      >
-        <View style={styles.actionMenuContent}>
-          <TouchableOpacity
-            style={styles.actionMenuItem}
-            onPress={handleAddManually}
-            activeOpacity={0.7}
-          >
-            <View style={styles.actionMenuIconContainer}>
-              <FileText size={24} color="#3A6FF8" />
-            </View>
-            <View style={styles.actionMenuTextContainer}>
-              <Text style={styles.actionMenuTitle}>Add Manually</Text>
-              <Text style={styles.actionMenuSubtitle}>
-                Enter expense details manually
-              </Text>
-            </View>
-            <ChevronDown
-              size={20}
-              color="#94A3B8"
-              style={{ transform: [{ rotate: '-90deg' }] }}
-            />
-          </TouchableOpacity>
+        onAddManually={handleAddManually}
+        onImportExcel={handleImportExcel}
+        onSmsFetch={handleSmsFetch}
+        uploading={uploading}
+      />
 
-          <TouchableOpacity
-            style={styles.actionMenuItem}
-            onPress={handleImportExcel}
-            activeOpacity={0.7}
-            disabled={uploading}
-          >
-            <View style={styles.actionMenuIconContainer}>
-              <FileSpreadsheet size={24} color="#22C55E" />
-            </View>
-            <View style={styles.actionMenuTextContainer}>
-              <Text style={styles.actionMenuTitle}>Import from Excel</Text>
-              <Text style={styles.actionMenuSubtitle}>
-                Upload CSV or Excel file
-              </Text>
-            </View>
-            <ChevronDown
-              size={20}
-              color="#94A3B8"
-              style={{ transform: [{ rotate: '-90deg' }] }}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionMenuItem}
-            onPress={handleSmsFetch}
-            activeOpacity={0.7}
-          >
-            <View style={styles.actionMenuIconContainer}>
-              <MessageSquare size={24} color="#F97316" />
-            </View>
-            <View style={styles.actionMenuTextContainer}>
-              <Text style={styles.actionMenuTitle}>SMS Fetch</Text>
-              <Text style={styles.actionMenuSubtitle}>
-                Extract expenses from SMS
-              </Text>
-            </View>
-            <ChevronDown
-              size={20}
-              color="#94A3B8"
-              style={{ transform: [{ rotate: '-90deg' }] }}
-            />
-          </TouchableOpacity>
-        </View>
-      </BottomSheet>
-
-      {/* Month Picker Modal */}
-      <Modal
+      <MonthPicker
         visible={monthPickerVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setMonthPickerVisible(false)}
-      >
-        <View style={styles.monthPickerModal}>
-          <TouchableOpacity
-            style={styles.monthPickerBackdrop}
-            activeOpacity={1}
-            onPress={() => setMonthPickerVisible(false)}
-          />
-          <View style={styles.monthPickerContainer}>
-            <View style={styles.monthPickerHeader}>
-              <Text style={styles.monthPickerTitle}>Select Month</Text>
-              <TouchableOpacity
-                onPress={() => setMonthPickerVisible(false)}
-                style={styles.monthPickerCloseButton}
-              >
-                <Text style={styles.monthPickerCloseText}>Done</Text>
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              data={monthOptions}
-              keyExtractor={item => item.key}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.monthPickerItem,
-                    formValues.month === item.key &&
-                      styles.monthPickerItemSelected,
-                  ]}
-                  onPress={() => {
-                    updateFormValue('month', item.key);
-                    setMonthPickerVisible(false);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    style={[
-                      styles.monthPickerItemText,
-                      formValues.month === item.key &&
-                        styles.monthPickerItemTextSelected,
-                    ]}
-                  >
-                    {item.label}
-                  </Text>
-                  {formValues.month === item.key && (
-                    <View style={styles.monthPickerCheckmark}>
-                      <Text style={styles.monthPickerCheckmarkText}>✓</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              )}
-              contentContainerStyle={styles.monthPickerList}
-            />
-          </View>
-        </View>
-      </Modal>
+        monthOptions={monthOptions}
+        selectedMonth={formValues.month}
+        onSelectMonth={(month) => updateFormValue('month', month)}
+        onClose={() => setMonthPickerVisible(false)}
+      />
 
-      {/* Filter Bottom Sheet */}
-      <BottomSheet
-        ref={filterSheetRef}
-        title="Filters"
+      <FilterSheet
+        sheetRef={filterSheetRef}
+        visible={filterSheetVisible}
         onClose={() => setFilterSheetVisible(false)}
-        footer={
-          <View style={styles.actionMenuFooter}>
-            <Button
-              mode="outlined"
-              onPress={() => {
-                setFilterSheetVisible(false);
-                filterSheetRef.current?.close();
-              }}
-              textColor="#94A3B8"
-              style={styles.actionMenuButton}
-            >
-              Done
-            </Button>
-          </View>
-        }
-      >
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.filterSheetScrollContent}
-        >
-          {/* Month Filter Section */}
-          <View style={styles.filterSection}>
-            <Text style={styles.filterSectionTitle}>Month</Text>
-            <TouchableOpacity
-              style={[
-                styles.filterSheetItem,
-                selectedMonth === 'All' && styles.filterSheetItemSelected,
-              ]}
-              onPress={async () => {
-                setSelectedMonth('All');
-                setPage(1);
-                setHasMore(true);
-                pageRef.current = 1;
-                hasMoreRef.current = true;
-                setExpenses([]); // Clear current expenses
-                await fetchExpenses('All', 1, false);
-                setFilterSheetVisible(false);
-                filterSheetRef.current?.close();
-              }}
-              activeOpacity={0.7}
-            >
-              <Text
-                style={[
-                  styles.filterSheetItemText,
-                  selectedMonth === 'All' && styles.filterSheetItemTextSelected,
-                ]}
-              >
-                All Months
-              </Text>
-              {selectedMonth === 'All' && (
-                <View style={styles.filterSheetCheckmark}>
-                  <Text style={styles.filterSheetCheckmarkText}>✓</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-            {months.map(month => (
-              <TouchableOpacity
-                key={month}
-                style={[
-                  styles.filterSheetItem,
-                  selectedMonth === month && styles.filterSheetItemSelected,
-                ]}
-                onPress={async () => {
-                  setFilterSheetVisible(false);
-                  filterSheetRef.current?.close();
-                  // Small delay to allow sheet to start closing
-                  setTimeout(async () => {
-                    setSelectedMonth(month);
-                    setPage(1);
-                    setHasMore(true);
-                    pageRef.current = 1;
-                    hasMoreRef.current = true;
-                    setExpenses([]); // Clear current expenses
-                    await fetchExpenses(month, 1, false);
-                  }, 100);
-                }}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.filterSheetItemText,
-                    selectedMonth === month &&
-                      styles.filterSheetItemTextSelected,
-                  ]}
-                >
-                  {transformMonthLabel(month)}
-                </Text>
-                {selectedMonth === month && (
-                  <View style={styles.filterSheetCheckmark}>
-                    <Text style={styles.filterSheetCheckmarkText}>✓</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
+        selectedMonth={selectedMonth}
+        months={months}
+        selectedCategory={selectedCategory}
+        categories={expenseCategories}
+        transformMonthLabel={transformMonthLabel}
+        onSelectMonth={handleFilterMonth}
+        onSelectCategory={handleFilterCategory}
+      />
 
-          {/* Category Filter Section */}
-          <View style={styles.filterSection}>
-            <Text style={styles.filterSectionTitle}>Category</Text>
-            {expenseCategories.map(category => (
-              <TouchableOpacity
-                key={category}
-                style={[
-                  styles.filterSheetItem,
-                  selectedCategory === category &&
-                    styles.filterSheetItemSelected,
-                ]}
-                onPress={() => {
-                  setFilterSheetVisible(false);
-                  filterSheetRef.current?.close();
-                  // Small delay to allow sheet to start closing
-                  setTimeout(() => {
-                    setSelectedCategory(category);
-                  }, 100);
-                }}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.filterSheetItemText,
-                    selectedCategory === category &&
-                      styles.filterSheetItemTextSelected,
-                  ]}
-                >
-                  {category}
-                </Text>
-                {selectedCategory === category && (
-                  <View style={styles.filterSheetCheckmark}>
-                    <Text style={styles.filterSheetCheckmarkText}>✓</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </ScrollView>
-      </BottomSheet>
-
-      {/* Category Picker Modal */}
-      <Modal
+      <CategoryPicker
         visible={categoryPickerVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setCategoryPickerVisible(false)}
-      >
-        <View style={styles.monthPickerModal}>
-          <TouchableOpacity
-            style={styles.monthPickerBackdrop}
-            activeOpacity={1}
-            onPress={() => setCategoryPickerVisible(false)}
-          />
-          <View style={styles.monthPickerContainer}>
-            <View style={styles.monthPickerHeader}>
-              <Text style={styles.monthPickerTitle}>Select Category</Text>
-              <TouchableOpacity
-                onPress={() => setCategoryPickerVisible(false)}
-                style={styles.monthPickerCloseButton}
-              >
-                <Text style={styles.monthPickerCloseText}>Done</Text>
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              data={categories.all}
-              keyExtractor={item => item}
-              ListHeaderComponent={
-                showAddCategory ? (
-                  <View style={styles.addCategoryContainer}>
-                    <RNTextInput
-                      placeholder="Enter new category name"
-                      placeholderTextColor="#94A3B8"
-                      value={newCategoryName}
-                      onChangeText={setNewCategoryName}
-                      style={styles.addCategoryInput}
-                      autoFocus
-                    />
-                    <View style={styles.addCategoryActions}>
-                      <TouchableOpacity
-                        style={styles.addCategoryCancelButton}
-                        onPress={() => {
-                          setShowAddCategory(false);
-                          setNewCategoryName('');
-                        }}
-                      >
-                        <X size={20} color="#94A3B8" />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[
-                          styles.addCategorySaveButton,
-                          (creatingCategory || !newCategoryName.trim()) &&
-                            styles.addCategorySaveButtonDisabled,
-                        ]}
-                        onPress={() => createCategory(newCategoryName)}
-                        disabled={creatingCategory || !newCategoryName.trim()}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={styles.addCategorySaveText}>
-                          {creatingCategory ? 'Adding...' : 'Add'}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                ) : (
-                  <TouchableOpacity
-                    style={styles.addCategoryButton}
-                    onPress={() => setShowAddCategory(true)}
-                  >
-                    <Plus size={20} color="#3A6FF8" />
-                    <Text style={styles.addCategoryButtonText}>
-                      Add New Category
-                    </Text>
-                  </TouchableOpacity>
-                )
-              }
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.monthPickerItem,
-                    formValues.category === item &&
-                      styles.monthPickerItemSelected,
-                  ]}
-                  onPress={() => {
-                    updateFormValue('category', item);
-                    setCategoryPickerVisible(false);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    style={[
-                      styles.monthPickerItemText,
-                      formValues.category === item &&
-                        styles.monthPickerItemTextSelected,
-                    ]}
-                  >
-                    {item}
-                  </Text>
-                  {formValues.category === item && (
-                    <View style={styles.monthPickerCheckmark}>
-                      <Text style={styles.monthPickerCheckmarkText}>✓</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              )}
-              contentContainerStyle={styles.monthPickerList}
-            />
-          </View>
-        </View>
-      </Modal>
+        categories={categories.all}
+        selectedCategory={formValues.category}
+        onSelectCategory={(category) => updateFormValue('category', category)}
+        onClose={() => setCategoryPickerVisible(false)}
+        showAddCategory={showAddCategory}
+        newCategoryName={newCategoryName}
+        creatingCategory={creatingCategory}
+        onCreateCategory={createCategory}
+        onShowAddCategory={() => setShowAddCategory(true)}
+        onHideAddCategory={() => {
+          setShowAddCategory(false);
+          setNewCategoryName('');
+        }}
+        onNewCategoryNameChange={setNewCategoryName}
+      />
     </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0F172A',
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  listContent: {
-    paddingHorizontal: themeAssets.spacing[5],
-    paddingBottom: themeAssets.spacing[6],
-    gap: themeAssets.spacing[3],
-    marginBottom: 50,
-  },
-  listHeader: {
-    gap: themeAssets.spacing[3],
-  },
-  summaryCard: {
-    backgroundColor: '#1E293B',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  summaryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: themeAssets.spacing[3],
-  },
-  summaryTitle: {
-    color: '#F8FAFC',
-  },
-  summaryAddButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#3A6FF8',
-    backgroundColor: 'transparent',
-  },
-  summaryAddButtonText: {
-    color: '#3A6FF8',
-    fontSize: 14,
-    fontFamily: Fonts.semibold,
-  },
-  summaryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: themeAssets.spacing[4],
-  },
-  summaryItem: {
-    width: '45%',
-  },
-  summaryLabel: {
-    color: themeAssets.palette.subtext,
-    fontFamily: Fonts.regular,
-  },
-  summaryValueIn: {
-    color: themeAssets.palette.success,
-    fontFamily: Fonts.semibold,
-  },
-  summaryValueOut: {
-    color: themeAssets.palette.error,
-    fontFamily: Fonts.semibold,
-  },
-  summaryValueRemaining: {
-    color: themeAssets.palette.primary,
-    fontFamily: Fonts.semibold,
-  },
-  summaryGeneric: {
-    color: themeAssets.palette.text,
-    fontFamily: Fonts.regular,
-  },
-  comparisonCard: {
-    backgroundColor: '#1E293B',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  comparisonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: themeAssets.spacing[2],
-  },
-  comparisonLabel: {
-    flex: 1,
-    color: '#F8FAFC',
-  },
-  comparisonValues: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: themeAssets.spacing[2],
-  },
-  comparisonChip: {
-    alignSelf: 'flex-start',
-  },
-  comparisonTitle: {
-    color: '#F8FAFC',
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1E293B',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#334155',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 12,
-  },
-  searchIcon: {
-    marginRight: 0,
-  },
-  searchInput: {
-    flex: 1,
-    color: '#F8FAFC',
-    fontSize: 16,
-    padding: 0,
-    fontFamily: Fonts.regular,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: themeAssets.spacing[2],
-  },
-  filterChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    backgroundColor: '#1E293B',
-    borderWidth: 1,
-    borderColor: '#334155',
-    marginRight: themeAssets.spacing[2],
-  },
-  filterChipSelected: {
-    backgroundColor: '#3A6FF8',
-    borderColor: '#3A6FF8',
-  },
-  filterIcon: {
-    marginRight: 4,
-  },
-  filterChipText: {
-    color: '#94A3B8',
-    fontSize: 14,
-    fontFamily: Fonts.medium,
-  },
-  filterChipTextSelected: {
-    color: '#F8FAFC',
-    fontFamily: Fonts.semibold,
-  },
-  expenseItem: {
-    backgroundColor: '#1E293B',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#334155',
-    marginBottom: themeAssets.spacing[2],
-  },
-  expenseAmounts: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginRight: themeAssets.spacing[3],
-  },
-  editButton: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: '#1E293B',
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  expenseAmount: {
-    color: '#F8FAFC',
-    fontSize: 18,
-    fontFamily: Fonts.bold,
-  },
-  moneyIn: {
-    color: themeAssets.palette.success,
-    fontFamily: Fonts.semibold,
-    fontSize: 14,
-  },
-  moneyOut: {
-    color: themeAssets.palette.error,
-    fontFamily: Fonts.semibold,
-    fontSize: 14,
-  },
-  expenseNotes: {
-    color: themeAssets.palette.subtext,
-    fontFamily: Fonts.regular
-  },
-  expenseTitle: {
-    color: '#F8FAFC',
-    fontFamily: Fonts.semibold,
-  },
-  expenseSubtitle: {
-    color: '#94A3B8',
-    fontFamily: Fonts.medium,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: themeAssets.spacing[6],
-    gap: themeAssets.spacing[2],
-  },
-  emptyTitle: {
-    fontFamily: Fonts.semibold,
-    color: '#F8FAFC',
-  },
-  emptySubtitle: {
-    textAlign: 'center',
-    color: '#94A3B8',
-    paddingHorizontal: themeAssets.spacing[5],
-  },
-  emptyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: themeAssets.spacing[2],
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    backgroundColor: '#3A6FF8',
-    borderWidth: 1,
-    borderColor: '#3A6FF8',
-  },
-  emptyButtonText: {
-    color: '#F8FAFC',
-    fontSize: 16,
-    fontFamily: Fonts.semibold,
-  },
-  input: {
-    marginBottom: themeAssets.spacing[3],
-  },
-  formActions: {
-    flexDirection: 'row',
-    gap: themeAssets.spacing[2],
-    justifyContent: 'flex-end',
-  },
-  formButton: {
-    flex: 1,
-    minWidth: 100,
-  },
-  errorCard: {
-    backgroundColor: '#1E293B',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#EF4444',
-  },
-  errorTitle: {
-    marginBottom: themeAssets.spacing[1],
-    color: '#F8FAFC',
-  },
-  errorText: {
-    marginBottom: themeAssets.spacing[1],
-    color: '#94A3B8',
-  },
-  skeletonBase: {
-    borderRadius: 12,
-    backgroundColor: '#1E293B',
-  },
-  skeletonContainer: {
-    paddingHorizontal: themeAssets.spacing[5],
-    paddingTop: themeAssets.spacing[4],
-    paddingBottom: themeAssets.spacing[6],
-    gap: themeAssets.spacing[3],
-  },
-  skeletonTitleShort: {
-    width: 120,
-    height: 18,
-  },
-  skeletonButton: {
-    width: 72,
-    height: 32,
-    borderRadius: 16,
-  },
-  skeletonLabel: {
-    width: '60%',
-    height: 14,
-    marginBottom: themeAssets.spacing[1],
-  },
-  skeletonLabelWide: {
-    flex: 1,
-    height: 14,
-  },
-  skeletonValue: {
-    width: '80%',
-    height: 22,
-  },
-  skeletonChipValue: {
-    width: 64,
-    height: 18,
-  },
-  skeletonChip: {
-    width: 54,
-    height: 28,
-    borderRadius: 14,
-  },
-  skeletonNotes: {
-    marginTop: themeAssets.spacing[2],
-    width: '90%',
-    height: 16,
-  },
-  fabButton: {
-    position: 'absolute',
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#3A6FF8',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    zIndex: 1000,
-  },
-  actionMenuContent: {
-    paddingVertical: themeAssets.spacing[2],
-    gap: themeAssets.spacing[2],
-  },
-  actionMenuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1E293B',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#334155',
-    padding: themeAssets.spacing[4],
-    gap: themeAssets.spacing[3],
-    minHeight: 72,
-  },
-  actionMenuIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#0F172A',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  actionMenuTextContainer: {
-    flex: 1,
-    gap: 4,
-  },
-  actionMenuTitle: {
-    color: '#F8FAFC',
-    fontSize: 16,
-    fontFamily: Fonts.semibold,
-  },
-  actionMenuSubtitle: {
-    color: '#94A3B8',
-    fontSize: 13,
-  },
-  actionMenuFooter: {
-    paddingTop: themeAssets.spacing[2],
-  },
-  actionMenuButton: {
-    minWidth: 100,
-  },
-  inputWrapper: {
-    marginBottom: themeAssets.spacing[3],
-  },
-  inputLabel: {
-    color: '#94A3B8',
-    fontSize: 14,
-    fontFamily: Fonts.semibold,
-    marginBottom: themeAssets.spacing[1],
-  },
-  monthPickerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#1E293B',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#334155',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    minHeight: 48,
-  },
-  monthPickerText: {
-    color: '#F8FAFC',
-    fontSize: 16,
-    flex: 1,
-  },
-  monthPickerPlaceholder: {
-    color: '#94A3B8',
-  },
-  monthPickerModal: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  monthPickerBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  monthPickerContainer: {
-    backgroundColor: '#1E293B',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '70%',
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  monthPickerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#334155',
-  },
-  monthPickerTitle: {
-    color: '#F8FAFC',
-    fontSize: 18,
-    fontFamily: Fonts.semibold,
-  },
-  monthPickerCloseButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  monthPickerCloseText: {
-    color: '#3A6FF8',
-    fontSize: 16,
-    fontFamily: Fonts.semibold,
-  },
-  monthPickerList: {
-    paddingVertical: 8,
-  },
-  monthPickerItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#334155',
-  },
-  monthPickerItemSelected: {
-    backgroundColor: '#0F172A',
-  },
-  monthPickerItemText: {
-    color: '#F8FAFC',
-    fontSize: 16,
-  },
-  monthPickerItemTextSelected: {
-    color: '#3A6FF8',
-    fontFamily: Fonts.semibold,
-  },
-  monthPickerCheckmark: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#3A6FF8',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  monthPickerCheckmarkText: {
-    color: '#F8FAFC',
-    fontSize: 14,
-    fontFamily: Fonts.bold,
-  },
-  addCategoryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#334155',
-  },
-  addCategoryButtonText: {
-    color: '#3A6FF8',
-    fontSize: 16,
-    fontFamily: Fonts.semibold,
-  },
-  addCategoryContainer: {
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#334155',
-    gap: 12,
-  },
-  addCategoryInput: {
-    backgroundColor: '#0F172A',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#334155',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    color: '#F8FAFC',
-    fontSize: 16,
-  },
-  addCategoryActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
-    alignItems: 'center',
-  },
-  addCategoryCancelButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#1E293B',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addCategorySaveButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    backgroundColor: '#3A6FF8',
-  },
-  addCategorySaveButtonDisabled: {
-    opacity: 0.5,
-  },
-  addCategorySaveText: {
-    color: '#F8FAFC',
-    fontSize: 14,
-    fontFamily: Fonts.semibold,
-  },
-  filterButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1E293B',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#334155',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    gap: 8,
-  },
-  filterButtonText: {
-    flex: 1,
-    color: '#F8FAFC',
-    fontSize: 16,
-    fontFamily: Fonts.medium,
-  },
-  filterSheetContent: {
-    paddingVertical: themeAssets.spacing[2],
-    gap: themeAssets.spacing[1],
-  },
-  filterSheetScrollContent: {
-    paddingBottom: themeAssets.spacing[4],
-  },
-  filterSection: {
-    marginBottom: themeAssets.spacing[4],
-  },
-  filterSectionTitle: {
-    color: '#94A3B8',
-    fontSize: 14,
-    fontFamily: Fonts.semibold,
-    marginBottom: themeAssets.spacing[2],
-    paddingHorizontal: themeAssets.spacing[1],
-  },
-  filterSheetItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    backgroundColor: '#1E293B',
-    borderWidth: 1,
-    borderColor: '#334155',
-    marginBottom: themeAssets.spacing[2],
-  },
-  filterSheetItemSelected: {
-    backgroundColor: '#0F172A',
-    borderColor: '#3A6FF8',
-  },
-  filterSheetItemText: {
-    color: '#F8FAFC',
-    fontSize: 16,
-  },
-  filterSheetItemTextSelected: {
-    color: '#3A6FF8',
-    fontFamily: Fonts.semibold,
-  },
-  filterSheetCheckmark: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#3A6FF8',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  filterSheetCheckmarkText: {
-    color: '#F8FAFC',
-    fontSize: 14,
-    fontFamily: Fonts.bold,
-  },
-  loadMoreContainer: {
-    paddingVertical: themeAssets.spacing[4],
-    alignItems: 'center',
-  },
-  loadMoreText: {
-    color: '#94A3B8',
-    fontSize: 14,
-  },
-});
 
 export default ExpensesScreen;

@@ -3,22 +3,19 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StyleSheet,
   View,
   TouchableOpacity,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
-import { Button, Text } from 'react-native-paper';
+import { Text } from 'react-native-paper';
 import { StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import TextInputField from '../../components/TextInputField';
-import { UserPlus } from 'lucide-react-native';
 import GlobalHeader from '../../components/GlobalHeader';
 import PrimaryButton from '../../components/PrimaryButton';
 import { useAuth } from '../../hooks/useAuth';
-import { themeAssets } from '../../theme';
-import Fonts from '../../../assets/fonts';
+import { SignupHeader, authStyles } from '../../components/auth';
 
 const SignupScreen = () => {
   const navigation = useNavigation();
@@ -44,38 +41,33 @@ const SignupScreen = () => {
   };
 
   return (
-    <SafeAreaView edges={['top']} style={styles.container}>
+    <SafeAreaView edges={['top']} style={authStyles.container}>
       <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.select({ ios: 'padding', android: undefined })}>
+        style={authStyles.keyboardView}
+        behavior={Platform.select({ ios: 'padding', android: undefined })}
+      >
         <LinearGradient
           colors={['#0b0f1a', '#0a0f1e', '#070c16']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={styles.gradient}>
-        <GlobalHeader
-          backgroundColor="transparent"
-          // showLeftIcon
-          // leftIconColor="#E8F0FF"
-          // onLeftIconPress={() => navigation.goBack()}
-          renderRightComponent={() => null}
-        />
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          style={authStyles.gradient}
+        >
+          <GlobalHeader
+            backgroundColor="transparent"
+            renderRightComponent={() => null}
+          />
+          <ScrollView
+            contentContainerStyle={authStyles.content}
+            keyboardShouldPersistTaps="handled"
+          >
           <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-          <View style={styles.headerContainer}>
-            <View style={styles.iconContainer}>
-              <UserPlus color="#3A6FF8" size={32} />
-            </View>
-            <Text variant="headlineMedium" style={styles.title}>
-              Create Account
-            </Text>
-            <Text variant="bodyLarge" style={styles.subtitle}>
-              Join Spendo to track your expenses effortlessly.
-            </Text>
-          </View>
+          <SignupHeader
+            title="Create Account"
+            subtitle="Join Spendo to track your expenses effortlessly."
+          />
 
-          <View style={styles.formContainer}>
+          <View style={authStyles.formContainer}>
             <TextInputField
               label="Full Name"
               value={name}
@@ -104,7 +96,7 @@ const SignupScreen = () => {
             />
 
             {error ? (
-              <Text variant="bodyMedium" style={styles.errorText}>
+              <Text variant="bodyMedium" style={authStyles.errorText}>
                 {error}
               </Text>
             ) : null}
@@ -113,16 +105,16 @@ const SignupScreen = () => {
               title="Sign Up"
               onPress={handleSignup}
               loading={loading}
-              style={styles.signupButton}
+              style={authStyles.signupButton}
             />
           </View>
 
-          <View style={styles.footer}>
-            <Text variant="bodyMedium" style={styles.footerText}>
+          <View style={authStyles.footer}>
+            <Text variant="bodyMedium" style={authStyles.footerText}>
               Already have an account?
             </Text>
             <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-              <Text variant="bodyMedium" style={styles.loginLink}>
+              <Text variant="bodyMedium" style={authStyles.loginLink}>
                 Log In
               </Text>
             </TouchableOpacity>
@@ -135,70 +127,3 @@ const SignupScreen = () => {
 };
 
 export default SignupScreen;
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0F172A',
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  gradient: {
-    flex: 1,
-  },
-  content: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingBottom: 40,
-    justifyContent: 'center',
-  },
-  headerContainer: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(58, 111, 248, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  title: {
-    color: '#F8FAFC',
-    fontFamily: Fonts.bold,
-    marginBottom: 8,
-  },
-  subtitle: {
-    color: '#94A3B8',
-    textAlign: 'center',
-  },
-  formContainer: {
-    width: '100%',
-    gap: 16,
-  },
-  signupButton: {
-    marginTop: 8,
-  },
-  errorText: {
-    color: '#EF4444',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 32,
-    gap: 8,
-  },
-  footerText: {
-    color: '#94A3B8',
-  },
-  loginLink: {
-    color: '#3A6FF8',
-    fontFamily: Fonts.bold,
-  },
-});

@@ -1,7 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import {
   View,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
   Platform,
@@ -15,10 +14,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import GlobalHeader from '../../components/GlobalHeader';
 import { useAuth } from '../../hooks/useAuth';
 import { apiClient, parseApiError } from '../../api/client';
-import { themeAssets } from '../../theme';
-import { Upload, FileSpreadsheet, Check, X, Edit2 } from 'lucide-react-native';
+import { Check } from 'lucide-react-native';
 import PrimaryButton from '../../components/PrimaryButton';
-import Fonts from '../../../assets/fonts';
+import { UploadSection, ExpenseRow, excelUploadStyles } from '../../components/excel-upload';
 import {
   errorCodes,
   isErrorWithCode,
@@ -411,7 +409,7 @@ const ExcelUploadScreen = () => {
 
   if (!token) {
     return (
-      <View style={styles.container}>
+      <View style={excelUploadStyles.container}>
         <GlobalHeader
           title="Upload Excel"
           subtitle="Log in to upload expenses"
@@ -420,11 +418,11 @@ const ExcelUploadScreen = () => {
           leftIconName="arrow-left"
           leftIconColor="#F8FAFC"
         />
-        <View style={styles.centered}>
-          <Text variant="titleMedium" style={styles.centeredTitle}>
+        <View style={excelUploadStyles.centered}>
+          <Text variant="titleMedium" style={excelUploadStyles.centeredTitle}>
             You're not logged in!
           </Text>
-          <Text variant="bodyMedium" style={styles.centeredSubtitle}>
+          <Text variant="bodyMedium" style={excelUploadStyles.centeredSubtitle}>
             Please log in to upload expenses.
           </Text>
         </View>
@@ -433,406 +431,111 @@ const ExcelUploadScreen = () => {
   }
 
   return (
-    <SafeAreaView edges={['top']} style={styles.container}>
+    <SafeAreaView edges={['top']} style={excelUploadStyles.container}>
       <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.select({ ios: 'padding', android: undefined })}>
-      <GlobalHeader
-        title="Upload Excel"
-        subtitle="Upload and review your expenses"
-        showLeftIcon={true}
-        onLeftIconPress={() => navigation.goBack()}
-        leftIconName="arrow-left"
-        leftIconColor="#F8FAFC"
-      />
+        style={excelUploadStyles.keyboardView}
+        behavior={Platform.select({ ios: 'padding', android: undefined })}
+      >
+        <GlobalHeader
+          title="Upload Excel"
+          subtitle="Upload and review your expenses"
+          showLeftIcon={true}
+          onLeftIconPress={() => navigation.goBack()}
+          leftIconName="arrow-left"
+          leftIconColor="#F8FAFC"
+        />
 
-      <View style={styles.contentWrapper}>
-        <ScrollView
-          contentContainerStyle={[
-            styles.scrollContent,
-            extractedData.length > 0 && styles.scrollContentWithButtons,
-          ]}
-          showsVerticalScrollIndicator={false}>
-          {!extractedData.length ? (
-            <View style={styles.uploadSection}>
-              <Card style={styles.uploadCard}>
-                <Card.Content style={styles.uploadCardContent}>
-                  <FileSpreadsheet size={64} color="#3A6FF8" />
-                  <Text variant="titleLarge" style={styles.uploadTitle}>
-                    Upload Excel/CSV File
-                  </Text>
-                  <Text variant="bodyMedium" style={styles.uploadSubtitle}>
-                    Expected columns: Month, Name, Category, Amount (₹)
-                  </Text>
-                  <Text variant="bodySmall" style={styles.uploadNote}>
-                    Example: "June 2025", "Clothes", "Shopping", "2100"
-                  </Text>
-                  <PrimaryButton
-                    title={parsing ? 'Parsing...' : 'Select File'}
-                    onPress={handleFilePick}
-                    loading={parsing}
-                    disabled={parsing}
-                    leftIcon={<Upload size={20} color="#F8FAFC" />}
-                    style={styles.uploadButton}
-                    buttonColor="#3A6FF8"
-                  />
-                </Card.Content>
-              </Card>
-            </View>
-          ) : (
-            <View style={styles.dataSection}>
-              <Text variant="titleLarge" style={styles.pageTitle}>
-                Upload Expense
-              </Text>
-              
-              <View style={styles.dataHeader}>
-                <Text variant="bodyMedium" style={styles.dataTitle}>
-                  Extracted Data ({extractedData.length} rows)
+        <View style={excelUploadStyles.contentWrapper}>
+          <ScrollView
+            contentContainerStyle={[
+              excelUploadStyles.scrollContent,
+              extractedData.length > 0 && excelUploadStyles.scrollContentWithButtons,
+            ]}
+            showsVerticalScrollIndicator={false}
+          >
+            {!extractedData.length ? (
+              <UploadSection onFilePick={handleFilePick} parsing={parsing} />
+            ) : (
+              <View style={excelUploadStyles.dataSection}>
+                <Text variant="titleLarge" style={excelUploadStyles.pageTitle}>
+                  Upload Expense
                 </Text>
-                <TouchableOpacity
-                  onPress={handleFilePick}
-                  style={styles.changeFileButton}>
-                  <Text style={styles.changeFileText}>Change File</Text>
-                </TouchableOpacity>
-              </View>
 
-              {error && (
-                <Card style={styles.errorCard}>
-                  <Card.Content>
-                    <Text variant="bodyMedium" style={styles.errorText}>
-                      {error}
-                    </Text>
-                  </Card.Content>
-                </Card>
-              )}
+                <View style={excelUploadStyles.dataHeader}>
+                  <Text variant="bodyMedium" style={excelUploadStyles.dataTitle}>
+                    Extracted Data ({extractedData.length} rows)
+                  </Text>
+                  <TouchableOpacity
+                    onPress={handleFilePick}
+                    style={excelUploadStyles.changeFileButton}
+                  >
+                    <Text style={excelUploadStyles.changeFileText}>Change File</Text>
+                  </TouchableOpacity>
+                </View>
 
-              <View style={{ minHeight: extractedData.length * 120 }}>
-                <FlashList
-                  data={extractedData}
-                  keyExtractor={(item) => item.id.toString()}
-                  estimatedItemSize={120}
-                  scrollEnabled={false}
-                  renderItem={({ item, index }) => (
-                  <Card style={styles.dataRow}>
+                {error && (
+                  <Card style={excelUploadStyles.errorCard}>
                     <Card.Content>
-                      {editingIndex === index ? (
-                        <View style={styles.editForm}>
-                          <TextInputField
-                            label="Month (e.g., June 2025 or 2025-06)"
-                            value={formatMonthForDisplay(editedData?.month || '')}
-                            onChangeText={(value) => {
-                              // Parse the input back to YYYY-MM format for storage
-                              const parsed = parseMonth(value) || value;
-                              setEditedData({ ...editedData, month: parsed });
-                            }}
-                            placeholder="June 2025"
-                          />
-                          <TextInputField
-                            label="Item Name"
-                            value={editedData?.itemName || ''}
-                            onChangeText={(value) =>
-                              setEditedData({ ...editedData, itemName: value })
-                            }
-                            placeholder="Item name"
-                          />
-                          <TextInputField
-                            label="Category"
-                            value={editedData?.category || ''}
-                            onChangeText={(value) =>
-                              setEditedData({ ...editedData, category: value })
-                            }
-                            placeholder="Category (optional)"
-                          />
-                          <TextInputField
-                            label="Amount"
-                            value={editedData?.amount?.toString() || ''}
-                            keyboardType="numeric"
-                            onChangeText={(value) =>
-                              setEditedData({ ...editedData, amount: value })
-                            }
-                            placeholder="0"
-                          />
-                          <TextInputField
-                            label="Notes"
-                            value={editedData?.notes || ''}
-                            onChangeText={(value) =>
-                              setEditedData({ ...editedData, notes: value })
-                            }
-                            placeholder="Notes (optional)"
-                            multiline
-                            numberOfLines={2}
-                          />
-                          <View style={styles.editActions}>
-                            <Button
-                              mode="outlined"
-                              onPress={handleCancelEdit}
-                              textColor="#94A3B8"
-                              style={styles.editButton}>
-                              Cancel
-                            </Button>
-                            <PrimaryButton
-                              title="Save"
-                              onPress={handleSaveEdit}
-                              style={styles.editButton}
-                              buttonColor="#22C55E"
-                            />
-                          </View>
-                        </View>
-                      ) : (
-                        <View style={styles.rowContent}>
-                          <View style={styles.rowInfo}>
-                            <Text variant="titleSmall" style={styles.rowItemName}>
-                              {item.itemName || 'N/A'}
-                            </Text>
-                            <Text variant="bodySmall" style={styles.rowDetails}>
-                              {item.category && `${item.category} • `}
-                              {formatMonthForDisplay(item.month)}
-                            </Text>
-                            {item.notes && (
-                              <Text variant="bodySmall" style={styles.rowNotes}>
-                                {item.notes}
-                              </Text>
-                            )}
-                            <Text variant="titleMedium" style={styles.rowAmount}>
-                              ₹{typeof item.amount === 'number' ? item.amount.toLocaleString('en-IN') : String(item.amount || 0)}
-                            </Text>
-                          </View>
-                          <View style={styles.rowActions}>
-                            <TouchableOpacity
-                              onPress={() => handleEditRow(index)}
-                              style={styles.actionButton}>
-                              <Edit2 size={18} color="#3A6FF8" />
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              onPress={() => handleDeleteRow(index)}
-                              style={styles.actionButton}>
-                              <X size={18} color="#EF4444" />
-                            </TouchableOpacity>
-                          </View>
-                        </View>
-                      )}
+                      <Text variant="bodyMedium" style={excelUploadStyles.errorText}>
+                        {error}
+                      </Text>
                     </Card.Content>
                   </Card>
                 )}
-                />
+
+                <View style={{ minHeight: extractedData.length * 120 }}>
+                  <FlashList
+                    data={extractedData}
+                    keyExtractor={(item) => item.id.toString()}
+                    estimatedItemSize={120}
+                    scrollEnabled={false}
+                    renderItem={({ item, index }) => (
+                      <ExpenseRow
+                        item={item}
+                        index={index}
+                        editingIndex={editingIndex}
+                        editedData={editedData}
+                        formatMonthForDisplay={formatMonthForDisplay}
+                        parseMonth={parseMonth}
+                        onEdit={handleEditRow}
+                        onSave={handleSaveEdit}
+                        onCancel={handleCancelEdit}
+                        onDelete={handleDeleteRow}
+                        onEditDataChange={setEditedData}
+                      />
+                    )}
+                  />
+                </View>
               </View>
+            )}
+          </ScrollView>
+
+          {extractedData.length > 0 && (
+            <View style={excelUploadStyles.fixedBottomActions}>
+              <Button
+                mode="outlined"
+                onPress={() => navigation.goBack()}
+                textColor="#94A3B8"
+                style={excelUploadStyles.cancelButton}
+              >
+                Cancel
+              </Button>
+              <PrimaryButton
+                title={uploading ? 'Uploading...' : 'Upload Expenses'}
+                onPress={handleBulkUpload}
+                loading={uploading}
+                disabled={uploading || extractedData.length === 0}
+                leftIcon={<Check size={20} color="#F8FAFC" />}
+                style={excelUploadStyles.uploadButton}
+                buttonColor="#22C55E"
+              />
             </View>
           )}
-        </ScrollView>
-
-        {extractedData.length > 0 && (
-          <View style={styles.fixedBottomActions}>
-            <Button
-              mode="outlined"
-              onPress={() => navigation.goBack()}
-              textColor="#94A3B8"
-              style={styles.cancelButton}>
-              Cancel
-            </Button>
-            <PrimaryButton
-              title={uploading ? 'Uploading...' : 'Upload Expenses'}
-              onPress={handleBulkUpload}
-              loading={uploading}
-              disabled={uploading || extractedData.length === 0}
-              leftIcon={<Check size={20} color="#F8FAFC" />}
-              style={styles.uploadButton}
-              buttonColor="#22C55E"
-            />
-          </View>
-        )}
-      </View>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0F172A',
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  contentWrapper: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: themeAssets.spacing[5],
-    paddingBottom: themeAssets.spacing[2],
-    paddingTop: themeAssets.spacing[3],
-  },
-  scrollContentWithButtons: {
-    paddingBottom: 100, // Space for fixed buttons
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  centeredTitle: {
-    color: '#F8FAFC',
-    marginBottom: 8,
-  },
-  centeredSubtitle: {
-    color: '#94A3B8',
-    textAlign: 'center',
-  },
-  uploadSection: {
-    marginTop: themeAssets.spacing[4],
-  },
-  uploadCard: {
-    backgroundColor: '#1E293B',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  uploadCardContent: {
-    alignItems: 'center',
-    paddingVertical: themeAssets.spacing[6],
-    gap: themeAssets.spacing[3],
-  },
-  uploadTitle: {
-    color: '#F8FAFC',
-    fontFamily: Fonts.bold,
-    marginTop: themeAssets.spacing[2],
-  },
-  uploadSubtitle: {
-    color: '#94A3B8',
-    textAlign: 'center',
-  },
-  uploadNote: {
-    color: '#64748B',
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-  uploadButton: {
-    marginTop: themeAssets.spacing[2],
-    minWidth: 200,
-  },
-  dataSection: {
-    marginTop: themeAssets.spacing[2],
-    gap: themeAssets.spacing[3],
-  },
-  pageTitle: {
-    color: '#F8FAFC',
-    fontFamily: Fonts.bold,
-    fontSize: 24,
-    marginBottom: themeAssets.spacing[3],
-  },
-  dataHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: themeAssets.spacing[2],
-  },
-  dataTitle: {
-    color: '#94A3B8',
-    fontFamily: Fonts.medium,
-  },
-  changeFileButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  changeFileText: {
-    color: '#3A6FF8',
-    fontSize: 14,
-    fontFamily: Fonts.semibold,
-  },
-  errorCard: {
-    backgroundColor: '#1E293B',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#EF4444',
-  },
-  errorText: {
-    color: '#EF4444',
-  },
-  dataRow: {
-    backgroundColor: '#1E293B',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#334155',
-    marginBottom: themeAssets.spacing[2],
-  },
-  rowContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  rowInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  rowItemName: {
-    color: '#F8FAFC',
-    fontFamily: Fonts.semibold,
-  },
-  rowDetails: {
-    color: '#94A3B8',
-  },
-  rowNotes: {
-    color: '#64748B',
-    fontStyle: 'italic',
-  },
-  rowAmount: {
-    color: '#22C55E',
-    fontFamily: Fonts.bold,
-    marginTop: 4,
-  },
-  rowActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#0F172A',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  editForm: {
-    gap: themeAssets.spacing[3],
-  },
-  editActions: {
-    flexDirection: 'row',
-    gap: themeAssets.spacing[2],
-    marginTop: themeAssets.spacing[2],
-  },
-  editButton: {
-    flex: 1,
-  },
-  fixedBottomActions: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: themeAssets.spacing[3],
-    paddingHorizontal: themeAssets.spacing[5],
-    paddingTop: themeAssets.spacing[3],
-    paddingBottom: themeAssets.spacing[4],
-    backgroundColor: '#0F172A',
-    borderTopWidth: 1,
-    borderTopColor: '#334155',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-  },
-  cancelButton: {
-    flex: 1,
-    minWidth: 120,
-  },
-  uploadButton: {
-    flex: 1,
-    minWidth: 120,
-  },
-});
 
 export default ExcelUploadScreen;
 

@@ -37,7 +37,7 @@ const SplashScreen = () => {
             end={{ x: 1, y: 1 }}
             style={styles.gradient}>
             <View style={styles.loadingContainer}>
-              <Text style={styles.brand}>Spendo</Text>
+              <Text style={styles.brand}>Fynace</Text>
               <ActivityIndicator size="large" color="#E8F0FF" style={styles.loader} />
             </View>
           </LinearGradient>
@@ -61,7 +61,7 @@ const SplashScreen = () => {
             end={{ x: 1, y: 1 }}
             style={styles.gradient}>
             <View style={styles.loadingContainer}>
-              <Text style={styles.brand}>Spendo</Text>
+              <Text style={styles.brand}>Fynace</Text>
               <ActivityIndicator size="large" color="#E8F0FF" style={styles.loader} />
             </View>
           </LinearGradient>
@@ -82,7 +82,7 @@ const SplashScreen = () => {
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.gradient}>
-          <Text style={styles.brand}>Spendo</Text>
+          <Text style={styles.brand}>Fynace</Text>
           <Image
             source={{
               uri: 'https://images.unsplash.com/photo-1563986768494-4dee2763ff3f?q=80&w=1600&auto=format&fit=crop',
