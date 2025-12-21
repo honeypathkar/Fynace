@@ -1,105 +1,73 @@
-import React, { useEffect } from 'react';
-import { ActivityIndicator, Image, StyleSheet, Text, View, StatusBar } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
+import {
+  StyleSheet,
+  View,
+  Dimensions,
+  Image,
+  Animated,
+  StatusBar,
+  Platform,
+} from 'react-native';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import { useTheme } from 'react-native-paper';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import PrimaryButton from '../../components/PrimaryButton';
-import { themeAssets } from '../../theme';
-import { useAuth } from '../../hooks/useAuth';
-import Fonts from '../../../assets/fonts';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Welcome screen (replaces prior splash auto-redirect)
+const { width, height } = Dimensions.get('window');
+const CIRCLE_SIZE = Math.sqrt(width ** 2 + height ** 2);
+const STORAGE_KEY = '@spendo/auth-token';
+const PRIMARY_COLOR = '#132653';
+
 const SplashScreen = () => {
+  const scale = useRef(new Animated.Value(0)).current;
+  const logoOpacity = useRef(new Animated.Value(0)).current;
   const navigation = useNavigation();
-  const { token, initializing } = useAuth();
-  const paperTheme = useTheme();
+
+  const getAuthToken = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem(STORAGE_KEY);
+      return token;
+    } catch (error) {
+      console.warn('Failed to get auth token', error);
+      return null;
+    }
+  }, []);
 
   useEffect(() => {
-    if (!initializing && token) {
-      // Token exists, navigate to AppTabs
-      navigation.reset({ index: 0, routes: [{ name: 'AppTabs' }] });
-    }
-  }, [token, initializing, navigation]);
+    Animated.timing(scale, {
+      toValue: 1,
+      duration: 1000,
+      delay: 250,
+      useNativeDriver: true,
+    }).start();
 
-  // Show loading while checking for token
-  if (initializing) {
-    return (
-      <>
-        <StatusBar
-          barStyle="light-content"
-          backgroundColor={"#0b0f1a"}
-        />
-        <SafeAreaView edges={['top']} style={styles.container}>
-          <LinearGradient
-            colors={['#0b0f1a', '#0a0f1e', '#070c16']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.gradient}>
-            <View style={styles.loadingContainer}>
-              <Text style={styles.brand}>Fynace</Text>
-              <ActivityIndicator size="large" color="#E8F0FF" style={styles.loader} />
-            </View>
-          </LinearGradient>
-        </SafeAreaView>
-      </>
-    );
-  }
-
-  // If token exists, don't show welcome screen (navigation will happen in useEffect)
-  if (token) {
-    return (
-      <>
-        <StatusBar
-          barStyle="light-content"
-          backgroundColor={"#0b0f1a"}
-        />
-        <SafeAreaView edges={['top']} style={styles.container}>
-          <LinearGradient
-            colors={['#0b0f1a', '#0a0f1e', '#070c16']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.gradient}>
-            <View style={styles.loadingContainer}>
-              <Text style={styles.brand}>Fynace</Text>
-              <ActivityIndicator size="large" color="#E8F0FF" style={styles.loader} />
-            </View>
-          </LinearGradient>
-        </SafeAreaView>
-      </>
-    );
-  }
+    Animated.timing(logoOpacity, {
+      toValue: 1,
+      duration: 500,
+      delay: 1500,
+      useNativeDriver: true,
+    }).start(async ({ finished }) => {
+      if (finished) {
+        const token = await getAuthToken();
+        if (token) {
+          navigation.replace('AppTabs');
+        } else {
+          navigation.replace('Login');
+        }
+      }
+    });
+  }, [logoOpacity, navigation, scale, getAuthToken]);
 
   return (
-    <>
-      <StatusBar
-        barStyle="light-content"
-        backgroundColor={"#0b0f1a"}
-      />
-      <SafeAreaView edges={['top']} style={styles.container}>
-        <LinearGradient
-          colors={['#0b0f1a', '#0a0f1e', '#070c16']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.gradient}>
-          <Text style={styles.brand}>Fynace</Text>
-          <Image
-            source={{
-              uri: 'https://images.unsplash.com/photo-1563986768494-4dee2763ff3f?q=80&w=1600&auto=format&fit=crop',
-            }}
-            style={styles.hero}
-          />
-          <View style={styles.copy}>
-            <Text style={styles.headline}>Smarter Spending{'\n'}Starts Here.</Text>
-          </View>
-          <View style={styles.cta}>
-            <PrimaryButton title="Sign Up" onPress={() => navigation.navigate('Signup')} style={styles.primary} />
-            <View style={styles.spacer} />
-            <PrimaryButton title="Login" onPress={() => navigation.navigate('Login')} style={styles.primary} />
-          </View>
-        </LinearGradient>
-      </SafeAreaView>
-    </>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={PRIMARY_COLOR} translucent={false} />
+      <Animated.View style={[styles.dot, { transform: [{ scale }] }]} />
+      <Animated.View style={[styles.logoContainer, { opacity: logoOpacity }]}>
+        <Image
+          source={require('../../../assets/images/logo.png')}
+          style={styles.logo}
+          onError={e => console.log('Error loading logo:', e.nativeEvent.error)}
+        />
+      </Animated.View>
+    </View>
   );
 };
 
@@ -108,54 +76,24 @@ export default SplashScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
-  },
-  gradient: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 40,
-    paddingBottom: 24,
-  },
-  brand: {
-    fontSize: 34,
-    fontFamily: Fonts.bold,
-    color: '#E8F0FF',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  hero: {
-    width: '100%',
-    height: 360,
-    borderRadius: 8,
-    resizeMode: 'cover',
-    marginBottom: 28,
-  },
-  copy: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  headline: {
-    fontSize: 32,
-    lineHeight: 40,
-    textAlign: 'center',
-    color: '#E8F0FF',
-    fontFamily: Fonts.bold,
-  },
-  cta: {
-    marginTop: 'auto',
-  },
-  primary: {
-    borderRadius: 18,
-  },
-  spacer: {
-    height: 16,
-  },
-  loadingContainer: {
-    flex: 1,
+    backgroundColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  loader: {
-    marginTop: 24,
+  dot: {
+    width: CIRCLE_SIZE,
+    height: CIRCLE_SIZE,
+    borderRadius: CIRCLE_SIZE / 2,
+    backgroundColor: PRIMARY_COLOR,
+    position: 'absolute',
+  },
+  logoContainer: {
+    position: 'absolute',
+  },
+  logo: {
+    width: 200,
+    height: 200,
+    resizeMode: 'contain',
+    borderRadius: 100,
   },
 });
