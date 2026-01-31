@@ -1,8 +1,7 @@
 import React, {
   forwardRef,
   useImperativeHandle,
-  useMemo,
-  useRef,
+  useCallback,
   useState,
   useEffect,
 } from 'react';
@@ -12,181 +11,294 @@ import {
   Modal,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  Image,
-  Animated,
-  PanResponder,
+  Dimensions,
+  KeyboardAvoidingView,
   Platform,
-  StatusBar,
+  ScrollView,
+  Keyboard,
 } from 'react-native';
-import { X } from 'lucide-react-native';
-import { themeAssets } from '../../theme';
-import styles from './styles';
+import { Check, X } from 'lucide-react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  runOnJS,
+} from 'react-native-reanimated';
+import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
+} from 'react-native-gesture-handler';
 
-const renderMedia = media => {
-  if (!media) {
-    return null;
-  }
-  if (React.isValidElement(media)) {
-    return media;
-  }
-  if (typeof media === 'number' || media?.uri) {
-    return (
-      <Image
-        source={media}
-        style={{
-          width: 120,
-          height: 120,
-          borderRadius: 18,
-        }}
-        resizeMode="cover"
-      />
-    );
-  }
-  return null;
-};
+import styles, { themeColors, spacing } from './styles';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const BottomSheet = forwardRef(
-  ({ title, children, image, footer, containerStyle, onClose }, ref) => {
+  (
+    {
+      title,
+      options = [],
+      selectedValue,
+      onSelect,
+      children,
+      footer,
+      containerStyle,
+      contentStyle,
+      initialHeight = 0.4, // Default to 40% of screen height
+      isMultiSelect = false,
+      onClose,
+    },
+    ref,
+  ) => {
     const [isVisible, setIsVisible] = useState(false);
-    const translateY = useRef(new Animated.Value(400)).current;
-    const dragY = useRef(new Animated.Value(0)).current;
-    const [statusBarStyle, setStatusBarStyle] = useState(null);
+    const [isExpanded, setIsExpanded] = useState(false);
 
-    const animateTo = value =>
-      Animated.spring(translateY, {
-        toValue: value,
-        useNativeDriver: true,
-        friction: 7,
-        tension: 90,
-      }).start();
-
-    const resetDrag = () =>
-      Animated.spring(dragY, {
-        toValue: 0,
-        useNativeDriver: true,
-        friction: 9,
-        tension: 80,
-      }).start();
-
-    useEffect(() => {
-      if (isVisible && Platform.OS === 'android') {
-        // Store current StatusBar style
-        StatusBar.getBackgroundColor?.((color) => {
-          // For Android 14+, we need to ensure StatusBar is visible
-        });
-      }
-    }, [isVisible]);
-
-    useImperativeHandle(ref, () => ({
-      open: () => {
-        dragY.setValue(0);
-        setIsVisible(true);
-        if (Platform.OS === 'android') {
-          // Set StatusBar to light content for better visibility on dark modal
-          StatusBar.setBarStyle('light-content', true);
-        }
-        requestAnimationFrame(() => animateTo(0));
-      },
-      close: () => {
-        dragY.setValue(0);
-        animateTo(400);
-        setTimeout(() => {
-          setIsVisible(false);
-          if (Platform.OS === 'android') {
-            // Reset StatusBar to previous style
-            StatusBar.setBarStyle('light-content', true);
-          }
-          if (onClose) {
-            onClose();
-          }
-        }, 250);
-      },
-    }));
-
-    const handleClose = () => {
-      animateTo(400);
-      setTimeout(() => {
-        dragY.setValue(0);
-        setIsVisible(false);
-        if (onClose) {
-          onClose();
-        }
-      }, 250);
+    // Dynamic snap points based on initialHeight prop
+    const SNAP_POINTS = {
+      CLOSED: SCREEN_HEIGHT,
+      MID: SCREEN_HEIGHT * (1 - initialHeight),
+      FULL: SCREEN_HEIGHT * 0.1, // Max 90% height (10% from top)
     };
 
-    const panResponder = useRef(
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dy) > 5,
-        onPanResponderMove: (_, gesture) => {
-          if (gesture.dy > 0) {
-            dragY.setValue(gesture.dy);
+    const translateY = useSharedValue(SNAP_POINTS.CLOSED);
+
+    const close = useCallback(() => {
+      translateY.value = withTiming(
+        SNAP_POINTS.CLOSED,
+        { duration: 250 },
+        finished => {
+          if (finished) {
+            runOnJS(setIsVisible)(false);
+            runOnJS(setIsExpanded)(false);
+            if (onClose) {
+              runOnJS(onClose)();
+            }
           }
         },
-        onPanResponderRelease: (_, gesture) => {
-          if (gesture.dy > 100) {
-            handleClose();
-          } else {
-            resetDrag();
-          }
-        },
-      }),
-    ).current;
+      );
+    }, [translateY, SNAP_POINTS.CLOSED, onClose]);
+
+    const open = useCallback(() => {
+      setIsVisible(true);
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          translateY.value = withSpring(SNAP_POINTS.MID, {
+            damping: 18,
+            stiffness: 120,
+            mass: 0.8,
+          });
+        }, 100);
+      });
+    }, [translateY, SNAP_POINTS.MID]);
+
+    useImperativeHandle(ref, () => ({
+      open,
+      close,
+    }));
+
+    useEffect(() => {
+      const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
+        translateY.value = withSpring(SNAP_POINTS.FULL, {
+          damping: 20,
+          stiffness: 100,
+        });
+      });
+      const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+        if (!isExpanded) {
+          translateY.value = withSpring(SNAP_POINTS.MID, {
+            damping: 18,
+            stiffness: 110,
+          });
+        }
+      });
+
+      return () => {
+        showSubscription.remove();
+        hideSubscription.remove();
+      };
+    }, [SNAP_POINTS.FULL, SNAP_POINTS.MID, isExpanded, translateY]);
+
+    const startY = useSharedValue(0);
+
+    const pan = Gesture.Pan()
+      .onStart(() => {
+        startY.value = translateY.value;
+      })
+      .onUpdate(event => {
+        const newValue = startY.value + event.translationY;
+        if (newValue >= SNAP_POINTS.FULL && newValue <= SNAP_POINTS.CLOSED) {
+          translateY.value = newValue;
+        }
+      })
+      .onEnd(event => {
+        const currentPos = translateY.value;
+        const velocityY = event.velocityY;
+
+        // Snapping logic
+        if (velocityY > 500 || currentPos > SNAP_POINTS.MID + 150) {
+          runOnJS(close)();
+        } else if (velocityY < -500 || currentPos < SNAP_POINTS.MID - 50) {
+          translateY.value = withSpring(SNAP_POINTS.FULL, {
+            damping: 20,
+            stiffness: 100,
+          });
+          runOnJS(setIsExpanded)(true);
+        } else {
+          translateY.value = withSpring(SNAP_POINTS.MID, {
+            damping: 18,
+            stiffness: 110,
+          });
+          runOnJS(setIsExpanded)(false);
+        }
+      });
+
+    const animatedStyle = useAnimatedStyle(() => ({
+      transform: [{ translateY: translateY.value }],
+      height: SCREEN_HEIGHT,
+    }));
+
+    const contentAnimatedStyle = useAnimatedStyle(() => {
+      // The visible height of the sheet is SCREEN_HEIGHT minus the current translateY
+      const visibleHeight = SCREEN_HEIGHT - translateY.value;
+      return {
+        height: visibleHeight,
+      };
+    });
+
+    const handleSelect = value => {
+      if (onSelect) {
+        onSelect(value);
+      }
+      if (!isMultiSelect) {
+        close();
+      }
+    };
+
+    const isOptionActive = value => {
+      if (isMultiSelect && Array.isArray(selectedValue)) {
+        return selectedValue.includes(value);
+      }
+      return selectedValue === value;
+    };
 
     return (
       <Modal
         transparent
         animationType="none"
         visible={isVisible}
-        onRequestClose={handleClose}
-        statusBarTranslucent={Platform.OS === 'android'}
+        onRequestClose={close}
+        statusBarTranslucent
       >
-        {Platform.OS === 'android' && isVisible && (
-          <StatusBar
-            barStyle="light-content"
-            backgroundColor="transparent"
-            translucent
-          />
-        )}
-        <View style={styles.modalOverlay}>
-          <TouchableWithoutFeedback onPress={handleClose}>
-            <View style={styles.modalBackdrop} />
-          </TouchableWithoutFeedback>
-          <Animated.View
-            style={[
-              styles.modalContainer,
-              containerStyle,
-              {
-                transform: [{ translateY: Animated.add(translateY, dragY) }],
-              },
-            ]}
-            {...panResponder.panHandlers}
-          >
-            <TouchableOpacity
-              style={styles.sheetHandleWrapper}
-              activeOpacity={0.8}
-              onPress={handleClose}
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback onPress={close}>
+              <View style={styles.modalBackdrop} />
+            </TouchableWithoutFeedback>
+
+            <Animated.View
+              style={[
+                styles.modalContainer,
+                {
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                },
+                containerStyle,
+                animatedStyle,
+              ]}
             >
-              <View style={styles.sheetHandle} />
-            </TouchableOpacity>
-            <View style={styles.modalHeader}>
-              {title ? <Text style={styles.modalTitle}>{title}</Text> : null}
-              <TouchableOpacity
-                onPress={handleClose}
-                style={styles.modalCloseButton}
-                activeOpacity={0.85}
+              <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ flex: 1 }}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
               >
-                <X size={20} color="#F8FAFC" />
-              </TouchableOpacity>
-            </View>
-            {image ? (
-              <View style={styles.modalImageContainer}>
-                {renderMedia(image)}
-              </View>
-            ) : null}
-            <View style={styles.modalContent}>{children}</View>
-            {footer ? <View style={styles.sheetFooter}>{footer}</View> : null}
-          </Animated.View>
-        </View>
+                <Animated.View
+                  style={[
+                    {
+                      flex: 1,
+                      paddingBottom:
+                        Platform.OS === 'ios' ? spacing.xxl : spacing.m,
+                    },
+                    contentAnimatedStyle,
+                  ]}
+                >
+                  <GestureDetector gesture={pan}>
+                    <View style={{ backgroundColor: 'transparent' }}>
+                      <View style={styles.sheetHandleWrapper}>
+                        <View style={styles.sheetHandle} />
+                      </View>
+
+                      <View style={styles.modalHeader}>
+                        {title ? (
+                          <Text style={styles.modalTitle}>{title}</Text>
+                        ) : null}
+                        <TouchableOpacity
+                          onPress={close}
+                          style={styles.modalCloseButton}
+                          activeOpacity={0.85}
+                        >
+                          <X size={20} color={themeColors.primaryText2} />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </GestureDetector>
+
+                  <View style={[styles.modalContent, contentStyle]}>
+                    {options.length > 0 ? (
+                      <ScrollView
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={{ paddingBottom: spacing.xl }}
+                        keyboardShouldPersistTaps="handled"
+                      >
+                        <View style={styles.optionsList}>
+                          {options.map(option => {
+                            const isActive = isOptionActive(option.value);
+                            return (
+                              <TouchableOpacity
+                                key={option.value}
+                                style={[
+                                  styles.sheetOption,
+                                  isActive && styles.sheetOptionActive,
+                                ]}
+                                activeOpacity={0.85}
+                                onPress={() => handleSelect(option.value)}
+                              >
+                                <Text
+                                  style={[
+                                    styles.sheetOptionLabel,
+                                    !isActive && styles.sheetOptionLabelMuted,
+                                  ]}
+                                >
+                                  {option.label}
+                                </Text>
+                                {isActive ? (
+                                  <Check
+                                    size={20}
+                                    color={themeColors.accentPrimary}
+                                    style={styles.sheetOptionIcon}
+                                  />
+                                ) : null}
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </ScrollView>
+                    ) : (
+                      children
+                    )}
+                  </View>
+
+                  {footer ? (
+                    <View style={styles.sheetFooter}>{footer}</View>
+                  ) : null}
+                </Animated.View>
+              </KeyboardAvoidingView>
+            </Animated.View>
+          </View>
+        </GestureHandlerRootView>
       </Modal>
     );
   },

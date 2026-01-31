@@ -6,6 +6,7 @@ import React, {
   useState,
 } from 'react';
 import {
+  Alert,
   Animated,
   FlatList,
   LayoutAnimation,
@@ -16,13 +17,10 @@ import {
   ScrollView,
   UIManager,
   Easing,
-  StyleSheet
+  StyleSheet,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Button, Card, Chip, Text, useTheme } from 'react-native-paper';
-import TextInputField from '../../components/TextInputField';
-import BottomSheet from '../../components/BottomSheet';
-import PrimaryButton from '../../components/PrimaryButton';
 import {
   errorCodes,
   isErrorWithCode,
@@ -37,13 +35,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { apiClient, parseApiError } from '../../api/client';
 import { themeAssets } from '../../theme';
 import { useBottomBar } from '../../context/BottomBarContext';
-import {
-  Plus,
-  Search,
-  Filter,
-  ChevronDown,
-  Pencil,
-} from 'lucide-react-native';
+import { Plus, Search, Filter, ChevronDown, Pencil } from 'lucide-react-native';
 import { TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Fonts from '../../../assets/fonts';
@@ -55,19 +47,9 @@ import {
   ExpenseSearch,
   ExpenseComparison,
   FABMenu,
-  MonthPicker,
   FilterSheet,
-  CategoryPicker,
 } from '../../components/expenses';
 import expenseStyles from '../../components/expenses/styles';
-
-const defaultFormState = {
-  month: '',
-  itemName: '',
-  category: '',
-  amount: '',
-  notes: '',
-};
 
 if (
   Platform.OS === 'android' &&
@@ -76,12 +58,15 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-
 const ExpensesScreen = () => {
   const { token } = useAuth();
   const theme = useTheme();
   const navigation = useNavigation();
-  const { isVisible: isBottomBarVisible, hideBottomBar, showBottomBar } = useBottomBar();
+  const {
+    isVisible: isBottomBarVisible,
+    hideBottomBar,
+    showBottomBar,
+  } = useBottomBar();
 
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -92,31 +77,21 @@ const ExpensesScreen = () => {
   const [summary, setSummary] = useState();
   const [allTimeSummary, setAllTimeSummary] = useState();
   const [comparison, setComparison] = useState();
+  const [categoryBreakdown, setCategoryBreakdown] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [formVisible, setFormVisible] = useState(false);
-  const [formValues, setFormValues] = useState(defaultFormState);
-  const [editingExpenseId, setEditingExpenseId] = useState(null);
-  const [savingExpense, setSavingExpense] = useState(false);
-  const [initialLoad, setInitialLoad] = useState(true);
-  const [fabOpen, setFabOpen] = useState(false);
-  const [monthPickerVisible, setMonthPickerVisible] = useState(false);
-  const [categoryPickerVisible, setCategoryPickerVisible] = useState(false);
-  const [filterSheetVisible, setFilterSheetVisible] = useState(false);
   const [categories, setCategories] = useState({
     default: [],
     custom: [],
     all: [],
   });
-  const [loadingCategories, setLoadingCategories] = useState(false);
-  const [creatingCategory, setCreatingCategory] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState('');
-  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [initialLoad, setInitialLoad] = useState(true);
+  const [fabOpen, setFabOpen] = useState(false);
+  const [filterSheetVisible, setFilterSheetVisible] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const bottomSheetRef = useRef(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const fabMenuSheetRef = useRef(null);
   const filterSheetRef = useRef(null);
   const pageRef = useRef(1);
@@ -126,96 +101,44 @@ const ExpensesScreen = () => {
   const transformMonthLabel = useCallback(month => {
     const [year, monthIndex] = month.split('-');
     const date = new Date(Number(year), Number(monthIndex) - 1);
-    return date.toLocaleDateString('default', {
+    return date.toLocaleDateString('en-IN', {
       month: 'long',
       year: 'numeric',
     });
   }, []);
 
-  // Parse month string (like "June 2025") to YYYY-MM format
-  const parseMonthToYYYYMM = useCallback(monthString => {
-    if (!monthString) return null;
-
-    // Check if already in YYYY-MM format
-    const yyyyMMRegex = /^\d{4}-\d{2}$/;
-    if (yyyyMMRegex.test(monthString.trim())) {
-      return monthString.trim();
-    }
-
-    // Try to parse month names like "June 2025", "June2025", "Jun 2025"
-    const monthNames = [
-      'january',
-      'february',
-      'march',
-      'april',
-      'may',
-      'june',
-      'july',
-      'august',
-      'september',
-      'october',
-      'november',
-      'december',
-      'jan',
-      'feb',
-      'mar',
-      'apr',
-      'may',
-      'jun',
-      'jul',
-      'aug',
-      'sep',
-      'oct',
-      'nov',
-      'dec',
-    ];
-
-    const cleanString = monthString.toString().toLowerCase().trim();
-    const yearMatch = cleanString.match(/(\d{4})/);
-    const year = yearMatch ? yearMatch[1] : new Date().getFullYear().toString();
-
-    for (let i = 0; i < monthNames.length; i++) {
-      if (cleanString.includes(monthNames[i])) {
-        const monthIndex = i >= 12 ? i - 12 : i;
-        const month = String(monthIndex + 1).padStart(2, '0');
-        return `${year}-${month}`;
-      }
-    }
-
-    return null;
+  const formatItemDate = useCallback(dateString => {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
   }, []);
 
-  const generateMonthOptions = useCallback(() => {
-    const options = [];
-    const currentDate = new Date();
-    const currentYear = currentDate.getFullYear();
-    const currentMonth = currentDate.getMonth();
-
-    // Generate last 12 months and next 12 months
-    for (let i = -12; i <= 12; i++) {
-      const date = new Date(currentYear, currentMonth + i, 1);
-      const year = date.getFullYear();
-      const month = date.getMonth() + 1;
-      const monthKey = `${year}-${String(month).padStart(2, '0')}`;
-      const monthLabel = date.toLocaleDateString('default', {
-        month: 'long',
-        year: 'numeric',
-      });
-      options.push({ key: monthKey, label: monthLabel });
-    }
-    return options;
+  const formatItemTime = useCallback(dateString => {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
   }, []);
 
-  const monthOptions = useMemo(
-    () => generateMonthOptions(),
-    [generateMonthOptions],
-  );
+  const getCurrentMonth = useCallback(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+  }, []);
 
   const fetchExpenses = useCallback(
     async (month = 'All', pageNum = 1, append = false) => {
       try {
         if (pageNum === 1) {
-        setLoading(true);
+          setLoading(true);
           loadingMoreRef.current = false;
         } else {
           setLoadingMore(true);
@@ -233,11 +156,21 @@ const ExpensesScreen = () => {
                 params: { page: pageNum, limit: 20 },
               });
 
-        const [expensesResponse, allTimeSummaryResponse] = await Promise.all([
+        // Fetch summary based on selected month - only on FIRST page load
+        const summaryPromise =
+          pageNum === 1
+            ? month === 'All'
+              ? apiClient
+                  .get('/expenses/summary/all-time')
+                  .catch(() => ({ data: { summary: null } }))
+              : apiClient
+                  .get(`/expenses/summary/${month}`)
+                  .catch(() => ({ data: { summary: null } }))
+            : Promise.resolve(null);
+
+        const [expensesResponse, summaryResponse] = await Promise.all([
           expensesPromise,
-          apiClient
-            .get('/expenses/summary/all-time')
-            .catch(() => ({ data: { summary: null } })),
+          summaryPromise,
         ]);
 
         // Only use LayoutAnimation for initial load, not for pagination
@@ -250,7 +183,21 @@ const ExpensesScreen = () => {
         } else {
           setExpenses(newExpenses);
         }
-        setAllTimeSummary(allTimeSummaryResponse?.data?.summary || null);
+        // Set summary based on selected month - only if we fetched it
+        if (summaryResponse) {
+          const responseData = summaryResponse?.data || {};
+          const summaryData = responseData.summary || responseData;
+          const breakdown = responseData.categoryBreakdown || [];
+
+          if (month === 'All') {
+            setAllTimeSummary(summaryData);
+            setSummary(null);
+            setCategoryBreakdown(breakdown);
+          } else {
+            setSummary(summaryData);
+            setCategoryBreakdown(breakdown);
+          }
+        }
 
         // Check if there are more expenses - prioritize backend hasMore
         const backendHasMore = expensesResponse.data?.hasMore;
@@ -283,17 +230,17 @@ const ExpensesScreen = () => {
         // Only fetch comparison if a specific month is selected
         if (month !== 'All') {
           const availableMonths = months.length > 0 ? months : [month];
-        const currentMonthIndex = availableMonths.indexOf(month);
-        if (currentMonthIndex > 0) {
-          const previousMonth = availableMonths[currentMonthIndex - 1];
+          const currentMonthIndex = availableMonths.indexOf(month);
+          if (currentMonthIndex > 0) {
+            const previousMonth = availableMonths[currentMonthIndex - 1];
             try {
-          const compareResponse = await apiClient.get('/expenses/compare', {
-            params: {
-              month1: previousMonth,
-              month2: month,
-            },
-          });
-          setComparison(compareResponse.data?.comparison);
+              const compareResponse = await apiClient.get('/expenses/compare', {
+                params: {
+                  month1: previousMonth,
+                  month2: month,
+                },
+              });
+              setComparison(compareResponse.data?.comparison);
             } catch (err) {
               setComparison(undefined);
             }
@@ -380,14 +327,21 @@ const ExpensesScreen = () => {
   }, [token, fetchExpenses]);
 
   const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
+    setIsRefreshing(true);
     try {
-      // Refresh months list
-      const monthlyResponse = await apiClient.get('/chart/monthly');
+      const [monthlyResponse, categoriesResponse] = await Promise.all([
+        apiClient.get('/chart/monthly'),
+        apiClient.get('/categories').catch(() => ({ data: { data: null } })),
+      ]);
+
       const monthsFetched =
         monthlyResponse.data?.data?.map(item => item.month) || [];
       const sortedMonths = monthsFetched.sort((a, b) => a.localeCompare(b));
       setMonths(sortedMonths);
+
+      if (categoriesResponse.data?.data) {
+        setCategories(categoriesResponse.data.data);
+      }
 
       // Refresh current expenses view
       setPage(1);
@@ -399,49 +353,9 @@ const ExpensesScreen = () => {
       const apiError = parseApiError(err);
       setError(apiError.message);
     } finally {
-      setRefreshing(false);
+      setIsRefreshing(false);
     }
   }, [selectedMonth, fetchExpenses]);
-
-  const fetchCategories = useCallback(async () => {
-    if (!token) return;
-    try {
-      setLoadingCategories(true);
-      const response = await apiClient.get('/categories');
-      setCategories(
-        response.data?.data || { default: [], custom: [], all: [] },
-      );
-    } catch (err) {
-      const apiError = parseApiError(err);
-      console.warn('Failed to fetch categories:', apiError.message);
-    } finally {
-      setLoadingCategories(false);
-    }
-  }, [token]);
-
-  const createCategory = useCallback(
-    async categoryName => {
-      if (!token || !categoryName.trim() || creatingCategory) return;
-      try {
-        setCreatingCategory(true);
-        await apiClient.post('/categories', { name: categoryName.trim() });
-        await fetchCategories();
-        setNewCategoryName('');
-        setShowAddCategory(false);
-      } catch (err) {
-        const apiError = parseApiError(err);
-        if (Platform.OS === 'android') {
-          ToastAndroid.show(
-            apiError.message || 'Failed to create category',
-            ToastAndroid.LONG,
-          );
-        }
-      } finally {
-        setCreatingCategory(false);
-      }
-    },
-    [token, fetchCategories, creatingCategory],
-  );
 
   useFocusEffect(
     useCallback(() => {
@@ -466,14 +380,18 @@ const ExpensesScreen = () => {
           // Fetch months list (only if empty)
           if (months.length === 0) {
             promises.push(
-              apiClient.get('/chart/monthly').catch(() => ({ data: { data: [] } }))
+              apiClient
+                .get('/chart/monthly')
+                .catch(() => ({ data: { data: [] } })),
             );
           }
 
-          // Fetch categories (only if empty) - can run in parallel
+          // Fetch categories (only if empty)
           if (categories.all.length === 0) {
             promises.push(
-              apiClient.get('/categories').catch(() => ({ data: { data: { default: [], custom: [], all: [] } } }))
+              apiClient.get('/categories').catch(() => ({
+                data: { data: { default: [], custom: [], all: [] } },
+              })),
             );
           }
 
@@ -537,9 +455,7 @@ const ExpensesScreen = () => {
 
               const newExpenses = expensesResponse.data?.expenses || [];
               setExpenses(newExpenses);
-              setAllTimeSummary(
-                allTimeSummaryResponse?.data?.summary || null,
-              );
+              setAllTimeSummary(allTimeSummaryResponse?.data?.summary || null);
 
               const backendHasMore = expensesResponse.data?.hasMore;
               const hasMoreData =
@@ -551,7 +467,7 @@ const ExpensesScreen = () => {
               hasMoreRef.current = hasMoreData;
             }
           } else {
-            // If not fetching expenses, handle months and categories separately
+            // If not fetching expenses, handle months separately
             if (promises.length > 0) {
               const results = await Promise.all(promises);
               let resultIndex = 0;
@@ -604,7 +520,7 @@ const ExpensesScreen = () => {
       return () => {
         isMounted = false;
       };
-    }, [token, initialLoad, expenses.length, months.length, categories.all.length, selectedMonth]), // Include dependencies for proper updates
+    }, [token, selectedMonth]), // Only re-run when month changes or token updates
   );
 
   const filteredExpenses = useMemo(() => {
@@ -632,6 +548,56 @@ const ExpensesScreen = () => {
     );
     return ['All', ...Array.from(unique)];
   }, [expenses]);
+
+  const displaySummary = useMemo(() => {
+    const baseSummary = selectedMonth === 'All' ? allTimeSummary : summary;
+
+    if (selectedCategory === 'All' && !searchQuery) {
+      return baseSummary;
+    }
+
+    // If only category filter is active, use the server breakdown for accuracy
+    if (
+      selectedCategory !== 'All' &&
+      !searchQuery &&
+      categoryBreakdown.length > 0
+    ) {
+      const catData = categoryBreakdown.find(
+        c => c.category === selectedCategory,
+      );
+      if (catData) {
+        return {
+          totalMoneyIn: catData.totalMoneyIn || 0,
+          totalMoneyOut: catData.totalMoneyOut || catData.totalAmount || 0,
+          remaining:
+            (catData.totalMoneyIn || 0) -
+            (catData.totalMoneyOut || catData.totalAmount || 0),
+          totalExpenses: catData.count || 0,
+        };
+      }
+    }
+
+    // Otherwise (search active or partial results), calculate from loaded filtered expenses
+    const totalMoneyOut = filteredExpenses.reduce(
+      (sum, exp) => sum + (exp.amount || exp.moneyOut || 0),
+      0,
+    );
+
+    return {
+      totalMoneyIn: 0,
+      totalMoneyOut,
+      remaining: (baseSummary?.totalMoneyIn || 0) - totalMoneyOut,
+      totalExpenses: filteredExpenses.length,
+    };
+  }, [
+    allTimeSummary,
+    summary,
+    selectedMonth,
+    selectedCategory,
+    categoryBreakdown,
+    searchQuery,
+    filteredExpenses,
+  ]);
 
   const comparisonKeys = ['moneyIn', 'moneyOut', 'remaining'];
 
@@ -702,44 +668,9 @@ const ExpensesScreen = () => {
     }
   }, [fetchExpenses, fetchMonthsAndData, months, selectedMonth]);
 
-  const updateFormValue = (key, value) => {
-    setFormValues(prev => ({ ...prev, [key]: value }));
-  };
-
   const openForm = (expense = null) => {
-    if (expense) {
-      // Pre-fill form for editing
-      setEditingExpenseId(expense._id);
-      setFormValues({
-        month: expense.month || (selectedMonth !== 'All' ? selectedMonth : ''),
-        itemName: expense.itemName || '',
-        category: expense.category || '',
-        amount: expense.amount?.toString() || '',
-        notes: expense.notes || '',
-      });
-    } else {
-      // Reset form for adding new expense
-      setEditingExpenseId(null);
-      setFormValues(prev => ({
-      ...defaultFormState,
-        month: selectedMonth !== 'All' ? selectedMonth : prev.month,
-      }));
-    }
-    bottomSheetRef.current?.open();
+    navigation.navigate('AddExpense', { expense });
   };
-
-  const closeForm = useCallback(() => {
-    setEditingExpenseId(null);
-    setFormValues(defaultFormState);
-    // Don't call bottomSheetRef.current?.close() here to avoid circular dependency
-    // The BottomSheet will handle closing itself
-  }, []);
-
-  const handleFormClose = useCallback(() => {
-    // Reset form state when BottomSheet closes
-    setEditingExpenseId(null);
-    setFormValues(defaultFormState);
-  }, []);
 
   const toggleFab = () => {
     setFabOpen(true);
@@ -772,22 +703,25 @@ const ExpensesScreen = () => {
     }, 200);
   };
 
-  const handleFilterMonth = useCallback(async (month) => {
-    setFilterSheetVisible(false);
-    filterSheetRef.current?.close();
-    // Small delay to allow sheet to start closing
-    setTimeout(async () => {
-      setSelectedMonth(month);
-      setPage(1);
-      setHasMore(true);
-      pageRef.current = 1;
-      hasMoreRef.current = true;
-      setExpenses([]); // Clear current expenses
-      await fetchExpenses(month, 1, false);
-    }, 100);
-  }, [fetchExpenses]);
+  const handleFilterMonth = useCallback(
+    async month => {
+      setFilterSheetVisible(false);
+      filterSheetRef.current?.close();
+      // Small delay to allow sheet to start closing
+      setTimeout(async () => {
+        setSelectedMonth(month);
+        setPage(1);
+        setHasMore(true);
+        pageRef.current = 1;
+        hasMoreRef.current = true;
+        setExpenses([]); // Clear current expenses
+        await fetchExpenses(month, 1, false);
+      }, 100);
+    },
+    [fetchExpenses],
+  );
 
-  const handleFilterCategory = useCallback((category) => {
+  const handleFilterCategory = useCallback(category => {
     setFilterSheetVisible(false);
     filterSheetRef.current?.close();
     // Small delay to allow sheet to start closing
@@ -796,61 +730,70 @@ const ExpensesScreen = () => {
     }, 100);
   }, []);
 
-  const handleAddExpense = async () => {
-    try {
-      setSavingExpense(true);
+  const handleDeleteExpense = useCallback(
+    async expense => {
+      // Get expense details for confirmation message
+      const expenseName =
+        expense.itemName || expense.category || 'this expense';
+      const expenseAmount =
+        expense.amount || expense.moneyOut || expense.moneyIn || 0;
+      const expenseCategory = expense.category ? ` (${expense.category})` : '';
+      const expenseMonth = expense.month
+        ? ` for ${transformMonthLabel(expense.month)}`
+        : '';
 
-      // Parse month to YYYY-MM format if needed
-      const parsedMonth = parseMonthToYYYYMM(formValues.month);
-      if (!parsedMonth) {
-        if (Platform.OS === 'android') {
-          ToastAndroid.show('Please select a valid month', ToastAndroid.LONG);
-        }
-        return;
-      }
+      // Show confirmation alert
+      Alert.alert(
+        'Delete Expense',
+        `Are you sure you want to delete "${expenseName}"${expenseCategory}${expenseMonth}?\n\nAmount: ₹${expenseAmount.toLocaleString()}\n\nThis action cannot be undone.`,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                if (Platform.OS === 'android') {
+                  ToastAndroid.show('Deleting expense...', ToastAndroid.SHORT);
+                }
 
-      const payload = {
-        month: parsedMonth,
-        itemName: formValues.itemName,
-        category: formValues.category || '',
-        amount: Number(formValues.amount) || 0,
-        notes: formValues.notes,
-      };
+                await apiClient.delete(`/expenses/${expense._id}`);
 
-      if (!payload.itemName) {
-        if (Platform.OS === 'android') {
-          ToastAndroid.show('Item name is required', ToastAndroid.LONG);
-        }
-        return;
-      }
+                if (Platform.OS === 'android') {
+                  ToastAndroid.show(
+                    'Expense deleted successfully',
+                    ToastAndroid.SHORT,
+                  );
+                }
 
-      if (editingExpenseId) {
-        // Update existing expense
-        await apiClient.put(`/expenses/${editingExpenseId}`, payload);
-      } else {
-        // Create new expense
-      await apiClient.post('/expenses', payload);
-      }
-
-      // Close the sheet - handleFormClose will reset form state
-      bottomSheetRef.current?.close();
-      setPage(1);
-      setHasMore(true);
-      pageRef.current = 1;
-      hasMoreRef.current = true;
-      // Refresh expenses based on current filter
-      await fetchExpenses(selectedMonth, 1, false);
-      await fetchMonthsAndData();
-    } catch (err) {
-      const apiError = parseApiError(err);
-      setError(apiError.message);
-      if (Platform.OS === 'android') {
-        ToastAndroid.show(apiError.message, ToastAndroid.LONG);
-      }
-    } finally {
-      setSavingExpense(false);
-    }
-  };
+                // Refresh expenses
+                setPage(1);
+                setHasMore(true);
+                pageRef.current = 1;
+                hasMoreRef.current = true;
+                await fetchExpenses(selectedMonth, 1, false);
+                await fetchMonthsAndData();
+              } catch (err) {
+                const apiError = parseApiError(err);
+                setError(apiError.message);
+                if (Platform.OS === 'android') {
+                  ToastAndroid.show(
+                    apiError.message || 'Failed to delete expense',
+                    ToastAndroid.LONG,
+                  );
+                }
+              }
+            },
+          },
+        ],
+        { cancelable: true },
+      );
+    },
+    [selectedMonth, fetchExpenses, fetchMonthsAndData, transformMonthLabel],
+  );
 
   if (!token) {
     return (
@@ -865,329 +808,238 @@ const ExpensesScreen = () => {
 
   return (
     <SafeAreaView edges={['top']} style={expenseStyles.container}>
-    <KeyboardAvoidingView
-        style={expenseStyles.keyboardView}
-        behavior={Platform.select({ ios: 'padding', android: undefined })}
-      >
-      <GlobalHeader
-        title="Expenses"
-        subtitle={
-          selectedMonth === 'All'
-            ? 'Showing all expenses'
-            : `Showing data for ${transformMonthLabel(selectedMonth)}`
-        }
-        backgroundColor="transparent"
-        titleColor="#F8FAFC"
-        subtitleColor="#94A3B8"
-      />
-      {(loading || initialLoad) ? (
-        <ScrollView contentContainerStyle={expenseStyles.skeletonContainer}>
-          <Card style={expenseStyles.summaryCard}>
-            <Card.Content>
-              <View style={expenseStyles.summaryHeader}>
-                <SkeletonPulse style={expenseStyles.skeletonTitleShort} />
-                <SkeletonPulse style={expenseStyles.skeletonButton} />
-        </View>
-              <View style={expenseStyles.summaryGrid}>
-                {[0, 1, 2, 3].map(index => (
-                  <View
-                    key={`summary-skeleton-${index}`}
-                    style={expenseStyles.summaryItem}
-                  >
-                    <SkeletonPulse style={expenseStyles.skeletonLabel} />
-                    <SkeletonPulse style={expenseStyles.skeletonValue} />
-                  </View>
-                ))}
-              </View>
-            </Card.Content>
-          </Card>
-          <Card style={expenseStyles.comparisonCard}>
-            <Card.Content>
-              {[0, 1, 2].map(index => (
-                <View
-                  key={`comparison-skeleton-${index}`}
-                  style={expenseStyles.comparisonRow}
-                >
-                  <SkeletonPulse style={expenseStyles.skeletonLabelWide} />
-                  <View style={expenseStyles.comparisonValues}>
-                    <SkeletonPulse style={expenseStyles.skeletonChipValue} />
-                    <SkeletonPulse style={expenseStyles.skeletonChip} />
-                  </View>
-                </View>
-              ))}
-            </Card.Content>
-          </Card>
-          {[0, 1, 2].map(index => (
-            <Card key={`list-skeleton-${index}`} style={expenseStyles.expenseItem}>
+      <View style={expenseStyles.keyboardView}>
+        <GlobalHeader
+          title="Expenses"
+          subtitle={
+            selectedMonth === 'All'
+              ? 'Showing all expenses'
+              : `Showing data for ${transformMonthLabel(selectedMonth)}`
+          }
+          backgroundColor="transparent"
+          titleColor="#F8FAFC"
+          subtitleColor="#94A3B8"
+        />
+        {loading || initialLoad ? (
+          <ScrollView contentContainerStyle={expenseStyles.skeletonContainer}>
+            <Card style={expenseStyles.summaryCard}>
               <Card.Content>
-                <SkeletonPulse style={expenseStyles.skeletonLabelWide} />
-                <SkeletonPulse style={expenseStyles.skeletonNotes} />
+                <View style={expenseStyles.summaryHeader}>
+                  <SkeletonPulse style={expenseStyles.skeletonTitleShort} />
+                  <SkeletonPulse style={expenseStyles.skeletonButton} />
+                </View>
+                <View style={expenseStyles.summaryGrid}>
+                  {[0, 1, 2, 3].map(index => (
+                    <View
+                      key={`summary-skeleton-${index}`}
+                      style={expenseStyles.summaryItem}
+                    >
+                      <SkeletonPulse style={expenseStyles.skeletonLabel} />
+                      <SkeletonPulse style={expenseStyles.skeletonValue} />
+                    </View>
+                  ))}
+                </View>
               </Card.Content>
             </Card>
-          ))}
-        </ScrollView>
-      ) : (
-        <FlatList
-          contentContainerStyle={expenseStyles.listContent}
-          data={filteredExpenses}
-          keyExtractor={item => item._id}
-          onEndReached={loadMoreExpenses}
-          onEndReachedThreshold={0.2}
-          removeClippedSubviews={false}
-          onScrollBeginDrag={() => hideBottomBar()}
-          onScrollEndDrag={(e) => {
-            const { contentOffset } = e.nativeEvent;
-            if (contentOffset.y <= 0) {
-              showBottomBar();
-            }
-          }}
-          onMomentumScrollEnd={(e) => {
-            const { contentOffset } = e.nativeEvent;
-            if (contentOffset.y <= 0) {
-              showBottomBar();
-            }
-          }}
-          scrollEventThrottle={16}
-          ListFooterComponent={
-            loadingMore ? (
-              <View style={expenseStyles.loadMoreContainer}>
-                <Text style={expenseStyles.loadMoreText}>Loading more...</Text>
-              </View>
-            ) : null
-          }
-          ListHeaderComponent={
-            <View style={expenseStyles.listHeader}>
-              {error ? (
-                <Card style={expenseStyles.errorCard}>
-                  <Card.Content>
-                    <Text variant="titleSmall" style={expenseStyles.errorTitle}>
-                      Something went wrong
-                    </Text>
-                    <Text variant="bodyMedium" style={expenseStyles.errorText}>
-                      {error}
-                    </Text>
-                    <Button onPress={fetchMonthsAndData}>Retry</Button>
-                  </Card.Content>
-                </Card>
-              ) : null}
-
-              <ExpenseSummary
-                allTimeSummary={allTimeSummary}
-                onAddPress={openForm}
-              />
-
-              <ExpenseComparison comparison={comparison} />
-
-              <ExpenseSearch
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-              />
-
-              <TouchableOpacity
-                style={expenseStyles.filterButton}
-                onPress={() => {
-                  setFilterSheetVisible(true);
-                  filterSheetRef.current?.open();
-                }}
-                activeOpacity={0.7}
-              >
-                <Filter size={20} color="#94A3B8" />
-                <Text style={expenseStyles.filterButtonText}>Filters</Text>
-                <ChevronDown size={18} color="#94A3B8" />
-              </TouchableOpacity>
+            <Card style={expenseStyles.comparisonCard}>
+              <Card.Content>
+                {[0, 1, 2].map(index => (
+                  <View
+                    key={`comparison-skeleton-${index}`}
+                    style={expenseStyles.comparisonRow}
+                  >
+                    <SkeletonPulse style={expenseStyles.skeletonLabelWide} />
+                    <View style={expenseStyles.comparisonValues}>
+                      <SkeletonPulse style={expenseStyles.skeletonChipValue} />
+                      <SkeletonPulse style={expenseStyles.skeletonChip} />
+                    </View>
                   </View>
-          }
-          renderItem={({ item, index }) => {
-            const skipAnimation = index >= 20;
-            return (
-              <AnimatedExpenseCard index={index} skipAnimation={skipAnimation}>
-                <ExpenseCard
-                  item={item}
-                  transformMonthLabel={transformMonthLabel}
-                  onEdit={openForm}
+                ))}
+              </Card.Content>
+            </Card>
+            {[0, 1, 2].map(index => (
+              <Card
+                key={`list-skeleton-${index}`}
+                style={expenseStyles.expenseItem}
+              >
+                <Card.Content>
+                  <SkeletonPulse style={expenseStyles.skeletonLabelWide} />
+                  <SkeletonPulse style={expenseStyles.skeletonNotes} />
+                </Card.Content>
+              </Card>
+            ))}
+          </ScrollView>
+        ) : (
+          <FlatList
+            contentContainerStyle={expenseStyles.listContent}
+            data={filteredExpenses}
+            keyExtractor={item => item._id}
+            onEndReached={loadMoreExpenses}
+            onEndReachedThreshold={0.2}
+            removeClippedSubviews={false}
+            onScrollBeginDrag={() => hideBottomBar()}
+            onScrollEndDrag={e => {
+              const { contentOffset } = e.nativeEvent;
+              if (contentOffset.y <= 0) {
+                showBottomBar();
+              }
+            }}
+            onMomentumScrollEnd={e => {
+              const { contentOffset } = e.nativeEvent;
+              if (contentOffset.y <= 0) {
+                showBottomBar();
+              }
+            }}
+            scrollEventThrottle={16}
+            ListFooterComponent={
+              loadingMore ? (
+                <View style={expenseStyles.loadMoreContainer}>
+                  <Text style={expenseStyles.loadMoreText}>
+                    Loading more...
+                  </Text>
+                </View>
+              ) : null
+            }
+            ListHeaderComponent={
+              <View style={expenseStyles.listHeader}>
+                {error ? (
+                  <Card style={expenseStyles.errorCard}>
+                    <Card.Content>
+                      <Text
+                        variant="titleSmall"
+                        style={expenseStyles.errorTitle}
+                      >
+                        Something went wrong
+                      </Text>
+                      <Text
+                        variant="bodyMedium"
+                        style={expenseStyles.errorText}
+                      >
+                        {error}
+                      </Text>
+                      <Button onPress={fetchMonthsAndData}>Retry</Button>
+                    </Card.Content>
+                  </Card>
+                ) : null}
+
+                <ExpenseSummary
+                  allTimeSummary={displaySummary}
+                  onAddPress={openForm}
                 />
-              </AnimatedExpenseCard>
-            );
-          }}
-          ListEmptyComponent={
-            <View style={expenseStyles.emptyState}>
-              <Text variant="titleMedium" style={expenseStyles.emptyTitle}>
-                No expenses yet
-                      </Text>
-              <Text variant="bodyMedium" style={expenseStyles.emptySubtitle}>
-                Add your first expense or import from a spreadsheet to begin
-                tracking.
-                      </Text>
-              <TouchableOpacity
-                style={expenseStyles.emptyButton}
-                onPress={openForm}
-                activeOpacity={0.8}
-              >
-                <Plus size={20} color="#F8FAFC" />
-                <Text style={expenseStyles.emptyButtonText}>Add expense</Text>
-              </TouchableOpacity>
-                    </View>
-          }
-          refreshing={refreshing}
-          onRefresh={handleRefresh}
-        />
-      )}
 
-      <BottomSheet
-        ref={bottomSheetRef}
-        title={editingExpenseId ? 'Edit Expense' : 'Add Expense'}
-        onClose={handleFormClose}
-        footer={
-          <View style={expenseStyles.formActions}>
-                    <Button
-                      mode="outlined"
-              onPress={() => {
-                bottomSheetRef.current?.close();
-              }}
-              textColor="#94A3B8"
-              style={expenseStyles.formButton}
-            >
-              Cancel
-                    </Button>
-            <PrimaryButton
-              title={editingExpenseId ? 'Update' : 'Save'}
-              onPress={handleAddExpense}
-              loading={savingExpense}
-              style={expenseStyles.formButton}
-              buttonColor="#3A6FF8"
-            />
+                <ExpenseComparison comparison={comparison} />
+
+                <ExpenseSearch
+                  searchQuery={searchQuery}
+                  onSearchChange={setSearchQuery}
+                />
+
+                <TouchableOpacity
+                  style={expenseStyles.filterButton}
+                  onPress={() => {
+                    setFilterSheetVisible(true);
+                    filterSheetRef.current?.open();
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Filter size={20} color="#94A3B8" />
+                  <Text style={expenseStyles.filterButtonText}>Filters</Text>
+                  <ChevronDown size={18} color="#94A3B8" />
+                </TouchableOpacity>
+              </View>
+            }
+            renderItem={({ item, index }) => {
+              const skipAnimation = index >= 20;
+              const currentDate = formatItemDate(item.createdAt);
+              const prevDate =
+                index > 0
+                  ? formatItemDate(filteredExpenses[index - 1].createdAt)
+                  : null;
+              const showDateHeader = currentDate && currentDate !== prevDate;
+
+              return (
+                <View>
+                  {showDateHeader && (
+                    <View style={expenseStyles.dateHeader}>
+                      <Text style={expenseStyles.dateHeaderText}>
+                        {currentDate}
+                      </Text>
                     </View>
-        }
-      >
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 16, flexGrow: 1 }}
-          keyboardShouldPersistTaps="handled"
-          nestedScrollEnabled={true}
+                  )}
+                  <AnimatedExpenseCard
+                    index={index}
+                    skipAnimation={skipAnimation}
+                  >
+                    <ExpenseCard
+                      item={item}
+                      transformMonthLabel={transformMonthLabel}
+                      formatItemTime={formatItemTime}
+                      onEdit={openForm}
+                      onDelete={handleDeleteExpense}
+                    />
+                  </AnimatedExpenseCard>
+                </View>
+              );
+            }}
+            ListEmptyComponent={
+              <View style={expenseStyles.emptyState}>
+                <Text variant="titleMedium" style={expenseStyles.emptyTitle}>
+                  No expenses yet
+                </Text>
+                <Text variant="bodyMedium" style={expenseStyles.emptySubtitle}>
+                  Add your first expense or import from a spreadsheet to begin
+                  tracking.
+                </Text>
+                <TouchableOpacity
+                  style={expenseStyles.emptyButton}
+                  onPress={openForm}
+                  activeOpacity={0.8}
+                >
+                  <Plus size={20} color="#F8FAFC" />
+                  <Text style={expenseStyles.emptyButtonText}>Add expense</Text>
+                </TouchableOpacity>
+              </View>
+            }
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+          />
+        )}
+
+        {/* FAB Button */}
+        <TouchableOpacity
+          style={[
+            expenseStyles.fabButton,
+            { bottom: isBottomBarVisible ? 100 : 20 },
+          ]}
+          onPress={toggleFab}
+          activeOpacity={0.8}
         >
-          <View style={expenseStyles.inputWrapper}>
-            <Text style={expenseStyles.inputLabel}>Month</Text>
-            <TouchableOpacity
-              style={expenseStyles.monthPickerButton}
-              onPress={() => setMonthPickerVisible(true)}
-              activeOpacity={0.7}
-            >
-              <Text
-                style={[
-                  expenseStyles.monthPickerText,
-                  !formValues.month && expenseStyles.monthPickerPlaceholder,
-                ]}
-              >
-                {formValues.month
-                  ? transformMonthLabel(formValues.month)
-                  : 'Select a month'}
-                      </Text>
-              <ChevronDown size={20} color="#94A3B8" />
-            </TouchableOpacity>
-                    </View>
-          <TextInputField
-            label="Item Name"
-            value={formValues.itemName}
-            onChangeText={value => updateFormValue('itemName', value)}
-            placeholder="Enter item name"
-          />
-          <View style={expenseStyles.inputWrapper}>
-            <Text style={expenseStyles.inputLabel}>Category (Optional)</Text>
-            <TouchableOpacity
-              style={expenseStyles.monthPickerButton}
-              onPress={() => setCategoryPickerVisible(true)}
-              activeOpacity={0.7}
-            >
-              <Text
-                style={[
-                  expenseStyles.monthPickerText,
-                  !formValues.category && expenseStyles.monthPickerPlaceholder,
-                ]}
-              >
-                {formValues.category || 'Select a category'}
-                      </Text>
-              <ChevronDown size={20} color="#94A3B8" />
-            </TouchableOpacity>
-                    </View>
-          <TextInputField
-                label="Amount"
-                value={formValues.amount}
-                keyboardType="numeric"
-            onChangeText={value => updateFormValue('amount', value)}
-            placeholder="0"
-          />
-          <TextInputField
-                label="Notes"
-                value={formValues.notes}
-            onChangeText={value => updateFormValue('notes', value)}
-            placeholder="Optional notes"
-                multiline
-            numberOfLines={3}
-              />
-            </ScrollView>
-      </BottomSheet>
+          <Plus size={28} color="#F8FAFC" />
+        </TouchableOpacity>
 
-      {/* FAB Button */}
-      <TouchableOpacity
-                            style={[
-          expenseStyles.fabButton,
-          { bottom: isBottomBarVisible ? 100 : 20 },
-        ]}
-        onPress={toggleFab}
-        activeOpacity={0.8}
-      >
-        <Plus size={28} color="#F8FAFC" />
-      </TouchableOpacity>
+        {/* Action Menu Bottom Sheet */}
+        <FABMenu
+          sheetRef={fabMenuSheetRef}
+          onClose={() => setFabOpen(false)}
+          onAddManually={handleAddManually}
+          onImportExcel={handleImportExcel}
+          onSmsFetch={handleSmsFetch}
+          uploading={uploading}
+        />
 
-      {/* Action Menu Bottom Sheet */}
-      <FABMenu
-        sheetRef={fabMenuSheetRef}
-        onClose={() => setFabOpen(false)}
-        onAddManually={handleAddManually}
-        onImportExcel={handleImportExcel}
-        onSmsFetch={handleSmsFetch}
-        uploading={uploading}
-      />
-
-      <MonthPicker
-        visible={monthPickerVisible}
-        monthOptions={monthOptions}
-        selectedMonth={formValues.month}
-        onSelectMonth={(month) => updateFormValue('month', month)}
-        onClose={() => setMonthPickerVisible(false)}
-      />
-
-      <FilterSheet
-        sheetRef={filterSheetRef}
-        visible={filterSheetVisible}
-        onClose={() => setFilterSheetVisible(false)}
-        selectedMonth={selectedMonth}
-        months={months}
-        selectedCategory={selectedCategory}
-        categories={expenseCategories}
-        transformMonthLabel={transformMonthLabel}
-        onSelectMonth={handleFilterMonth}
-        onSelectCategory={handleFilterCategory}
-      />
-
-      <CategoryPicker
-        visible={categoryPickerVisible}
-        categories={categories.all}
-        selectedCategory={formValues.category}
-        onSelectCategory={(category) => updateFormValue('category', category)}
-        onClose={() => setCategoryPickerVisible(false)}
-        showAddCategory={showAddCategory}
-        newCategoryName={newCategoryName}
-        creatingCategory={creatingCategory}
-        onCreateCategory={createCategory}
-        onShowAddCategory={() => setShowAddCategory(true)}
-        onHideAddCategory={() => {
-          setShowAddCategory(false);
-          setNewCategoryName('');
-        }}
-        onNewCategoryNameChange={setNewCategoryName}
-      />
-    </KeyboardAvoidingView>
+        <FilterSheet
+          sheetRef={filterSheetRef}
+          visible={filterSheetVisible}
+          onClose={() => setFilterSheetVisible(false)}
+          selectedMonth={selectedMonth}
+          months={months}
+          selectedCategory={selectedCategory}
+          categories={['All', ...categories.all]}
+          transformMonthLabel={transformMonthLabel}
+          onSelectMonth={handleFilterMonth}
+          onSelectCategory={handleFilterCategory}
+        />
+      </View>
     </SafeAreaView>
   );
 };

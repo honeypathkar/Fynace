@@ -2,6 +2,20 @@ import { StyleSheet, Platform } from 'react-native';
 import { themeAssets } from '../../theme';
 import Fonts from '../../../assets/fonts';
 
+// Platform-specific values
+const addCategoryCancelButtonBg = Platform.select({
+  android: '#334155', // Higher contrast for Android 14+
+  ios: '#1E293B',
+});
+const addCategoryCancelButtonBorderWidth = Platform.select({
+  android: 1,
+  ios: 0,
+});
+const addCategoryCancelButtonBorderColor = Platform.select({
+  android: '#475569',
+  ios: 'transparent',
+});
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -162,6 +176,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#1E293B',
     borderWidth: 1,
     borderColor: '#334155',
+    marginLeft: 8,
+  },
+  deleteButton: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: '#1E293B',
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    marginLeft: 8,
   },
   expenseAmount: {
     color: '#F8FAFC',
@@ -492,20 +515,11 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Platform.select({
-      android: '#334155', // Higher contrast for Android 14+
-      ios: '#1E293B',
-    }),
+    backgroundColor: addCategoryCancelButtonBg,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: Platform.select({
-      android: 1,
-      ios: 0,
-    }),
-    borderColor: Platform.select({
-      android: '#475569',
-      ios: 'transparent',
-    }),
+    borderWidth: addCategoryCancelButtonBorderWidth,
+    borderColor: addCategoryCancelButtonBorderColor,
   },
   addCategorySaveButton: {
     paddingVertical: 10,
@@ -583,7 +597,19 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     fontSize: 14,
   },
+  dateHeader: {
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    backgroundColor: 'transparent',
+    marginTop: themeAssets.spacing[2],
+  },
+  dateHeaderText: {
+    color: '#94A3B8',
+    fontSize: 13,
+    fontFamily: Fonts.semibold,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
 });
 
 export default styles;
-

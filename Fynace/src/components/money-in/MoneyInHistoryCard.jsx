@@ -25,7 +25,8 @@ const MoneyInHistoryCard = ({ item, onDelete, formatDate, formatTime }) => {
             <View style={styles.historyMeta}>
               <Calendar size={14} color="#94A3B8" />
               <Text style={styles.historyDate}>
-                {formatDate(item.date)} at {formatTime(item.date)}
+                {formatDate(item.date)} at{' '}
+                {formatTime(item.createdAt || item.date)}
               </Text>
             </View>
             {item.notes ? (
@@ -39,4 +40,3 @@ const MoneyInHistoryCard = ({ item, onDelete, formatDate, formatTime }) => {
 };
 
 export default MoneyInHistoryCard;
-

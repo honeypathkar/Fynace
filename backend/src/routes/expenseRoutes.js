@@ -5,6 +5,7 @@ const {
   uploadExpenses,
   addExpense,
   updateExpense,
+  deleteExpense,
   getExpensesByMonth,
   getAllExpenses,
   getExpenseSummary,
@@ -48,6 +49,9 @@ router.put(
   ],
   updateExpense
 );
+
+// Delete single expense
+router.delete('/:id', deleteExpense);
 
 // Get all-time expense summary (must come before /summary/:month to avoid route conflict)
 router.get('/summary/all-time', getAllTimeSummary);

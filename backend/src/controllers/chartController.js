@@ -1,5 +1,6 @@
-const Expense = require('../models/Expense');
-const MoneyIn = require('../models/MoneyIn');
+const Expense = require("../models/Expense");
+const MoneyIn = require("../models/MoneyIn");
+const mongoose = require("mongoose");
 
 // Get monthly totals for chart visualization
 const getMonthlyTotals = async (req, res) => {
@@ -7,16 +8,49 @@ const getMonthlyTotals = async (req, res) => {
     const userId = req.userId;
     const { limit = 12 } = req.query; // Default to last 12 months
 
-    // Get all expenses grouped by month
-    const expenses = await Expense.find({ userId }).sort({ month: -1 });
+    const [expenseStats, moneyInStats] = await Promise.all([
+      Expense.aggregate([
+        { $match: { userId: new mongoose.Types.ObjectId(userId) } },
+        {
+          $group: {
+            _id: "$month",
+            totalMoneyIn: { $sum: "$moneyIn" },
+            totalMoneyOut: {
+              $sum: {
+                $cond: [{ $gt: ["$moneyOut", 0] }, "$moneyOut", "$amount"],
+              },
+            },
+            totalExpenses: { $sum: 1 },
+          },
+        },
+      ]),
+      MoneyIn.aggregate([
+        { $match: { userId: new mongoose.Types.ObjectId(userId) } },
+        {
+          $group: {
+            _id: {
+              $dateToString: { format: "%Y-%m", date: "$date" },
+            },
+            totalMoneyIn: { $sum: "$amount" },
+          },
+        },
+      ]),
+    ]);
 
-    // Get all MoneyIn entries
-    const moneyInEntries = await MoneyIn.find({ userId });
-
-    // Group by month
     const monthlyData = {};
-    expenses.forEach((expense) => {
-      const month = expense.month;
+
+    expenseStats.forEach((stat) => {
+      const month = stat._id;
+      monthlyData[month] = {
+        month,
+        totalMoneyIn: stat.totalMoneyIn,
+        totalMoneyOut: stat.totalMoneyOut,
+        totalExpenses: stat.totalExpenses,
+      };
+    });
+
+    moneyInStats.forEach((stat) => {
+      const month = stat._id;
       if (!monthlyData[month]) {
         monthlyData[month] = {
           month,
@@ -25,40 +59,16 @@ const getMonthlyTotals = async (req, res) => {
           totalExpenses: 0,
         };
       }
-      monthlyData[month].totalMoneyIn += expense.moneyIn || 0;
-      // If moneyOut is 0 but amount > 0, use amount as moneyOut
-      const moneyOut = expense.moneyOut || 0;
-      const amount = expense.amount || 0;
-      monthlyData[month].totalMoneyOut += (moneyOut > 0 ? moneyOut : amount);
-      monthlyData[month].totalExpenses += 1;
+      monthlyData[month].totalMoneyIn += stat.totalMoneyIn;
     });
 
-    // Add MoneyIn entries to monthly totals
-    moneyInEntries.forEach((entry) => {
-      const entryDate = new Date(entry.date);
-      const month = `${entryDate.getFullYear()}-${String(entryDate.getMonth() + 1).padStart(2, '0')}`;
-      if (!monthlyData[month]) {
-        monthlyData[month] = {
-          month,
-          totalMoneyIn: 0,
-          totalMoneyOut: 0,
-          totalExpenses: 0,
-        };
-      }
-      monthlyData[month].totalMoneyIn += entry.amount || 0;
-    });
-
-    // Convert to array and calculate remaining
     let monthlyArray = Object.values(monthlyData).map((data) => ({
       ...data,
       remaining: data.totalMoneyIn - data.totalMoneyOut,
     }));
 
-    // Sort by month (descending) and limit
     monthlyArray.sort((a, b) => b.month.localeCompare(a.month));
     monthlyArray = monthlyArray.slice(0, parseInt(limit));
-
-    // Sort by month (ascending) for chart display
     monthlyArray.sort((a, b) => a.month.localeCompare(b.month));
 
     res.status(200).json({
@@ -67,10 +77,10 @@ const getMonthlyTotals = async (req, res) => {
       data: monthlyArray,
     });
   } catch (error) {
-    console.error('Error in getMonthlyTotals:', error);
+    console.error("Error in getMonthlyTotals:", error);
     res.status(500).json({
       success: false,
-      message: error.message || 'Failed to get monthly totals',
+      message: error.message || "Failed to get monthly totals",
     });
   }
 };
@@ -81,72 +91,69 @@ const getCategoryDistribution = async (req, res) => {
     const { month } = req.params;
     const userId = req.userId;
 
-    let expenses;
-
-    // Check if requesting all-time data
-    if (month === 'all-time' || month === 'all') {
-      // Get all expenses for all time
-      expenses = await Expense.find({ userId });
-    } else {
-      // Validate month format
+    const matchStage = { userId: new mongoose.Types.ObjectId(userId) };
+    if (month !== "all-time" && month !== "all") {
       const monthRegex = /^\d{4}-\d{2}$/;
       if (!monthRegex.test(month)) {
         return res.status(400).json({
           success: false,
-          message: 'Invalid month format. Expected format: YYYY-MM or "all-time"',
+          message:
+            'Invalid month format. Expected format: YYYY-MM or "all-time"',
         });
       }
-
-      // Get all expenses for the specific month
-      expenses = await Expense.find({ userId, month });
+      matchStage.month = month;
     }
 
-    // Group by category
-    const categoryData = {};
-    expenses.forEach((expense) => {
-      const category = expense.category || 'Uncategorized';
-      if (!categoryData[category]) {
-        categoryData[category] = {
-          category,
-          totalAmount: 0,
-          totalMoneyIn: 0,
-          totalMoneyOut: 0,
-          count: 0,
-        };
-      }
-      categoryData[category].totalAmount += expense.amount || 0;
-      categoryData[category].totalMoneyIn += expense.moneyIn || 0;
-      // If moneyOut is 0 but amount > 0, use amount as moneyOut
-      const moneyOut = expense.moneyOut || 0;
-      const amount = expense.amount || 0;
-      categoryData[category].totalMoneyOut += (moneyOut > 0 ? moneyOut : amount);
-      categoryData[category].count += 1;
-    });
+    const categoryStats = await Expense.aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          _id: { $ifNull: ["$category", "Uncategorized"] },
+          totalAmount: { $sum: "$amount" },
+          totalMoneyIn: { $sum: "$moneyIn" },
+          totalMoneyOut: {
+            $sum: {
+              $cond: [{ $gt: ["$moneyOut", 0] }, "$moneyOut", "$amount"],
+            },
+          },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $project: {
+          category: "$_id",
+          totalAmount: 1,
+          totalMoneyIn: 1,
+          totalMoneyOut: 1,
+          count: 1,
+          _id: 0,
+        },
+      },
+      { $sort: { totalMoneyOut: -1 } },
+    ]);
 
-    // Convert to array and sort by totalMoneyOut (descending)
-    const categoryArray = Object.values(categoryData).sort(
-      (a, b) => b.totalMoneyOut - a.totalMoneyOut
+    const totalMoneyOut = categoryStats.reduce(
+      (sum, cat) => sum + cat.totalMoneyOut,
+      0,
     );
-
-    // Calculate percentages
-    const totalMoneyOut = categoryArray.reduce((sum, cat) => sum + cat.totalMoneyOut, 0);
-    const categoryArrayWithPercentages = categoryArray.map((cat) => ({
+    const categoryArrayWithPercentages = categoryStats.map((cat) => ({
       ...cat,
-      percentage: totalMoneyOut > 0 ? (cat.totalMoneyOut / totalMoneyOut) * 100 : 0,
+      percentage:
+        totalMoneyOut > 0 ? (cat.totalMoneyOut / totalMoneyOut) * 100 : 0,
     }));
 
     res.status(200).json({
       success: true,
-      month: month === 'all-time' || month === 'all' ? 'all-time' : month,
-      count: categoryArray.length,
+      month: month === "all-time" || month === "all" ? "all-time" : month,
+      count: categoryStats.length,
       totalMoneyOut,
       data: categoryArrayWithPercentages,
     });
   } catch (error) {
-    console.error('Error in getCategoryDistribution:', error);
+    console.error("Error in getCategoryDistribution:", error);
     res.status(500).json({
       success: false,
-      message: error.message || 'Failed to get category distribution',
+      message: error.message || "Failed to get category distribution",
     });
   }
 };
@@ -158,7 +165,10 @@ const getTrends = async (req, res) => {
     const { limit = 12 } = req.query; // Default to last 12 months
 
     // Get all expenses
-    const expenses = await Expense.find({ userId }).sort({ month: -1, createdAt: -1 });
+    const expenses = await Expense.find({ userId }).sort({
+      month: -1,
+      createdAt: -1,
+    });
 
     // Get all MoneyIn entries
     const moneyInEntries = await MoneyIn.find({ userId });
@@ -193,7 +203,7 @@ const getTrends = async (req, res) => {
     // Add MoneyIn entries to trends
     moneyInEntries.forEach((entry) => {
       const entryDate = new Date(entry.date);
-      const month = `${entryDate.getFullYear()}-${String(entryDate.getMonth() + 1).padStart(2, '0')}`;
+      const month = `${entryDate.getFullYear()}-${String(entryDate.getMonth() + 1).padStart(2, "0")}`;
       if (!monthlyData[month]) {
         monthlyData[month] = {
           month,
@@ -213,12 +223,12 @@ const getTrends = async (req, res) => {
       totalMoneyIn: data.totalMoneyIn,
       totalMoneyOut: data.totalMoneyOut,
       remaining: data.totalMoneyIn - data.totalMoneyOut,
-      averageMoneyIn: data.moneyIn.length > 0
-        ? data.totalMoneyIn / data.moneyIn.length
-        : 0,
-      averageMoneyOut: data.moneyOut.length > 0
-        ? data.totalMoneyOut / data.moneyOut.length
-        : 0,
+      averageMoneyIn:
+        data.moneyIn.length > 0 ? data.totalMoneyIn / data.moneyIn.length : 0,
+      averageMoneyOut:
+        data.moneyOut.length > 0
+          ? data.totalMoneyOut / data.moneyOut.length
+          : 0,
       transactionCount: data.moneyIn.length + data.moneyOut.length,
     }));
 
@@ -241,15 +251,24 @@ const getTrends = async (req, res) => {
       }
 
       const prevData = trendArray[index - 1];
-      const moneyInGrowth = prevData.totalMoneyIn !== 0
-        ? ((data.totalMoneyIn - prevData.totalMoneyIn) / prevData.totalMoneyIn) * 100
-        : 0;
-      const moneyOutGrowth = prevData.totalMoneyOut !== 0
-        ? ((data.totalMoneyOut - prevData.totalMoneyOut) / prevData.totalMoneyOut) * 100
-        : 0;
-      const remainingGrowth = prevData.remaining !== 0
-        ? ((data.remaining - prevData.remaining) / Math.abs(prevData.remaining)) * 100
-        : 0;
+      const moneyInGrowth =
+        prevData.totalMoneyIn !== 0
+          ? ((data.totalMoneyIn - prevData.totalMoneyIn) /
+              prevData.totalMoneyIn) *
+            100
+          : 0;
+      const moneyOutGrowth =
+        prevData.totalMoneyOut !== 0
+          ? ((data.totalMoneyOut - prevData.totalMoneyOut) /
+              prevData.totalMoneyOut) *
+            100
+          : 0;
+      const remainingGrowth =
+        prevData.remaining !== 0
+          ? ((data.remaining - prevData.remaining) /
+              Math.abs(prevData.remaining)) *
+            100
+          : 0;
 
       return {
         ...data,
@@ -265,10 +284,10 @@ const getTrends = async (req, res) => {
       data: trendsWithGrowth,
     });
   } catch (error) {
-    console.error('Error in getTrends:', error);
+    console.error("Error in getTrends:", error);
     res.status(500).json({
       success: false,
-      message: error.message || 'Failed to get trends',
+      message: error.message || "Failed to get trends",
     });
   }
 };
@@ -278,4 +297,3 @@ module.exports = {
   getCategoryDistribution,
   getTrends,
 };
-

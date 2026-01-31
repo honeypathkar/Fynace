@@ -1,17 +1,19 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import {
   StyleSheet,
   View,
-  Animated,
   TouchableOpacity,
   Text,
-  Keyboard,
   Platform,
 } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { CommonActions } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Home, PieChart } from 'lucide-react-native';
 import { useBottomBar } from '../context/BottomBarContext';
 import { themeAssets } from '../theme';
 import Fonts from '../../assets/fonts';
@@ -20,55 +22,33 @@ const Tab = createBottomTabNavigator();
 
 const CustomTabBar = ({ state, descriptors, navigation }) => {
   const insets = useSafeAreaInsets();
-  const { isVisible, hideBottomBar, showBottomBar } = useBottomBar();
-  const translateY = useRef(new Animated.Value(0)).current;
+  const { isVisible } = useBottomBar();
 
   const activeIconColor = themeAssets.palette.primary;
   const inactiveColor = themeAssets.palette.subtext;
 
-  useEffect(() => {
-    const keyboardDidShowListener = Keyboard.addListener(
-      'keyboardDidShow',
-      () => {
-        hideBottomBar();
-      },
-    );
-
-    const keyboardDidHideListener = Keyboard.addListener(
-      'keyboardDidHide',
-      () => {
-        showBottomBar();
-      },
-    );
-
-    return () => {
-      keyboardDidHideListener.remove();
-      keyboardDidShowListener.remove();
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        {
+          translateY: withSpring(isVisible ? 0 : 150, {
+            damping: 20,
+            stiffness: 90,
+          }),
+        },
+      ],
+      opacity: withTiming(isVisible ? 1 : 0, { duration: 200 }),
     };
-  }, [hideBottomBar, showBottomBar]);
-
-  useEffect(() => {
-    Animated.spring(translateY, {
-      toValue: isVisible ? 0 : 200,
-      useNativeDriver: true,
-      tension: 65,
-      friction: 11,
-    }).start();
-  }, [isVisible, translateY]);
+  });
 
   return (
-    <Animated.View
-      style={[
-        styles.floatingContainer,
-        {
-          transform: [{ translateY }],
-        },
-      ]}>
+    <Animated.View style={[styles.floatingContainer, animatedStyle]}>
       <View
         style={[
           styles.barStyle,
           { paddingBottom: Math.max(insets.bottom, 16) },
-        ]}>
+        ]}
+      >
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
           const isFocused = state.index === index;
@@ -107,7 +87,8 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
               testID={options.tabBarTestID}
               onPress={onPress}
               style={styles.tabItem}
-              activeOpacity={0.7}>
+              activeOpacity={0.7}
+            >
               <View style={styles.tabContent}>
                 {isFocused && <View style={styles.activeIndicator} />}
                 <View style={styles.iconContainer}>
@@ -125,7 +106,8 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                       styles.tabLabel,
                       isFocused && styles.tabLabelActive,
                       { color: iconColor },
-                    ]}>
+                    ]}
+                  >
                     {label}
                   </Text>
                 )}
@@ -199,4 +181,3 @@ const styles = StyleSheet.create({
 });
 
 export default CustomTabBar;
-

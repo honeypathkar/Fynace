@@ -1,11 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Dimensions, ScrollView, StatusBar, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import {
-  ActivityIndicator,
-  Text,
-  useTheme,
-} from 'react-native-paper';
+import { ActivityIndicator, Text, useTheme } from 'react-native-paper';
 import GlobalHeader from '../../components/GlobalHeader';
 import { useAuth } from '../../hooks/useAuth';
 import { apiClient, parseApiError } from '../../api/client';
@@ -22,7 +18,7 @@ import {
   homeStyles,
 } from '../../components/home';
 
-const formatMonth = (month) => {
+const formatMonth = month => {
   const [year, monthIndex] = month.split('-');
   const date = new Date(Number(year), Number(monthIndex) - 1);
   return date.toLocaleDateString('default', {
@@ -45,71 +41,49 @@ const HomeScreen = () => {
   const [categoryData, setCategoryData] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState();
   const [allTimeSummary, setAllTimeSummary] = useState();
+  const [currentMonthSummary, setCurrentMonthSummary] = useState(null);
+  const [previousMonthSummary, setPreviousMonthSummary] = useState(null);
 
-  const chartConfig = useMemo(
-    () => {
-      return {
-        backgroundColor: '#1E293B',
-        backgroundGradientFrom: '#1E293B',
-        backgroundGradientTo: '#1E293B',
-        decimalPlaces: 0,
-        color: (opacity = 1) => `rgba(58, 111, 248, ${opacity})`,
-        labelColor: (opacity = 1) => `rgba(148, 163, 184, ${opacity})`,
-        strokeWidth: 3,
-        barPercentage: 0.7,
-        useShadowColorFromDataset: false,
-        fillShadowGradient: '#3A6FF8',
-        fillShadowGradientOpacity: 0.3,
-        style: {
-          borderRadius: 16,
-        },
-        propsForDots: {
-          r: '5',
-          strokeWidth: '3',
-          stroke: '#3A6FF8',
-        },
-        propsForBackgroundLines: {
-          strokeDasharray: '',
-          stroke: '#334155',
-          strokeWidth: 1,
-        },
-        propsForVerticalLabels: {
-          fontSize: 11,
-          fontFamily: Fonts.medium,
-        },
-        propsForHorizontalLabels: {
-          fontSize: 11,
-          fontFamily: Fonts.medium,
-        },
-        propsForLabels: {
-          fontSize: 12,
-          fontFamily: Fonts.medium,
-        },
-      };
-    },
-    []
-  );
-
-  const fetchCategoryDistribution = useCallback(
-    async () => {
-      if (!token) {
-        return;
-      }
-
-      try {
-        // Fetch all-time category distribution
-        const response = await apiClient.get('/chart/category/all-time');
-        const data = response.data?.data;
-        // Ensure data is always an array
-        setCategoryData(Array.isArray(data) ? data : []);
-      } catch (err) {
-        const apiError = parseApiError(err);
-        setError(apiError.message);
-        setCategoryData([]); // Set empty array on error
-      }
-    },
-    [token]
-  );
+  const chartConfig = useMemo(() => {
+    return {
+      backgroundColor: '#1E293B',
+      backgroundGradientFrom: '#1E293B',
+      backgroundGradientTo: '#1E293B',
+      decimalPlaces: 0,
+      color: (opacity = 1) => `rgba(58, 111, 248, ${opacity})`,
+      labelColor: (opacity = 1) => `rgba(148, 163, 184, ${opacity})`,
+      strokeWidth: 3,
+      barPercentage: 0.7,
+      useShadowColorFromDataset: false,
+      fillShadowGradient: '#3A6FF8',
+      fillShadowGradientOpacity: 0.3,
+      style: {
+        borderRadius: 16,
+      },
+      propsForDots: {
+        r: '5',
+        strokeWidth: '3',
+        stroke: '#3A6FF8',
+      },
+      propsForBackgroundLines: {
+        strokeDasharray: '',
+        stroke: '#334155',
+        strokeWidth: 1,
+      },
+      propsForVerticalLabels: {
+        fontSize: 11,
+        fontFamily: Fonts.medium,
+      },
+      propsForHorizontalLabels: {
+        fontSize: 11,
+        fontFamily: Fonts.medium,
+      },
+      propsForLabels: {
+        fontSize: 12,
+        fontFamily: Fonts.medium,
+      },
+    };
+  }, []);
 
   const fetchDashboardData = useCallback(async () => {
     if (!token) {
@@ -120,10 +94,41 @@ const HomeScreen = () => {
       setLoading(true);
       setError(null);
 
-      const [monthlyResponse, trendResponse, allTimeSummaryResponse] = await Promise.all([
+      // Get current month for comparison
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = String(now.getMonth() + 1).padStart(2, '0');
+      const currentMonthStr = `${currentYear}-${currentMonth}`;
+
+      // Calculate previous month
+      const prevMonthDate = new Date(currentYear, now.getMonth() - 1, 1);
+      const prevYear = prevMonthDate.getFullYear();
+      const prevMonth = String(prevMonthDate.getMonth() + 1).padStart(2, '0');
+      const prevMonthStr = `${prevYear}-${prevMonth}`;
+
+      // Parallelize all API calls for faster response
+      const [
+        monthlyResponse,
+        trendResponse,
+        allTimeSummaryResponse,
+        categoryResponse,
+        currentMonthSummaryResponse,
+        previousMonthSummaryResponse,
+      ] = await Promise.all([
         apiClient.get('/chart/monthly'),
         apiClient.get('/chart/trend'),
-        apiClient.get('/expenses/summary/all-time').catch(() => ({ data: { summary: null } })),
+        apiClient
+          .get('/expenses/summary/all-time')
+          .catch(() => ({ data: { summary: null } })),
+        apiClient
+          .get('/chart/category/all-time')
+          .catch(() => ({ data: { data: [] } })),
+        apiClient
+          .get(`/expenses/summary/${currentMonthStr}`)
+          .catch(() => ({ data: { summary: null } })),
+        apiClient
+          .get(`/expenses/summary/${prevMonthStr}`)
+          .catch(() => ({ data: { summary: null } })),
       ]);
 
       const months = monthlyResponse.data?.data || [];
@@ -136,20 +141,30 @@ const HomeScreen = () => {
       const summaryData = allTimeSummaryResponse?.data?.summary;
       setAllTimeSummary(summaryData || null);
 
-      // Fetch all-time category distribution
-      await fetchCategoryDistribution();
+      // Set category data directly from parallel call
+      const categoryData = categoryResponse.data?.data;
+      setCategoryData(Array.isArray(categoryData) ? categoryData : []);
+
+      // Set current and previous month summaries for percentage calculation
+      setCurrentMonthSummary(
+        currentMonthSummaryResponse?.data?.summary || null,
+      );
+      setPreviousMonthSummary(
+        previousMonthSummaryResponse?.data?.summary || null,
+      );
     } catch (err) {
       const apiError = parseApiError(err);
       setError(apiError.message);
+      setCategoryData([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
-  }, [fetchCategoryDistribution, token]);
+  }, [token]);
 
   useFocusEffect(
     useCallback(() => {
       fetchDashboardData();
-    }, [fetchDashboardData])
+    }, [fetchDashboardData]),
   );
 
   const pieColors = useMemo(
@@ -161,7 +176,7 @@ const HomeScreen = () => {
       '#A855F7', // Purple
       '#14B8A6', // Teal
     ],
-    []
+    [],
   );
 
   const lineChartData = useMemo(() => {
@@ -172,17 +187,22 @@ const HomeScreen = () => {
     // Take last 6 months for better visibility
     const recentTrends = trendData.slice(-6);
 
-    const labels = recentTrends.map((item) => {
-      if (!item || !item.month) return '';
-      const monthLabel = formatMonth(item.month);
-      return monthLabel.split(' ')[0]; // Just Month name
-    }).filter(Boolean);
+    const labels = recentTrends
+      .map(item => {
+        if (!item || !item.month) return '';
+        const monthLabel = formatMonth(item.month);
+        return monthLabel.split(' ')[0]; // Just Month name
+      })
+      .filter(Boolean);
 
-    const expenseData = recentTrends.map((item) => item?.totalMoneyOut || 0);
-    const incomeData = recentTrends.map((item) => item?.totalMoneyIn || 0);
+    const expenseData = recentTrends.map(item => item?.totalMoneyOut || 0);
+    const incomeData = recentTrends.map(item => item?.totalMoneyIn || 0);
 
     // Check if we have valid data
-    if (labels.length === 0 || (expenseData.every(v => v === 0) && incomeData.every(v => v === 0))) {
+    if (
+      labels.length === 0 ||
+      (expenseData.every(v => v === 0) && incomeData.every(v => v === 0))
+    ) {
       return null;
     }
 
@@ -210,7 +230,11 @@ const HomeScreen = () => {
 
   const pieChartData = useMemo(() => {
     // Always return an array, never undefined
-    if (!categoryData || !Array.isArray(categoryData) || categoryData.length === 0) {
+    if (
+      !categoryData ||
+      !Array.isArray(categoryData) ||
+      categoryData.length === 0
+    ) {
       return [];
     }
 
@@ -219,10 +243,10 @@ const HomeScreen = () => {
       categoryData.forEach((item, index) => {
         if (!item || typeof item !== 'object') return;
         if (!item.category) return;
-        
+
         const amount = Number(item.totalMoneyOut || item.totalAmount || 0);
         if (amount <= 0) return;
-        
+
         result.push({
           name: String(item.category),
           population: amount,
@@ -232,7 +256,7 @@ const HomeScreen = () => {
           legendFontFamily: Fonts.medium,
         });
       });
-      
+
       return result;
     } catch (error) {
       console.error('Error generating pie chart data:', error);
@@ -247,6 +271,42 @@ const HomeScreen = () => {
       moneyOut: allTimeSummary?.totalMoneyOut || 0,
     };
   }, [allTimeSummary]);
+
+  // Calculate real percentages based on month-over-month comparison
+  const trendPercentages = useMemo(() => {
+    if (!currentMonthSummary || !previousMonthSummary) {
+      return { moneyInPercent: null, moneyOutPercent: null };
+    }
+
+    const currentMoneyIn = currentMonthSummary?.totalMoneyIn || 0;
+    const currentMoneyOut = currentMonthSummary?.totalMoneyOut || 0;
+    const prevMoneyIn = previousMonthSummary?.totalMoneyIn || 0;
+    const prevMoneyOut = previousMonthSummary?.totalMoneyOut || 0;
+
+    let moneyInPercent = null;
+    let moneyOutPercent = null;
+
+    if (prevMoneyIn > 0) {
+      moneyInPercent = ((currentMoneyIn - prevMoneyIn) / prevMoneyIn) * 100;
+    } else if (currentMoneyIn > 0) {
+      moneyInPercent = 100; // 100% increase from 0
+    }
+
+    if (prevMoneyOut > 0) {
+      moneyOutPercent = ((currentMoneyOut - prevMoneyOut) / prevMoneyOut) * 100;
+    } else if (currentMoneyOut > 0) {
+      moneyOutPercent = 100; // 100% increase from 0
+    }
+
+    return {
+      moneyInPercent:
+        moneyInPercent !== null ? parseFloat(moneyInPercent.toFixed(1)) : null,
+      moneyOutPercent:
+        moneyOutPercent !== null
+          ? parseFloat(moneyOutPercent.toFixed(1))
+          : null,
+    };
+  }, [currentMonthSummary, previousMonthSummary]);
 
   if (!token) {
     return (
@@ -284,42 +344,43 @@ const HomeScreen = () => {
         <ScrollView
           contentContainerStyle={homeStyles.scrollContent}
           showsVerticalScrollIndicator={false}
-          onScrollBeginDrag={() => hideBottomBar()}
-          onScrollEndDrag={(e) => {
-            const { contentOffset } = e.nativeEvent;
-            if (contentOffset.y <= 0) {
-              showBottomBar();
-            }
-          }}
-          onMomentumScrollEnd={(e) => {
-            const { contentOffset } = e.nativeEvent;
-            if (contentOffset.y <= 0) {
-              showBottomBar();
-            }
-          }}
           scrollEventThrottle={16}
         >
           <View style={homeStyles.statsRow}>
             <StatCard
               label="Total Money In"
               value={allTimeData.moneyIn || 0}
-              trend={true}
-              trendValue="+12%"
+              trend={trendPercentages.moneyInPercent !== null}
+              trendValue={
+                trendPercentages.moneyInPercent !== null
+                  ? `${trendPercentages.moneyInPercent >= 0 ? '+' : ''}${
+                      trendPercentages.moneyInPercent
+                    }%`
+                  : ''
+              }
               type="in"
               onPress={() => navigation.navigate('MoneyIn')}
             />
             <StatCard
               label="Total Money Out"
               value={allTimeData.moneyOut || 0}
-              trend={true}
-              trendValue="-5%"
+              trend={trendPercentages.moneyOutPercent !== null}
+              trendValue={
+                trendPercentages.moneyOutPercent !== null
+                  ? `${trendPercentages.moneyOutPercent >= 0 ? '+' : ''}${
+                      trendPercentages.moneyOutPercent
+                    }%`
+                  : ''
+              }
               type="out"
             />
           </View>
 
           <LineChartCard
             title="Monthly Snapshot"
-            netBalance={(allTimeData.moneyIn || 0) - (allTimeData.moneyOut || 0)}
+            netBalance={
+              (allTimeData.moneyIn || 0) - (allTimeData.moneyOut || 0)
+            }
             netBalanceLabel="Net Balance"
             lineChartData={lineChartData}
             screenWidth={screenWidth}
@@ -341,4 +402,3 @@ const HomeScreen = () => {
 };
 
 export default HomeScreen;
-

@@ -18,7 +18,7 @@ const MoneyInForm = ({
         label="Amount"
         value={formValues.amount}
         keyboardType="numeric"
-        onChangeText={(value) =>
+        onChangeText={value =>
           onFormValueChange({ ...formValues, amount: value })
         }
         placeholder="0"
@@ -26,7 +26,7 @@ const MoneyInForm = ({
       <TextInputField
         label="Date"
         value={formValues.date}
-        onChangeText={(value) =>
+        onChangeText={value =>
           onFormValueChange({ ...formValues, date: value })
         }
         placeholder="YYYY-MM-DD"
@@ -34,16 +34,32 @@ const MoneyInForm = ({
       <TextInputField
         label="Notes (Optional)"
         value={formValues.notes}
-        onChangeText={(value) =>
+        onChangeText={value =>
           onFormValueChange({ ...formValues, notes: value })
         }
         placeholder="Add a note"
         multiline
         numberOfLines={3}
       />
+      <View style={styles.formActions}>
+        <Button
+          mode="outlined"
+          onPress={onCancel}
+          textColor="#94A3B8"
+          style={styles.formButton}
+        >
+          Cancel
+        </Button>
+        <PrimaryButton
+          title="Save"
+          onPress={onSave}
+          loading={saving}
+          style={styles.formButton}
+          buttonColor="#3A6FF8"
+        />
+      </View>
     </View>
   );
 };
 
 export default MoneyInForm;
-

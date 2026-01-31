@@ -23,6 +23,7 @@ const FilterSheet = ({
       ref={sheetRef}
       title="Filters"
       onClose={onClose}
+      initialHeight={0.7}
       footer={
         <View style={styles.actionMenuFooter}>
           <Button
@@ -81,8 +82,7 @@ const FilterSheet = ({
               <Text
                 style={[
                   styles.filterSheetItemText,
-                  selectedMonth === month &&
-                    styles.filterSheetItemTextSelected,
+                  selectedMonth === month && styles.filterSheetItemTextSelected,
                 ]}
               >
                 {transformMonthLabel(month)}
@@ -104,8 +104,7 @@ const FilterSheet = ({
               key={category}
               style={[
                 styles.filterSheetItem,
-                selectedCategory === category &&
-                  styles.filterSheetItemSelected,
+                selectedCategory === category && styles.filterSheetItemSelected,
               ]}
               onPress={() => onSelectCategory(category)}
               activeOpacity={0.7}
@@ -133,4 +132,3 @@ const FilterSheet = ({
 };
 
 export default FilterSheet;
-

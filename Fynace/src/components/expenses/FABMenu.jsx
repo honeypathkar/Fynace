@@ -2,7 +2,12 @@ import React from 'react';
 import { TouchableOpacity, View } from 'react-native';
 import { Button, Text } from 'react-native-paper';
 import BottomSheet from '../BottomSheet';
-import { FileText, FileSpreadsheet, MessageSquare, ChevronDown } from 'lucide-react-native';
+import {
+  FileText,
+  FileSpreadsheet,
+  MessageSquare,
+  ChevronDown,
+} from 'lucide-react-native';
 import styles from './styles';
 
 const FABMenu = ({
@@ -18,21 +23,7 @@ const FABMenu = ({
       ref={sheetRef}
       title="Add Expense"
       onClose={onClose}
-      footer={
-        <View style={styles.actionMenuFooter}>
-          <Button
-            mode="outlined"
-            onPress={() => {
-              onClose();
-              sheetRef.current?.close();
-            }}
-            textColor="#94A3B8"
-            style={styles.actionMenuButton}
-          >
-            Cancel
-          </Button>
-        </View>
-      }
+      initialHeight={0.5}
     >
       <View style={styles.actionMenuContent}>
         <TouchableOpacity
@@ -104,4 +95,3 @@ const FABMenu = ({
 };
 
 export default FABMenu;
-

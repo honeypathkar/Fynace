@@ -2,6 +2,7 @@ import React from 'react';
 import { View } from 'react-native';
 import { Text } from 'react-native-paper';
 import { LineChart } from 'react-native-chart-kit';
+import LinearGradient from 'react-native-linear-gradient';
 import styles from './styles';
 
 const LineChartCard = ({
@@ -13,12 +14,23 @@ const LineChartCard = ({
   chartConfig,
 }) => {
   return (
-    <View style={styles.chartCard}>
-      <Text variant="titleMedium" style={styles.sectionTitle}>{title}</Text>
-      <Text variant="displaySmall" style={styles.netBalance}>
+    <LinearGradient
+      colors={['#1E293B', '#0F172A', '#1E293B']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.chartCard}
+    >
+      <Text variant="titleMedium" style={styles.sectionTitle}>
+        {title}
+      </Text>
+      <Text
+        variant="displaySmall"
+        style={[styles.netBalance, { textAlign: 'left' }]}
+      >
         ₹{netBalance.toLocaleString()}
         <Text variant="bodyMedium" style={styles.netBalanceLabel}>
-          {' '}{netBalanceLabel}
+          {' '}
+          {netBalanceLabel}
         </Text>
       </Text>
 
@@ -39,7 +51,7 @@ const LineChartCard = ({
             segments={4}
             fromZero={true}
             yAxisInterval={1}
-            formatYLabel={(value) => {
+            formatYLabel={value => {
               const num = parseInt(value);
               if (num >= 100000) return `${(num / 100000).toFixed(1)}L`;
               if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
@@ -55,9 +67,8 @@ const LineChartCard = ({
           </Text>
         </View>
       )}
-    </View>
+    </LinearGradient>
   );
 };
 
 export default LineChartCard;
-

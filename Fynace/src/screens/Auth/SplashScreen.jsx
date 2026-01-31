@@ -31,6 +31,16 @@ const SplashScreen = () => {
     }
   }, []);
 
+  const checkOnboarding = useCallback(async () => {
+    try {
+      const onboardingCompleted = await AsyncStorage.getItem('@spendo/onboarding-completed');
+      return onboardingCompleted === 'true';
+    } catch (error) {
+      console.warn('Failed to check onboarding status', error);
+      return false;
+    }
+  }, []);
+
   useEffect(() => {
     Animated.timing(scale, {
       toValue: 1,
@@ -47,14 +57,18 @@ const SplashScreen = () => {
     }).start(async ({ finished }) => {
       if (finished) {
         const token = await getAuthToken();
+        const hasSeenOnboarding = await checkOnboarding();
+        
         if (token) {
           navigation.replace('AppTabs');
+        } else if (!hasSeenOnboarding) {
+          navigation.replace('Onboarding');
         } else {
           navigation.replace('Login');
         }
       }
     });
-  }, [logoOpacity, navigation, scale, getAuthToken]);
+  }, [logoOpacity, navigation, scale, getAuthToken, checkOnboarding]);
 
   return (
     <View style={styles.container}>

@@ -1,18 +1,28 @@
 import React from 'react';
 import { TouchableOpacity, View } from 'react-native';
 import { Card, Text } from 'react-native-paper';
-import { Pencil } from 'lucide-react-native';
+import { Pencil, Trash2 } from 'lucide-react-native';
 import styles from './styles';
 
-const ExpenseCard = ({ item, transformMonthLabel, onEdit }) => {
+const ExpenseCard = ({
+  item,
+  transformMonthLabel,
+  formatItemTime,
+  onEdit,
+  onDelete,
+}) => {
   return (
     <Card style={styles.expenseItem}>
       <Card.Title
         title={item.itemName || item.category}
         subtitle={
           item.category
-            ? `${item.category} • ${transformMonthLabel(item.month)}`
-            : transformMonthLabel(item.month)
+            ? `${item.category} • ${transformMonthLabel(
+                item.month,
+              )}\n${formatItemTime(item.createdAt)}`
+            : `${transformMonthLabel(item.month)}\n${formatItemTime(
+                item.createdAt,
+              )}`
         }
         titleStyle={styles.expenseTitle}
         subtitleStyle={styles.expenseSubtitle}
@@ -38,6 +48,15 @@ const ExpenseCard = ({ item, transformMonthLabel, onEdit }) => {
             >
               <Pencil size={18} color="#94A3B8" />
             </TouchableOpacity>
+            {onDelete && (
+              <TouchableOpacity
+                onPress={() => onDelete(item)}
+                style={styles.deleteButton}
+                activeOpacity={0.7}
+              >
+                <Trash2 size={18} color="#EF4444" />
+              </TouchableOpacity>
+            )}
           </View>
         )}
       />
@@ -53,4 +72,3 @@ const ExpenseCard = ({ item, transformMonthLabel, onEdit }) => {
 };
 
 export default ExpenseCard;
-

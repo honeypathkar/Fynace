@@ -51,7 +51,10 @@ const MoneyInScreen = ({ navigation }) => {
     } catch (err) {
       const apiError = parseApiError(err);
       if (Platform.OS === 'android') {
-        ToastAndroid.show(apiError.message || 'Failed to fetch money in history', ToastAndroid.LONG);
+        ToastAndroid.show(
+          apiError.message || 'Failed to fetch money in history',
+          ToastAndroid.LONG,
+        );
       }
     } finally {
       setLoading(false);
@@ -61,23 +64,24 @@ const MoneyInScreen = ({ navigation }) => {
   useFocusEffect(
     useCallback(() => {
       fetchMoneyInHistory();
-    }, [fetchMoneyInHistory])
+    }, [fetchMoneyInHistory]),
   );
 
-  const formatDate = (dateString) => {
+  const formatDate = dateString => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString('en-IN', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
     });
   };
 
-  const formatTime = (dateString) => {
+  const formatTime = dateString => {
     const date = new Date(dateString);
-    return date.toLocaleTimeString('en-US', {
+    return date.toLocaleTimeString('en-IN', {
       hour: '2-digit',
       minute: '2-digit',
+      hour12: true,
     });
   };
 
@@ -104,9 +108,17 @@ const MoneyInScreen = ({ navigation }) => {
       }
 
       setSaving(true);
+      let finalDate = formValues.date;
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      // If user picks today, send full ISO string to preserve the "true" recording time
+      if (finalDate === todayStr) {
+        finalDate = new Date().toISOString();
+      }
+
       await apiClient.post('/money-in', {
         amount: Number(formValues.amount),
-        date: formValues.date,
+        date: finalDate,
         notes: formValues.notes,
       });
       closeForm();
@@ -114,14 +126,17 @@ const MoneyInScreen = ({ navigation }) => {
     } catch (err) {
       const apiError = parseApiError(err);
       if (Platform.OS === 'android') {
-        ToastAndroid.show(apiError.message || 'Failed to add money in', ToastAndroid.LONG);
+        ToastAndroid.show(
+          apiError.message || 'Failed to add money in',
+          ToastAndroid.LONG,
+        );
       }
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async id => {
     // Delete entry directly with toast confirmation
     try {
       await apiClient.delete(`/money-in/${id}`);
@@ -132,7 +147,10 @@ const MoneyInScreen = ({ navigation }) => {
     } catch (err) {
       const apiError = parseApiError(err);
       if (Platform.OS === 'android') {
-        ToastAndroid.show(apiError.message || 'Failed to delete entry', ToastAndroid.LONG);
+        ToastAndroid.show(
+          apiError.message || 'Failed to delete entry',
+          ToastAndroid.LONG,
+        );
       }
     }
   };
@@ -140,10 +158,7 @@ const MoneyInScreen = ({ navigation }) => {
   if (!token) {
     return (
       <SafeAreaView edges={['top']} style={moneyInStyles.container}>
-        <GlobalHeader
-          title="Money In"
-          subtitle="Log in to track your income"
-        />
+        <GlobalHeader title="Money In" subtitle="Log in to track your income" />
       </SafeAreaView>
     );
   }
@@ -179,7 +194,7 @@ const MoneyInScreen = ({ navigation }) => {
       ) : (
         <FlatList
           data={moneyInHistory}
-          keyExtractor={(item) => item._id}
+          keyExtractor={item => item._id}
           contentContainerStyle={moneyInStyles.listContent}
           renderItem={({ item }) => (
             <MoneyInHistoryCard
@@ -196,31 +211,13 @@ const MoneyInScreen = ({ navigation }) => {
       <BottomSheet
         ref={bottomSheetRef}
         title="Add Money In"
+        initialHeight={0.7}
         onClose={() =>
           setFormValues({
             amount: '',
             date: new Date().toISOString().split('T')[0],
             notes: '',
           })
-        }
-        footer={
-          <View style={moneyInStyles.formActions}>
-            <Button
-              mode="outlined"
-              onPress={closeForm}
-              textColor="#94A3B8"
-              style={moneyInStyles.formButton}
-            >
-              Cancel
-            </Button>
-            <PrimaryButton
-              title="Save"
-              onPress={handleAddMoneyIn}
-              loading={saving}
-              style={moneyInStyles.formButton}
-              buttonColor="#3A6FF8"
-            />
-          </View>
         }
       >
         <MoneyInForm
@@ -236,4 +233,3 @@ const MoneyInScreen = ({ navigation }) => {
 };
 
 export default MoneyInScreen;
-
