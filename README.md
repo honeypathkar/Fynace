@@ -1,4 +1,4 @@
-# 💰 Spendo
+# 💰 Fynace
 
 A full-stack expense tracking application built with React Native and Node.js, designed to help users manage their finances efficiently with intuitive UI, comprehensive analytics, and seamless data management.
 
