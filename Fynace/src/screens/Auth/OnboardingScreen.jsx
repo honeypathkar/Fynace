@@ -56,8 +56,12 @@ const OnboardingScreen = () => {
       end={{ x: 1, y: 1 }}
       style={styles.container}
     >
-      <StatusBar barStyle="light-content" backgroundColor="#0F172A" translucent={false} />
-      
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor="#0F172A"
+        translucent={false}
+      />
+
       <Animated.View
         style={[
           styles.content,
@@ -74,10 +78,11 @@ const OnboardingScreen = () => {
         </View>
 
         <View style={styles.textContainer}>
-          <Text style={styles.appName}>Spendo</Text>
+          <Text style={styles.appName}>Fynace</Text>
           <Text style={styles.tagline}>Track Your Expenses</Text>
           <Text style={styles.description}>
-            Manage your finances effortlessly. Track expenses, monitor spending, and stay in control of your money.
+            Manage your finances effortlessly. Track expenses, monitor spending,
+            and stay in control of your money.
           </Text>
         </View>
 

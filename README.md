@@ -5,12 +5,14 @@ A full-stack expense tracking application built with React Native and Node.js, d
 ## 📱 Features
 
 ### Authentication & User Management
+
 - **OTP-based Login**: Secure email-based OTP authentication
-- **Google Sign-In**: Quick authentication via Google OAuth2
+- **Google Sign-In**: Quick authentication via Google OAuth2 (Coming Soon)
 - **Profile Management**: Edit user profile with name updates
 - **Secure Token Management**: JWT-based authentication with automatic token refresh
 
 ### Expense Management
+
 - **Manual Entry**: Add expenses with category, amount, notes, and date
 - **Bulk Upload**: Import expenses from Excel files (.xlsx)
 - **Edit & Delete**: Modify existing expenses with pre-filled forms
@@ -19,7 +21,8 @@ A full-stack expense tracking application built with React Native and Node.js, d
 - **Pagination**: Efficient loading with pull-to-refresh support
 
 ### Analytics & Insights
-- **Dashboard Overview**: 
+
+- **Dashboard Overview**:
   - Total expenses summary
   - Monthly expense trends
   - Category-wise distribution (pie chart)
@@ -31,6 +34,7 @@ A full-stack expense tracking application built with React Native and Node.js, d
 - **Money In/Out Tracking**: Separate tracking for income and expenses
 
 ### User Experience
+
 - **Custom Fonts**: Bricolage Grotesque font family throughout the app
 - **Smooth Animations**: Animated expense cards with optimized performance
 - **Bottom Sheet Modals**: Elegant modal dialogs for forms and actions
@@ -42,6 +46,7 @@ A full-stack expense tracking application built with React Native and Node.js, d
 ## 🏗️ Tech Stack
 
 ### Frontend (React Native)
+
 - **React Native** 0.82.1
 - **React Navigation** - Stack and Bottom Tab navigation
 - **React Native Chart Kit** - Data visualization
@@ -52,6 +57,7 @@ A full-stack expense tracking application built with React Native and Node.js, d
 - **XLSX** - Excel file parsing
 
 ### Backend (Node.js)
+
 - **Express.js** - RESTful API server
 - **MongoDB** with **Mongoose** - Database and ODM
 - **JWT** - Authentication tokens
@@ -76,21 +82,25 @@ A full-stack expense tracking application built with React Native and Node.js, d
 ### Backend Setup
 
 1. **Navigate to backend directory:**
+
    ```bash
    cd backend
    ```
 
 2. **Install dependencies:**
+
    ```bash
    npm install
    ```
 
 3. **Create `.env` file:**
+
    ```bash
    cp .env.example .env
    ```
 
 4. **Configure environment variables:**
+
    ```env
    PORT=3000
    NODE_ENV=development
@@ -104,6 +114,7 @@ A full-stack expense tracking application built with React Native and Node.js, d
    ```
 
 5. **Start the backend server:**
+
    ```bash
    # Development mode (with auto-reload)
    npm run dev
@@ -117,26 +128,30 @@ A full-stack expense tracking application built with React Native and Node.js, d
 ### Frontend Setup
 
 1. **Navigate to Spendo directory:**
+
    ```bash
    cd Spendo
    ```
 
 2. **Install dependencies:**
+
    ```bash
    npm install
    ```
 
 3. **Configure API base URL:**
    Edit `src/utils/BASE_URL.js`:
+
    ```javascript
    // For local development
-   export const BASE_URL = 'http://YOUR_LOCAL_IP:3000/api';
-   
+   export const BASE_URL = "http://YOUR_LOCAL_IP:3000/api";
+
    // For production
    // export const BASE_URL = 'https://your-api-domain.com/api';
    ```
 
 4. **For iOS (macOS only):**
+
    ```bash
    # Install CocoaPods dependencies
    cd ios
@@ -145,11 +160,13 @@ A full-stack expense tracking application built with React Native and Node.js, d
    ```
 
 5. **Start Metro bundler:**
+
    ```bash
    npm start
    ```
 
 6. **Run the app:**
+
    ```bash
    # Android
    npm run android
@@ -180,11 +197,13 @@ A full-stack expense tracking application built with React Native and Node.js, d
 ### MongoDB Setup
 
 #### Local MongoDB
+
 1. Install MongoDB locally
 2. Start MongoDB service
 3. Use connection string: `mongodb://localhost:27017/expense-tracker`
 
 #### MongoDB Atlas (Cloud)
+
 1. Create a free account at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
 2. Create a cluster
 3. Get connection string and update `MONGODB_URI` in `.env`
@@ -192,17 +211,23 @@ A full-stack expense tracking application built with React Native and Node.js, d
 ## 🎨 Customization
 
 ### Fonts
+
 The app uses **Bricolage Grotesque** font family. Fonts are located in:
+
 - `Spendo/assets/fonts/`
 - Configured in `Spendo/assets/fonts/index.js`
 
 ### Theme
+
 Theme configuration is in:
+
 - `Spendo/src/theme/theme.js` - Color scheme and spacing
 - `Spendo/src/theme/paperTheme.js` - React Native Paper theme
 
 ### Colors
+
 The app uses a dark theme with:
+
 - Primary background: `#0b0f1a`
 - Secondary: `#6366f1` (Indigo)
 - Text colors: Various shades of white/gray
@@ -213,28 +238,33 @@ The app uses a dark theme with:
 ### Backend Issues
 
 **MongoDB Connection Error:**
+
 - Ensure MongoDB is running
 - Check `MONGODB_URI` in `.env`
 - Verify network connectivity for cloud MongoDB
 
 **OTP Email Not Sending:**
+
 - Verify Gmail App Password is correct
 - Check Gmail account has 2-Step Verification enabled
 - Ensure `GMAIL_USER` and `GMAIL_APP_PASSWORD` are set correctly
 
 **Port Already in Use:**
+
 - Change `PORT` in `.env` to an available port
 - Kill the process using the port: `lsof -ti:3000 | xargs kill`
 
 ### Frontend Issues
 
 **Metro Bundler Issues:**
+
 ```bash
 # Clear cache and restart
 npm start -- --reset-cache
 ```
 
 **Android Build Errors:**
+
 ```bash
 cd android
 ./gradlew clean
@@ -243,6 +273,7 @@ npm run android
 ```
 
 **iOS Build Errors:**
+
 ```bash
 cd ios
 pod deintegrate
@@ -252,11 +283,13 @@ npm run ios
 ```
 
 **Font Not Loading:**
+
 - Ensure fonts are in `Spendo/assets/fonts/`
 - Check `react-native.config.js` configuration
 - Rebuild the app after adding fonts
 
 **API Connection Issues:**
+
 - Verify `BASE_URL` in `src/utils/BASE_URL.js`
 - Ensure backend server is running
 - Check network connectivity
@@ -265,12 +298,14 @@ npm run ios
 ## 📱 Platform-Specific Notes
 
 ### Android
+
 - Minimum SDK: 21
 - Target SDK: 33
 - Uses Material Design components
 - Toast notifications via `ToastAndroid`
 
 ### iOS
+
 - Minimum iOS version: 13.0
 - Requires CocoaPods for dependencies
 - Uses native iOS components where applicable
@@ -299,6 +334,7 @@ ISC
 ## 📞 Support
 
 For issues and questions:
+
 - Check existing issues in the repository
 - Create a new issue with detailed description
 - Include error logs and steps to reproduce
@@ -317,4 +353,3 @@ For issues and questions:
 ---
 
 **Built with ❤️ using React Native and Node.js**
-

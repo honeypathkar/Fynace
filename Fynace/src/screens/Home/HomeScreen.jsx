@@ -106,23 +106,15 @@ const HomeScreen = () => {
       const prevMonth = String(prevMonthDate.getMonth() + 1).padStart(2, '0');
       const prevMonthStr = `${prevYear}-${prevMonth}`;
 
-      // Parallelize all API calls for faster response
+      // PHASE 1: Critical Stats (Summaries)
       const [
-        monthlyResponse,
-        trendResponse,
         allTimeSummaryResponse,
-        categoryResponse,
         currentMonthSummaryResponse,
         previousMonthSummaryResponse,
       ] = await Promise.all([
-        apiClient.get('/chart/monthly'),
-        apiClient.get('/chart/trend'),
         apiClient
           .get('/expenses/summary/all-time')
           .catch(() => ({ data: { summary: null } })),
-        apiClient
-          .get('/chart/category/all-time')
-          .catch(() => ({ data: { data: [] } })),
         apiClient
           .get(`/expenses/summary/${currentMonthStr}`)
           .catch(() => ({ data: { summary: null } })),
@@ -131,32 +123,36 @@ const HomeScreen = () => {
           .catch(() => ({ data: { summary: null } })),
       ]);
 
-      const months = monthlyResponse.data?.data || [];
-      setMonthlyData(Array.isArray(months) ? months : []);
-
-      const trends = trendResponse.data?.data || [];
-      setTrendData(Array.isArray(trends) ? trends : []);
-
-      // Set all-time summary, fallback to null if not available
-      const summaryData = allTimeSummaryResponse?.data?.summary;
-      setAllTimeSummary(summaryData || null);
-
-      // Set category data directly from parallel call
-      const categoryData = categoryResponse.data?.data;
-      setCategoryData(Array.isArray(categoryData) ? categoryData : []);
-
-      // Set current and previous month summaries for percentage calculation
+      setAllTimeSummary(allTimeSummaryResponse?.data?.summary || null);
       setCurrentMonthSummary(
         currentMonthSummaryResponse?.data?.summary || null,
       );
       setPreviousMonthSummary(
         previousMonthSummaryResponse?.data?.summary || null,
       );
+
+      // Stop primary loading after summaries are in
+      setLoading(false);
+
+      // PHASE 2: Heavy Data (Charts) - Load in background
+      Promise.all([
+        apiClient.get('/chart/monthly').catch(() => ({ data: { data: [] } })),
+        apiClient.get('/chart/trend').catch(() => ({ data: { data: [] } })),
+        apiClient
+          .get('/chart/category/all-time')
+          .catch(() => ({ data: { data: [] } })),
+      ])
+        .then(([monthlyResponse, trendResponse, categoryResponse]) => {
+          setMonthlyData(monthlyResponse.data?.data || []);
+          setTrendData(trendResponse.data?.data || []);
+          setCategoryData(categoryResponse.data?.data || []);
+        })
+        .catch(err => {
+          console.error('Error loading chart data:', err);
+        });
     } catch (err) {
       const apiError = parseApiError(err);
       setError(apiError.message);
-      setCategoryData([]); // Set empty array on error
-    } finally {
       setLoading(false);
     }
   }, [token]);

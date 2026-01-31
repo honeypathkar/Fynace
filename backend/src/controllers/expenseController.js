@@ -2,6 +2,8 @@ const Expense = require("../models/Expense");
 const MoneyIn = require("../models/MoneyIn");
 const mongoose = require("mongoose");
 const { body, validationResult } = require("express-validator");
+const MonthlySummary = require("../models/MonthlySummary");
+const { updateMonthlySummary } = require("../utils/summaryUtils");
 
 // Upload expenses in bulk from JSON
 const uploadExpenses = async (req, res) => {
@@ -46,6 +48,12 @@ const uploadExpenses = async (req, res) => {
 
     // Insert all expenses
     const savedExpenses = await Expense.insertMany(expensesToSave);
+
+    // Update monthly summaries for all affected months
+    const affectedMonths = [...new Set(expensesToSave.map((e) => e.month))];
+    for (const month of affectedMonths) {
+      await updateMonthlySummary(userId, month);
+    }
 
     res.status(201).json({
       success: true,
@@ -130,6 +138,9 @@ const addExpense = async (req, res) => {
       message: "Expense added successfully",
       expense,
     });
+
+    // Update summary in background
+    updateMonthlySummary(userId, month);
   } catch (error) {
     console.error("Error in addExpense:", error);
     res.status(500).json({
@@ -227,6 +238,13 @@ const updateExpense = async (req, res) => {
       message: "Expense updated successfully",
       expense: updatedExpense,
     });
+
+    // Update summary in background
+    updateMonthlySummary(userId, month);
+    // If month changed, update old month too
+    if (expense.month !== month) {
+      updateMonthlySummary(userId, expense.month);
+    }
   } catch (error) {
     console.error("Error in updateExpense:", error);
     res.status(500).json({
@@ -236,14 +254,13 @@ const updateExpense = async (req, res) => {
   }
 };
 
-// Get all expenses for a specific month
+// Get all expenses for a specific month with cursor-based pagination
 const getExpensesByMonth = async (req, res) => {
   try {
     const { month } = req.params;
     const userId = req.userId;
-    const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
-    const skip = (page - 1) * limit;
+    const lastCreatedAt = req.query.lastCreatedAt;
 
     // Validate month format
     const monthRegex = /^\d{4}-\d{2}$/;
@@ -254,22 +271,28 @@ const getExpensesByMonth = async (req, res) => {
       });
     }
 
-    const expenses = await Expense.find({ userId, month })
-      .sort({ month: -1, createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+    const query = { userId, month };
+    if (lastCreatedAt) {
+      query.createdAt = { $lt: new Date(lastCreatedAt) };
+    }
 
-    const totalCount = await Expense.countDocuments({ userId, month });
+    const expenses = await Expense.find(query)
+      .sort({ createdAt: -1 })
+      .limit(limit + 1)
+      .select("amount category itemName date month createdAt moneyIn moneyOut");
+
+    const hasMore = expenses.length > limit;
+    const results = hasMore ? expenses.slice(0, limit) : expenses;
 
     res.status(200).json({
       success: true,
-      count: expenses.length,
-      total: totalCount,
-      page,
+      count: results.length,
       limit,
-      hasMore: skip + expenses.length < totalCount,
+      hasMore,
       month,
-      expenses,
+      expenses: results,
+      lastCreatedAt:
+        results.length > 0 ? results[results.length - 1].createdAt : null,
     });
   } catch (error) {
     console.error("Error in getExpensesByMonth:", error);
@@ -280,29 +303,34 @@ const getExpensesByMonth = async (req, res) => {
   }
 };
 
-// Get all expenses (not filtered by month) with pagination
+// Get all expenses with cursor-based pagination
 const getAllExpenses = async (req, res) => {
   try {
     const userId = req.userId;
-    const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
-    const skip = (page - 1) * limit;
+    const lastCreatedAt = req.query.lastCreatedAt;
 
-    const expenses = await Expense.find({ userId })
-      .sort({ month: -1, createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+    const query = { userId };
+    if (lastCreatedAt) {
+      query.createdAt = { $lt: new Date(lastCreatedAt) };
+    }
 
-    const totalCount = await Expense.countDocuments({ userId });
+    const expenses = await Expense.find(query)
+      .sort({ createdAt: -1 })
+      .limit(limit + 1)
+      .select("amount category itemName date month createdAt moneyIn moneyOut");
+
+    const hasMore = expenses.length > limit;
+    const results = hasMore ? expenses.slice(0, limit) : expenses;
 
     res.status(200).json({
       success: true,
-      count: expenses.length,
-      total: totalCount,
-      page,
+      count: results.length,
       limit,
-      hasMore: skip + expenses.length < totalCount,
-      expenses,
+      hasMore,
+      expenses: results,
+      lastCreatedAt:
+        results.length > 0 ? results[results.length - 1].createdAt : null,
     });
   } catch (error) {
     console.error("Error in getAllExpenses:", error);
@@ -313,7 +341,7 @@ const getAllExpenses = async (req, res) => {
   }
 };
 
-// Get summarized data for a specific month
+// Get summarized data for a specific month (optimized with pre-computed data)
 const getExpenseSummary = async (req, res) => {
   try {
     const { month } = req.params;
@@ -328,90 +356,39 @@ const getExpenseSummary = async (req, res) => {
       });
     }
 
-    const startDate = new Date(`${month}-01`);
-    const endDate = new Date(
-      startDate.getFullYear(),
-      startDate.getMonth() + 1,
-      0,
-      23,
-      59,
-      59,
-    );
+    // Try to get from pre-computed summary first
+    let summaryData = await MonthlySummary.findOne({ userId, month });
 
-    const [expenseStats, moneyInStats, categoryStats] = await Promise.all([
-      Expense.aggregate([
-        { $match: { userId: new mongoose.Types.ObjectId(userId), month } },
-        {
-          $group: {
-            _id: null,
-            totalMoneyIn: { $sum: "$moneyIn" },
-            totalMoneyOut: {
-              $sum: {
-                $cond: [{ $gt: ["$moneyOut", 0] }, "$moneyOut", "$amount"],
-              },
-            },
-            totalExpenses: { $sum: 1 },
-          },
-        },
-      ]),
-      MoneyIn.aggregate([
-        {
-          $match: {
-            userId: new mongoose.Types.ObjectId(userId),
-            date: { $gte: startDate, $lte: endDate },
-          },
-        },
-        { $group: { _id: null, total: { $sum: "$amount" } } },
-      ]),
-      Expense.aggregate([
-        { $match: { userId: new mongoose.Types.ObjectId(userId), month } },
-        {
-          $group: {
-            _id: { $ifNull: ["$category", "Uncategorized"] },
-            totalAmount: { $sum: "$amount" },
-            totalMoneyIn: { $sum: "$moneyIn" },
-            totalMoneyOut: {
-              $sum: {
-                $cond: [{ $gt: ["$moneyOut", 0] }, "$moneyOut", "$amount"],
-              },
-            },
-            count: { $sum: 1 },
-          },
-        },
-        {
-          $project: {
-            category: "$_id",
-            totalAmount: 1,
-            totalMoneyIn: 1,
-            totalMoneyOut: 1,
-            count: 1,
-            _id: 0,
-          },
-        },
-      ]),
-    ]);
+    if (!summaryData) {
+      // If not exists, compute it now and return
+      await updateMonthlySummary(userId, month);
+      summaryData = await MonthlySummary.findOne({ userId, month });
+    }
 
-    const expStats = expenseStats[0] || {
-      totalMoneyIn: 0,
-      totalMoneyOut: 0,
-      totalExpenses: 0,
-    };
-    const minStats = moneyInStats[0] || { total: 0 };
-
-    const totalMoneyIn = expStats.totalMoneyIn + minStats.total;
-    const totalMoneyOut = expStats.totalMoneyOut;
-    const remaining = totalMoneyIn - totalMoneyOut;
+    if (!summaryData) {
+      return res.status(200).json({
+        success: true,
+        month,
+        summary: {
+          totalMoneyIn: 0,
+          totalMoneyOut: 0,
+          remaining: 0,
+          totalExpenses: 0,
+        },
+        categoryBreakdown: [],
+      });
+    }
 
     res.status(200).json({
       success: true,
       month,
       summary: {
-        totalMoneyIn,
-        totalMoneyOut,
-        remaining,
-        totalExpenses: expStats.totalExpenses,
+        totalMoneyIn: summaryData.totalMoneyIn,
+        totalMoneyOut: summaryData.totalMoneyOut,
+        remaining: summaryData.remaining,
+        totalExpenses: summaryData.totalExpenses,
       },
-      categoryBreakdown: categoryStats,
+      categoryBreakdown: summaryData.categoryBreakdown,
     });
   } catch (error) {
     console.error("Error in getExpenseSummary:", error);
@@ -422,7 +399,7 @@ const getExpenseSummary = async (req, res) => {
   }
 };
 
-// Compare month-to-month spending
+// Compare month-to-month spending (optimized with pre-computed data)
 const compareExpenses = async (req, res) => {
   try {
     const { month1, month2 } = req.query;
@@ -445,69 +422,65 @@ const compareExpenses = async (req, res) => {
       });
     }
 
-    // Get expenses for both months
-    const [expenses1, expenses2] = await Promise.all([
-      Expense.find({ userId, month: month1 }),
-      Expense.find({ userId, month: month2 }),
+    // Get summaries for both months
+    let [summary1, summary2] = await Promise.all([
+      MonthlySummary.findOne({ userId, month: month1 }),
+      MonthlySummary.findOne({ userId, month: month2 }),
     ]);
 
-    // Calculate totals for month1
-    const month1Data = {
-      month: month1,
-      totalMoneyIn: expenses1.reduce((sum, exp) => sum + (exp.moneyIn || 0), 0),
-      totalMoneyOut: expenses1.reduce(
-        (sum, exp) => sum + (exp.moneyOut || 0),
-        0,
-      ),
-      totalExpenses: expenses1.length,
-    };
-    month1Data.remaining = month1Data.totalMoneyIn - month1Data.totalMoneyOut;
+    // Compute if missing
+    if (!summary1) {
+      await updateMonthlySummary(userId, month1);
+      summary1 = await MonthlySummary.findOne({ userId, month: month1 });
+    }
+    if (!summary2) {
+      await updateMonthlySummary(userId, month2);
+      summary2 = await MonthlySummary.findOne({ userId, month: month2 });
+    }
 
-    // Calculate totals for month2
-    const month2Data = {
-      month: month2,
-      totalMoneyIn: expenses2.reduce((sum, exp) => sum + (exp.moneyIn || 0), 0),
-      totalMoneyOut: expenses2.reduce(
-        (sum, exp) => sum + (exp.moneyOut || 0),
-        0,
-      ),
-      totalExpenses: expenses2.length,
+    const data1 = summary1 || {
+      totalMoneyIn: 0,
+      totalMoneyOut: 0,
+      totalExpenses: 0,
+      remaining: 0,
     };
-    month2Data.remaining = month2Data.totalMoneyIn - month2Data.totalMoneyOut;
+    const data2 = summary2 || {
+      totalMoneyIn: 0,
+      totalMoneyOut: 0,
+      totalExpenses: 0,
+      remaining: 0,
+    };
 
     // Calculate differences
     const comparison = {
       moneyIn: {
-        month1: month1Data.totalMoneyIn,
-        month2: month2Data.totalMoneyIn,
-        difference: month2Data.totalMoneyIn - month1Data.totalMoneyIn,
+        month1: data1.totalMoneyIn,
+        month2: data2.totalMoneyIn,
+        difference: data2.totalMoneyIn - data1.totalMoneyIn,
         percentageChange:
-          month1Data.totalMoneyIn !== 0
-            ? ((month2Data.totalMoneyIn - month1Data.totalMoneyIn) /
-                month1Data.totalMoneyIn) *
+          data1.totalMoneyIn !== 0
+            ? ((data2.totalMoneyIn - data1.totalMoneyIn) / data1.totalMoneyIn) *
               100
             : 0,
       },
       moneyOut: {
-        month1: month1Data.totalMoneyOut,
-        month2: month2Data.totalMoneyOut,
-        difference: month2Data.totalMoneyOut - month1Data.totalMoneyOut,
+        month1: data1.totalMoneyOut,
+        month2: data2.totalMoneyOut,
+        difference: data2.totalMoneyOut - data1.totalMoneyOut,
         percentageChange:
-          month1Data.totalMoneyOut !== 0
-            ? ((month2Data.totalMoneyOut - month1Data.totalMoneyOut) /
-                month1Data.totalMoneyOut) *
+          data1.totalMoneyOut !== 0
+            ? ((data2.totalMoneyOut - data1.totalMoneyOut) /
+                data1.totalMoneyOut) *
               100
             : 0,
       },
       remaining: {
-        month1: month1Data.remaining,
-        month2: month2Data.remaining,
-        difference: month2Data.remaining - month1Data.remaining,
+        month1: data1.remaining,
+        month2: data2.remaining,
+        difference: data2.remaining - data1.remaining,
         percentageChange:
-          month1Data.remaining !== 0
-            ? ((month2Data.remaining - month1Data.remaining) /
-                month1Data.remaining) *
-              100
+          data1.remaining !== 0
+            ? ((data2.remaining - data1.remaining) / data1.remaining) * 100
             : 0,
       },
     };
@@ -515,8 +488,20 @@ const compareExpenses = async (req, res) => {
     res.status(200).json({
       success: true,
       comparison,
-      month1: month1Data,
-      month2: month2Data,
+      month1: {
+        month: month1,
+        totalMoneyIn: data1.totalMoneyIn,
+        totalMoneyOut: data1.totalMoneyOut,
+        totalExpenses: data1.totalExpenses,
+        remaining: data1.remaining,
+      },
+      month2: {
+        month: month2,
+        totalMoneyIn: data2.totalMoneyIn,
+        totalMoneyOut: data2.totalMoneyOut,
+        totalExpenses: data2.totalExpenses,
+        remaining: data2.remaining,
+      },
     });
   } catch (error) {
     console.error("Error in compareExpenses:", error);
@@ -631,6 +616,9 @@ const deleteExpense = async (req, res) => {
       success: true,
       message: "Expense deleted successfully",
     });
+
+    // Update summary in background
+    updateMonthlySummary(userId, expense.month);
   } catch (error) {
     console.error("Error in deleteExpense:", error);
     res.status(500).json({

@@ -39,4 +39,4 @@ const MoneyInHistoryCard = ({ item, onDelete, formatDate, formatTime }) => {
   );
 };
 
-export default MoneyInHistoryCard;
+export default React.memo(MoneyInHistoryCard);

@@ -14,7 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const { width, height } = Dimensions.get('window');
 const CIRCLE_SIZE = Math.sqrt(width ** 2 + height ** 2);
 const STORAGE_KEY = '@spendo/auth-token';
-const PRIMARY_COLOR = '#132653';
+const PRIMARY_COLOR = '#1E293B';
 
 const SplashScreen = () => {
   const scale = useRef(new Animated.Value(0)).current;
@@ -33,7 +33,9 @@ const SplashScreen = () => {
 
   const checkOnboarding = useCallback(async () => {
     try {
-      const onboardingCompleted = await AsyncStorage.getItem('@spendo/onboarding-completed');
+      const onboardingCompleted = await AsyncStorage.getItem(
+        '@spendo/onboarding-completed',
+      );
       return onboardingCompleted === 'true';
     } catch (error) {
       console.warn('Failed to check onboarding status', error);
@@ -58,7 +60,7 @@ const SplashScreen = () => {
       if (finished) {
         const token = await getAuthToken();
         const hasSeenOnboarding = await checkOnboarding();
-        
+
         if (token) {
           navigation.replace('AppTabs');
         } else if (!hasSeenOnboarding) {
@@ -72,7 +74,11 @@ const SplashScreen = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={PRIMARY_COLOR} translucent={false} />
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={PRIMARY_COLOR}
+        translucent={false}
+      />
       <Animated.View style={[styles.dot, { transform: [{ scale }] }]} />
       <Animated.View style={[styles.logoContainer, { opacity: logoOpacity }]}>
         <Image
@@ -90,7 +96,7 @@ export default SplashScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: 'black',
     justifyContent: 'center',
     alignItems: 'center',
   },

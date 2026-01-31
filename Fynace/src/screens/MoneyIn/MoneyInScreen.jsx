@@ -29,6 +29,12 @@ const MoneyInScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [moneyInHistory, setMoneyInHistory] = useState([]);
   const [total, setTotal] = useState(0);
+  const [lastCreatedAt, setLastCreatedAt] = useState(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const lastCreatedAtRef = React.useRef(null);
+  const hasMoreRef = React.useRef(true);
+  const loadingMoreRef = React.useRef(false);
   const [formVisible, setFormVisible] = useState(false);
   const [formValues, setFormValues] = useState({
     amount: '',
@@ -38,28 +44,77 @@ const MoneyInScreen = ({ navigation }) => {
   const [saving, setSaving] = useState(false);
   const bottomSheetRef = React.useRef(null);
 
-  const fetchMoneyInHistory = useCallback(async () => {
-    if (!token) return;
-    try {
-      setLoading(true);
-      const [historyResponse, totalResponse] = await Promise.all([
-        apiClient.get('/money-in/history'),
-        apiClient.get('/money-in/total'),
-      ]);
-      setMoneyInHistory(historyResponse.data?.data || []);
-      setTotal(totalResponse.data?.data?.total || 0);
-    } catch (err) {
-      const apiError = parseApiError(err);
-      if (Platform.OS === 'android') {
-        ToastAndroid.show(
-          apiError.message || 'Failed to fetch money in history',
-          ToastAndroid.LONG,
-        );
+  const fetchMoneyInHistory = useCallback(
+    async (lastCreated = null, append = false) => {
+      if (!token) return;
+      try {
+        if (!lastCreated) {
+          setLoading(true);
+          loadingMoreRef.current = false;
+        } else {
+          setLoadingMore(true);
+          loadingMoreRef.current = true;
+        }
+
+        const params = { limit: 20 };
+        if (lastCreated) {
+          params.lastCreatedAt = lastCreated;
+        }
+
+        const [historyResponse, totalResponse] = await Promise.all([
+          apiClient.get('/money-in/history', { params }),
+          !lastCreated
+            ? apiClient.get('/money-in/total')
+            : Promise.resolve(null),
+        ]);
+
+        const newEntries = historyResponse.data?.data || [];
+        const backendHasMore = historyResponse.data?.hasMore;
+        const hasMoreData =
+          backendHasMore !== undefined
+            ? backendHasMore
+            : newEntries.length >= 20;
+
+        if (append) {
+          setMoneyInHistory(prev => [...prev, ...newEntries]);
+        } else {
+          setMoneyInHistory(newEntries);
+        }
+
+        if (totalResponse) {
+          setTotal(totalResponse.data?.data?.total || 0);
+        }
+
+        const newLastCreatedAt =
+          newEntries.length > 0
+            ? newEntries[newEntries.length - 1].createdAt
+            : null;
+        setLastCreatedAt(newLastCreatedAt);
+        lastCreatedAtRef.current = newLastCreatedAt;
+        setHasMore(hasMoreData);
+        hasMoreRef.current = hasMoreData;
+      } catch (err) {
+        const apiError = parseApiError(err);
+        if (Platform.OS === 'android') {
+          ToastAndroid.show(
+            apiError.message || 'Failed to fetch money in history',
+            ToastAndroid.LONG,
+          );
+        }
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+        loadingMoreRef.current = false;
       }
-    } finally {
-      setLoading(false);
+    },
+    [token],
+  );
+
+  const loadMore = useCallback(() => {
+    if (!loadingMoreRef.current && hasMoreRef.current && !loading) {
+      fetchMoneyInHistory(lastCreatedAtRef.current, true);
     }
-  }, [token]);
+  }, [loading, fetchMoneyInHistory]);
 
   useFocusEffect(
     useCallback(() => {
@@ -196,6 +251,12 @@ const MoneyInScreen = ({ navigation }) => {
           data={moneyInHistory}
           keyExtractor={item => item._id}
           contentContainerStyle={moneyInStyles.listContent}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+          initialNumToRender={20}
+          maxToRenderPerBatch={20}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android'}
           renderItem={({ item }) => (
             <MoneyInHistoryCard
               item={item}
@@ -205,6 +266,13 @@ const MoneyInScreen = ({ navigation }) => {
             />
           )}
           ListEmptyComponent={<EmptyState />}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={{ padding: 20 }}>
+                <ActivityIndicator size="small" color="#3A6FF8" />
+              </View>
+            ) : null
+          }
         />
       )}
 

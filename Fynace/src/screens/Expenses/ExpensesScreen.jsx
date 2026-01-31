@@ -35,10 +35,19 @@ import { useAuth } from '../../hooks/useAuth';
 import { apiClient, parseApiError } from '../../api/client';
 import { themeAssets } from '../../theme';
 import { useBottomBar } from '../../context/BottomBarContext';
-import { Plus, Search, Filter, ChevronDown, Pencil } from 'lucide-react-native';
+import {
+  Plus,
+  Search,
+  Filter,
+  ChevronDown,
+  Pencil,
+  Trash2,
+  AlertTriangle,
+} from 'lucide-react-native';
 import { TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Fonts from '../../../assets/fonts';
+import BottomSheet from '../../components/BottomSheet';
 import {
   SkeletonPulse,
   AnimatedExpenseCard,
@@ -88,13 +97,16 @@ const ExpensesScreen = () => {
   const [initialLoad, setInitialLoad] = useState(true);
   const [fabOpen, setFabOpen] = useState(false);
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
-  const [page, setPage] = useState(1);
+  const [lastCreatedAt, setLastCreatedAt] = useState(null);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [expenseToDelete, setExpenseToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const fabMenuSheetRef = useRef(null);
   const filterSheetRef = useRef(null);
-  const pageRef = useRef(1);
+  const deleteSheetRef = useRef(null);
+  const lastCreatedAtRef = useRef(null);
   const hasMoreRef = useRef(true);
   const loadingMoreRef = useRef(false);
 
@@ -135,9 +147,9 @@ const ExpensesScreen = () => {
   }, []);
 
   const fetchExpenses = useCallback(
-    async (month = 'All', pageNum = 1, append = false) => {
+    async (month = 'All', lastCreated = null, append = false) => {
       try {
-        if (pageNum === 1) {
+        if (!lastCreated) {
           setLoading(true);
           loadingMoreRef.current = false;
         } else {
@@ -146,27 +158,27 @@ const ExpensesScreen = () => {
         }
         setSelectedMonth(month);
 
-        // Fetch expenses - all time or by month
+        // Fetch expenses - all time or by month using cursor-based pagination
+        const params = { limit: 20 };
+        if (lastCreated) {
+          params.lastCreatedAt = lastCreated;
+        }
+
         const expensesPromise =
           month === 'All'
-            ? apiClient.get('/expenses/all', {
-                params: { page: pageNum, limit: 20 },
-              })
-            : apiClient.get(`/expenses/${month}`, {
-                params: { page: pageNum, limit: 20 },
-              });
+            ? apiClient.get('/expenses/all', { params })
+            : apiClient.get(`/expenses/${month}`, { params });
 
-        // Fetch summary based on selected month - only on FIRST page load
-        const summaryPromise =
-          pageNum === 1
-            ? month === 'All'
-              ? apiClient
-                  .get('/expenses/summary/all-time')
-                  .catch(() => ({ data: { summary: null } }))
-              : apiClient
-                  .get(`/expenses/summary/${month}`)
-                  .catch(() => ({ data: { summary: null } }))
-            : Promise.resolve(null);
+        // Fetch summary based on selected month - only on initial load (no cursor)
+        const summaryPromise = !lastCreated
+          ? month === 'All'
+            ? apiClient
+                .get('/expenses/summary/all-time')
+                .catch(() => ({ data: { summary: null } }))
+            : apiClient
+                .get(`/expenses/summary/${month}`)
+                .catch(() => ({ data: { summary: null } }))
+          : Promise.resolve(null);
 
         const [expensesResponse, summaryResponse] = await Promise.all([
           expensesPromise,
@@ -212,18 +224,21 @@ const ExpensesScreen = () => {
         }
 
         setHasMore(hasMoreData);
-        setPage(pageNum);
+        const newLastCreatedAt =
+          newExpenses.length > 0
+            ? newExpenses[newExpenses.length - 1].createdAt
+            : null;
+        setLastCreatedAt(newLastCreatedAt);
+
         // Update refs for fresh state in callbacks
-        pageRef.current = pageNum;
+        lastCreatedAtRef.current = newLastCreatedAt;
         hasMoreRef.current = hasMoreData;
 
         // Debug logging
         console.log('Pagination Debug:', {
-          page: pageNum,
+          lastCreatedAt: newLastCreatedAt,
           received: newExpenses.length,
           hasMore: hasMoreData,
-          backendHasMore: backendHasMore,
-          total: expensesResponse.data?.total,
           append,
         });
 
@@ -264,12 +279,11 @@ const ExpensesScreen = () => {
 
   const loadMoreExpenses = useCallback(() => {
     // Use refs to get fresh state values
-    const currentPage = pageRef.current;
     const currentHasMore = hasMoreRef.current;
     const currentlyLoadingMore = loadingMoreRef.current;
 
     console.log('loadMoreExpenses called:', {
-      currentPage,
+      lastCreatedAt: lastCreatedAtRef.current,
       currentHasMore,
       currentlyLoadingMore,
       loading,
@@ -278,9 +292,9 @@ const ExpensesScreen = () => {
     });
 
     if (!currentlyLoadingMore && currentHasMore && !loading) {
-      const nextPage = currentPage + 1;
-      console.log('Loading page:', nextPage);
-      fetchExpenses(selectedMonth, nextPage, true);
+      const lastCreated = lastCreatedAtRef.current;
+      console.log('Loading more from cursor:', lastCreated);
+      fetchExpenses(selectedMonth, lastCreated, true);
     } else {
       console.log('Skipping load more:', {
         currentlyLoadingMore,
@@ -312,11 +326,11 @@ const ExpensesScreen = () => {
       setMonths(sortedMonths);
 
       // By default, show all expenses (not filtered by month)
-      setPage(1);
+      setLastCreatedAt(null);
       setHasMore(true);
-      pageRef.current = 1;
+      lastCreatedAtRef.current = null;
       hasMoreRef.current = true;
-      await fetchExpenses('All', 1, false);
+      await fetchExpenses('All', null, false);
     } catch (err) {
       const apiError = parseApiError(err);
       setError(apiError.message);
@@ -344,11 +358,11 @@ const ExpensesScreen = () => {
       }
 
       // Refresh current expenses view
-      setPage(1);
+      setLastCreatedAt(null);
       setHasMore(true);
-      pageRef.current = 1;
+      lastCreatedAtRef.current = null;
       hasMoreRef.current = true;
-      await fetchExpenses(selectedMonth, 1, false);
+      await fetchExpenses(selectedMonth, null, false);
     } catch (err) {
       const apiError = parseApiError(err);
       setError(apiError.message);
@@ -397,18 +411,18 @@ const ExpensesScreen = () => {
 
           // Only fetch expenses if we don't have any or if it's initial load
           if (isMounted && (expenses.length === 0 || initialLoad)) {
-            setPage(1);
+            setLastCreatedAt(null);
             setHasMore(true);
-            pageRef.current = 1;
+            lastCreatedAtRef.current = null;
             hasMoreRef.current = true;
 
             const expensesPromise =
               selectedMonth === 'All'
                 ? apiClient.get('/expenses/all', {
-                    params: { page: 1, limit: 20 },
+                    params: { limit: 20 },
                   })
                 : apiClient.get(`/expenses/${selectedMonth}`, {
-                    params: { page: 1, limit: 20 },
+                    params: { limit: 20 },
                   });
 
             promises.push(
@@ -463,7 +477,12 @@ const ExpensesScreen = () => {
                   ? backendHasMore
                   : newExpenses.length >= 20;
               setHasMore(hasMoreData);
-              pageRef.current = 1;
+              const newLastCreatedAt =
+                newExpenses.length > 0
+                  ? newExpenses[newExpenses.length - 1].createdAt
+                  : null;
+              setLastCreatedAt(newLastCreatedAt);
+              lastCreatedAtRef.current = newLastCreatedAt;
               hasMoreRef.current = hasMoreData;
             }
           } else {
@@ -644,16 +663,12 @@ const ExpensesScreen = () => {
       const worksheet = workbook.Sheets[firstSheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-      if (!jsonData.length) {
-        throw new Error('No data found in the selected file');
-      }
-
       await apiClient.post('/expenses/upload', {
         expenses: jsonData,
       });
 
       if (selectedMonth) {
-        await fetchExpenses(selectedMonth, 1, false);
+        await fetchExpenses(selectedMonth, null, false);
       } else {
         await fetchMonthsAndData();
       }
@@ -710,12 +725,12 @@ const ExpensesScreen = () => {
       // Small delay to allow sheet to start closing
       setTimeout(async () => {
         setSelectedMonth(month);
-        setPage(1);
+        setLastCreatedAt(null);
         setHasMore(true);
-        pageRef.current = 1;
+        lastCreatedAtRef.current = null;
         hasMoreRef.current = true;
         setExpenses([]); // Clear current expenses
-        await fetchExpenses(month, 1, false);
+        await fetchExpenses(month, null, false);
       }, 100);
     },
     [fetchExpenses],
@@ -730,70 +745,49 @@ const ExpensesScreen = () => {
     }, 100);
   }, []);
 
-  const handleDeleteExpense = useCallback(
-    async expense => {
-      // Get expense details for confirmation message
-      const expenseName =
-        expense.itemName || expense.category || 'this expense';
-      const expenseAmount =
-        expense.amount || expense.moneyOut || expense.moneyIn || 0;
-      const expenseCategory = expense.category ? ` (${expense.category})` : '';
-      const expenseMonth = expense.month
-        ? ` for ${transformMonthLabel(expense.month)}`
-        : '';
+  const handleDeleteExpense = useCallback(expense => {
+    setExpenseToDelete(expense);
+    deleteSheetRef.current?.open();
+  }, []);
 
-      // Show confirmation alert
-      Alert.alert(
-        'Delete Expense',
-        `Are you sure you want to delete "${expenseName}"${expenseCategory}${expenseMonth}?\n\nAmount: ₹${expenseAmount.toLocaleString()}\n\nThis action cannot be undone.`,
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                if (Platform.OS === 'android') {
-                  ToastAndroid.show('Deleting expense...', ToastAndroid.SHORT);
-                }
+  const confirmDeleteExpense = async () => {
+    if (!expenseToDelete) return;
 
-                await apiClient.delete(`/expenses/${expense._id}`);
+    try {
+      setIsDeleting(true);
+      if (Platform.OS === 'android') {
+        ToastAndroid.show('Deleting expense...', ToastAndroid.SHORT);
+      }
 
-                if (Platform.OS === 'android') {
-                  ToastAndroid.show(
-                    'Expense deleted successfully',
-                    ToastAndroid.SHORT,
-                  );
-                }
+      await apiClient.delete(`/expenses/${expenseToDelete._id}`);
 
-                // Refresh expenses
-                setPage(1);
-                setHasMore(true);
-                pageRef.current = 1;
-                hasMoreRef.current = true;
-                await fetchExpenses(selectedMonth, 1, false);
-                await fetchMonthsAndData();
-              } catch (err) {
-                const apiError = parseApiError(err);
-                setError(apiError.message);
-                if (Platform.OS === 'android') {
-                  ToastAndroid.show(
-                    apiError.message || 'Failed to delete expense',
-                    ToastAndroid.LONG,
-                  );
-                }
-              }
-            },
-          },
-        ],
-        { cancelable: true },
-      );
-    },
-    [selectedMonth, fetchExpenses, fetchMonthsAndData, transformMonthLabel],
-  );
+      if (Platform.OS === 'android') {
+        ToastAndroid.show('Expense deleted successfully', ToastAndroid.SHORT);
+      }
+
+      deleteSheetRef.current?.close();
+      setExpenseToDelete(null);
+
+      // Refresh expenses
+      setLastCreatedAt(null);
+      setHasMore(true);
+      lastCreatedAtRef.current = null;
+      hasMoreRef.current = true;
+      await fetchExpenses(selectedMonth, null, false);
+      await fetchMonthsAndData();
+    } catch (err) {
+      const apiError = parseApiError(err);
+      setError(apiError.message);
+      if (Platform.OS === 'android') {
+        ToastAndroid.show(
+          apiError.message || 'Failed to delete expense',
+          ToastAndroid.LONG,
+        );
+      }
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   if (!token) {
     return (
@@ -875,8 +869,11 @@ const ExpensesScreen = () => {
             data={filteredExpenses}
             keyExtractor={item => item._id}
             onEndReached={loadMoreExpenses}
-            onEndReachedThreshold={0.2}
-            removeClippedSubviews={false}
+            onEndReachedThreshold={0.5}
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            removeClippedSubviews={Platform.OS === 'android'}
             onScrollBeginDrag={() => hideBottomBar()}
             onScrollEndDrag={e => {
               const { contentOffset } = e.nativeEvent;
@@ -1039,6 +1036,73 @@ const ExpensesScreen = () => {
           onSelectMonth={handleFilterMonth}
           onSelectCategory={handleFilterCategory}
         />
+
+        {/* Delete Confirmation Sheet */}
+        <BottomSheet
+          ref={deleteSheetRef}
+          title="Delete Expense"
+          initialHeight={0.5}
+          onClose={() => setExpenseToDelete(null)}
+        >
+          <View style={expenseStyles.deleteContent}>
+            <View style={expenseStyles.deleteHeader}>
+              <View style={expenseStyles.deleteIconContainer}>
+                <AlertTriangle size={24} color="#EF4444" />
+              </View>
+              <Text style={expenseStyles.deleteTitle}>Confirm Deletion</Text>
+            </View>
+
+            <Text style={expenseStyles.deleteMessage}>
+              Are you sure you want to delete "
+              {expenseToDelete?.itemName || expenseToDelete?.category}"?
+            </Text>
+
+            <View style={expenseStyles.deleteDetails}>
+              <Text style={expenseStyles.deleteAmount}>
+                ₹
+                {(
+                  expenseToDelete?.amount ||
+                  expenseToDelete?.moneyOut ||
+                  0
+                ).toLocaleString()}
+              </Text>
+              {expenseToDelete?.category && (
+                <Chip
+                  style={expenseStyles.deleteCategoryChip}
+                  textStyle={expenseStyles.deleteCategoryText}
+                >
+                  {expenseToDelete.category}
+                </Chip>
+              )}
+            </View>
+
+            <Text style={expenseStyles.deleteWarning}>
+              This action cannot be undone.
+            </Text>
+
+            <View style={expenseStyles.deleteActions}>
+              <Button
+                mode="outlined"
+                onPress={() => deleteSheetRef.current?.close()}
+                style={expenseStyles.deleteCancelButton}
+                textColor="#94A3B8"
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                mode="contained"
+                onPress={confirmDeleteExpense}
+                style={expenseStyles.deleteConfirmButton}
+                buttonColor="#EF4444"
+                loading={isDeleting}
+                disabled={isDeleting}
+              >
+                Delete
+              </Button>
+            </View>
+          </View>
+        </BottomSheet>
       </View>
     </SafeAreaView>
   );

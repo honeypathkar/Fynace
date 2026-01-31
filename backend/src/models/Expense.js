@@ -1,9 +1,9 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const expenseSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    ref: "User",
     required: true,
     index: true,
   },
@@ -20,7 +20,7 @@ const expenseSchema = new mongoose.Schema({
   category: {
     type: String,
     trim: true,
-    default: '',
+    default: "",
   },
   amount: {
     type: Number,
@@ -30,7 +30,7 @@ const expenseSchema = new mongoose.Schema({
   notes: {
     type: String,
     trim: true,
-    default: '',
+    default: "",
   },
   moneyIn: {
     type: Number,
@@ -57,16 +57,14 @@ const expenseSchema = new mongoose.Schema({
 });
 
 // Update the updatedAt field before saving
-expenseSchema.pre('save', function (next) {
+expenseSchema.pre("save", function (next) {
   this.updatedAt = Date.now();
   next();
 });
 
 // Compound index for efficient queries
-expenseSchema.index({ userId: 1, month: 1 });
+expenseSchema.index({ userId: 1, month: 1, createdAt: -1 });
 expenseSchema.index({ userId: 1, category: 1 });
 expenseSchema.index({ userId: 1, createdAt: -1 });
 
-module.exports = mongoose.model('Expense', expenseSchema);
-
-
+module.exports = mongoose.model("Expense", expenseSchema);

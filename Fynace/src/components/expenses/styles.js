@@ -610,6 +610,79 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
+  deleteContent: {
+    paddingVertical: themeAssets.spacing[2],
+    gap: themeAssets.spacing[4],
+  },
+  deleteHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: themeAssets.spacing[3],
+    marginBottom: themeAssets.spacing[1],
+  },
+  deleteIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteTitle: {
+    fontSize: 20,
+    color: '#EF4444',
+    fontFamily: Fonts.bold,
+  },
+  deleteMessage: {
+    color: '#F8FAFC',
+    fontSize: 16,
+    fontFamily: Fonts.regular,
+    lineHeight: 24,
+  },
+  deleteDetails: {
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    padding: themeAssets.spacing[4],
+    borderWidth: 1,
+    borderColor: '#334155',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  deleteAmount: {
+    fontSize: 24,
+    color: '#F8FAFC',
+    fontFamily: Fonts.bold,
+  },
+  deleteCategoryChip: {
+    backgroundColor: '#0F172A',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  deleteCategoryText: {
+    color: '#94A3B8',
+  },
+  deleteWarning: {
+    color: '#EF4444',
+    fontSize: 14,
+    fontFamily: Fonts.medium,
+    textAlign: 'center',
+  },
+  deleteActions: {
+    flexDirection: 'row',
+    gap: themeAssets.spacing[3],
+    marginTop: themeAssets.spacing[2],
+  },
+  deleteCancelButton: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  deleteConfirmButton: {
+    flex: 1,
+    borderRadius: 12,
+  },
 });
 
 export default styles;
