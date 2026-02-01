@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ToastAndroid } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  ToastAndroid,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,7 +23,7 @@ const EditProfileScreen = () => {
   const { user, loading, updateProfile } = useAuth();
 
   const [formValues, setFormValues] = useState({
-    name: '',
+    fullName: '',
     email: '',
   });
   const [errors, setErrors] = useState({});
@@ -24,25 +31,25 @@ const EditProfileScreen = () => {
   useEffect(() => {
     if (user) {
       setFormValues({
-        name: user.name || '',
+        fullName: user.fullName || '',
         email: user.email || '',
       });
     }
   }, [user]);
 
   const updateFormValue = (field, value) => {
-    setFormValues((prev) => ({ ...prev, [field]: value }));
+    setFormValues(prev => ({ ...prev, [field]: value }));
     // Clear error for this field when user starts typing
     if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: null }));
+      setErrors(prev => ({ ...prev, [field]: null }));
     }
   };
 
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formValues.name || !formValues.name.trim()) {
-      newErrors.name = 'Name is required';
+    if (!formValues.fullName || !formValues.fullName.trim()) {
+      newErrors.fullName = 'Name is required';
     }
 
     // Email is not editable, so no validation needed
@@ -58,14 +65,14 @@ const EditProfileScreen = () => {
 
     try {
       await updateProfile({
-        name: formValues.name.trim(),
+        fullName: formValues.fullName.trim(),
         // Email is not updatable, so don't send it
       });
-      
+
       if (Platform.OS === 'android') {
         ToastAndroid.show('Profile updated successfully', ToastAndroid.LONG);
       }
-      
+
       // Navigate back after a short delay to show toast
       setTimeout(() => {
         navigation.goBack();
@@ -73,7 +80,10 @@ const EditProfileScreen = () => {
     } catch (err) {
       const apiError = parseApiError(err);
       if (Platform.OS === 'android') {
-        ToastAndroid.show(apiError.message || 'Failed to update profile', ToastAndroid.LONG);
+        ToastAndroid.show(
+          apiError.message || 'Failed to update profile',
+          ToastAndroid.LONG,
+        );
       }
     }
   };
@@ -83,61 +93,63 @@ const EditProfileScreen = () => {
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
-      <GlobalHeader
-        title="Edit Profile"
-        titleColor="#F8FAFC"
-        backgroundColor="transparent"
-        showLeftIcon
-        leftIconName="arrow-left"
-        leftIconColor="#F8FAFC"
-        onLeftIconPress={() => navigation.goBack()}
-      />
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <GlobalHeader
+          title="Edit Profile"
+          titleColor="#F8FAFC"
+          backgroundColor="transparent"
+          showLeftIcon
+          leftIconName="arrow-left"
+          leftIconColor="#F8FAFC"
+          onLeftIconPress={() => navigation.goBack()}
+        />
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled">
-        <View style={styles.formContainer}>
-          <Text style={styles.sectionTitle}>Personal Information</Text>
-          
-          <View style={styles.inputSection}>
-            <TextInputField
-              label="Full Name"
-              value={formValues.name}
-              onChangeText={(value) => updateFormValue('name', value)}
-              placeholder="Enter your full name"
-            />
-            {errors.name && (
-              <Text style={styles.errorText}>{errors.name}</Text>
-            )}
-          </View>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.formContainer}>
+            <Text style={styles.sectionTitle}>Personal Information</Text>
 
-          <View style={styles.inputSection}>
-            <TextInputField
-              label="Email"
-              value={formValues.email}
-              editable={false}
-              placeholder="Email cannot be changed"
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            <Text style={styles.disabledHintText}>
-              Email cannot be changed
-            </Text>
-          </View>
+            <View style={styles.inputSection}>
+              <TextInputField
+                label="Full Name"
+                value={formValues.fullName}
+                onChangeText={value => updateFormValue('fullName', value)}
+                placeholder="Enter your full name"
+              />
+              {errors.fullName && (
+                <Text style={styles.errorText}>{errors.fullName}</Text>
+              )}
+            </View>
 
-          <View style={styles.buttonContainer}>
-            <PrimaryButton
-              title="Save Changes"
-              onPress={handleSave}
-              loading={loading}
-              buttonColor="#3A6FF8"
-              style={styles.saveButton}
-            />
+            <View style={styles.inputSection}>
+              <TextInputField
+                label="Email"
+                value={formValues.email}
+                editable={false}
+                placeholder="Email cannot be changed"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <Text style={styles.disabledHintText}>
+                Email cannot be changed
+              </Text>
+            </View>
+
+            <View style={styles.buttonContainer}>
+              <PrimaryButton
+                title="Save Changes"
+                onPress={handleSave}
+                loading={loading}
+                buttonColor="#3A6FF8"
+                style={styles.saveButton}
+              />
+            </View>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -191,4 +203,3 @@ const styles = StyleSheet.create({
     width: '100%',
   },
 });
-

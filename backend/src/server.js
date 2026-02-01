@@ -1,16 +1,17 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const os = require('os');
-const connectDB = require('./config/database');
-const errorHandler = require('./middleware/errorHandler');
+require("dotenv").config();
+const express = require("express");
+const cors = require("cors");
+const os = require("os");
+const path = require("path");
+const connectDB = require("./config/database");
+const errorHandler = require("./middleware/errorHandler");
 
 // Import routes
-const authRoutes = require('./routes/authRoutes');
-const expenseRoutes = require('./routes/expenseRoutes');
-const chartRoutes = require('./routes/chartRoutes');
-const categoryRoutes = require('./routes/categoryRoutes');
-const moneyInRoutes = require('./routes/moneyInRoutes');
+const authRoutes = require("./routes/authRoutes");
+const expenseRoutes = require("./routes/expenseRoutes");
+const chartRoutes = require("./routes/chartRoutes");
+const categoryRoutes = require("./routes/categoryRoutes");
+const moneyInRoutes = require("./routes/moneyInRoutes");
 
 // Initialize Express app
 const app = express();
@@ -19,12 +20,26 @@ const app = express();
 connectDB();
 
 // Middleware
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3001',
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || "http://localhost:3001",
+    credentials: true,
+  }),
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static files
+app.use(express.static(path.join(__dirname, "../public")));
+
+// Route for Privacy Policy and T&C
+app.get("/privacy-policy", (req, res) => {
+  res.sendFile(path.join(__dirname, "../public/privacy-policy.html"));
+});
+
+app.get("/terms-and-conditions", (req, res) => {
+  res.sendFile(path.join(__dirname, "../public/terms-and-conditions.html"));
+});
 
 // Get network IP address
 const getNetworkIP = () => {
@@ -32,22 +47,22 @@ const getNetworkIP = () => {
   for (const name of Object.keys(interfaces)) {
     for (const iface of interfaces[name]) {
       // Skip internal (loopback) and non-IPv4 addresses
-      if (iface.family === 'IPv4' && !iface.internal) {
+      if (iface.family === "IPv4" && !iface.internal) {
         return iface.address;
       }
     }
   }
-  return 'localhost';
+  return "localhost";
 };
 
 const PORT = process.env.PORT || 3000;
 const networkIP = getNetworkIP();
 
 // Health check route
-app.get('/health', (req, res) => {
+app.get("/health", (req, res) => {
   res.status(200).json({
     success: true,
-    message: 'Expense Tracker API is running',
+    message: "Fynace API is running",
     timestamp: new Date().toISOString(),
     localUrl: `http://localhost:${PORT}`,
     networkUrl: `http://${networkIP}:${PORT}`,
@@ -55,17 +70,17 @@ app.get('/health', (req, res) => {
 });
 
 // API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/expenses', expenseRoutes);
-app.use('/api/chart', chartRoutes);
-app.use('/api/categories', categoryRoutes);
-app.use('/api/money-in', moneyInRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/expenses", expenseRoutes);
+app.use("/api/chart", chartRoutes);
+app.use("/api/categories", categoryRoutes);
+app.use("/api/money-in", moneyInRoutes);
 
 // 404 handler
-app.use('*', (req, res) => {
+app.use("*", (req, res) => {
   res.status(404).json({
     success: false,
-    message: 'Route not found',
+    message: "Route not found",
   });
 });
 
@@ -74,8 +89,7 @@ app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`📊 Environment: ${process.env.NODE_ENV || "development"}`);
   console.log(`🌐 Local: http://localhost:${PORT}/health`);
   console.log(`🌐 Network: http://${networkIP}:${PORT}/health`);
 });
-

@@ -1,5 +1,11 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Dimensions, ScrollView, StatusBar, View } from 'react-native';
+import {
+  Dimensions,
+  ScrollView,
+  StatusBar,
+  View,
+  StyleSheet,
+} from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { ActivityIndicator, Text, useTheme } from 'react-native-paper';
 import GlobalHeader from '../../components/GlobalHeader';
@@ -17,6 +23,56 @@ import {
   HomeHeader,
   homeStyles,
 } from '../../components/home';
+import { SkeletonPulse } from '../../components/expenses';
+import { QrCode, Plus } from 'lucide-react-native';
+import { TouchableOpacity } from 'react-native';
+
+const HomeSkeleton = () => (
+  <ScrollView
+    contentContainerStyle={homeStyles.scrollContent}
+    showsVerticalScrollIndicator={false}
+  >
+    <View style={homeStyles.header}>
+      <View style={{ flex: 1 }}>
+        <SkeletonPulse style={{ width: 120, height: 28, marginBottom: 8 }} />
+        <SkeletonPulse style={{ width: 200, height: 16 }} />
+      </View>
+      <SkeletonPulse style={{ width: 40, height: 40, borderRadius: 20 }} />
+    </View>
+
+    <View style={homeStyles.statsRow}>
+      <SkeletonPulse style={[homeStyles.statCard, { height: 100 }]} />
+      <SkeletonPulse style={[homeStyles.statCard, { height: 100 }]} />
+    </View>
+
+    <View
+      style={[
+        homeStyles.chartCard,
+        { padding: 16, backgroundColor: '#1E293B', borderRadius: 16 },
+      ]}
+    >
+      <SkeletonPulse style={{ width: 150, height: 20, marginBottom: 20 }} />
+      <SkeletonPulse style={{ width: '100%', height: 220, borderRadius: 16 }} />
+    </View>
+
+    <View
+      style={[
+        homeStyles.chartCard,
+        { padding: 16, backgroundColor: '#1E293B', borderRadius: 16 },
+      ]}
+    >
+      <SkeletonPulse style={{ width: 150, height: 20, marginBottom: 20 }} />
+      <View style={{ alignItems: 'center', marginVertical: 20 }}>
+        <SkeletonPulse style={{ width: 180, height: 180, borderRadius: 90 }} />
+      </View>
+      <View style={{ gap: 12 }}>
+        <SkeletonPulse style={{ width: '100%', height: 40 }} />
+        <SkeletonPulse style={{ width: '100%', height: 40 }} />
+        <SkeletonPulse style={{ width: '100%', height: 40 }} />
+      </View>
+    </View>
+  </ScrollView>
+);
 
 const formatMonth = month => {
   const [year, monthIndex] = month.split('-');
@@ -328,14 +384,12 @@ const HomeScreen = () => {
     <SafeAreaView edges={['top']} style={homeStyles.container}>
       <StatusBar backgroundColor="#0F172A" barStyle="light-content" />
       <HomeHeader
-        userName={user?.name}
+        userName={user?.fullName}
         onProfilePress={() => navigation.navigate('Profile')}
       />
 
       {loading && !monthlyData.length ? (
-        <View style={homeStyles.loadingContainer}>
-          <ActivityIndicator animating size="large" color="#3A6FF8" />
-        </View>
+        <HomeSkeleton />
       ) : (
         <ScrollView
           contentContainerStyle={homeStyles.scrollContent}
@@ -393,8 +447,36 @@ const HomeScreen = () => {
           />
         </ScrollView>
       )}
+
+      {/* QR Scanner FAB */}
+      <TouchableOpacity
+        style={styles.qrFab}
+        onPress={() => navigation.navigate('QRScanner')}
+        activeOpacity={0.8}
+      >
+        <QrCode size={28} color="#F8FAFC" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 };
 
 export default HomeScreen;
+
+const styles = StyleSheet.create({
+  qrFab: {
+    position: 'absolute',
+    right: 24,
+    bottom: 100, // Adjusted for bottom bar
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#3A6FF8',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
+    shadowColor: '#3A6FF8',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+});

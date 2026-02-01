@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useCallback,
+} from 'react';
 import {
   Animated,
   KeyboardAvoidingView,
@@ -6,30 +12,45 @@ import {
   ScrollView,
   View,
   Easing,
+  StyleSheet,
+  Image,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
-import { Button, Text } from 'react-native-paper';
+import { Button, Text, ActivityIndicator } from 'react-native-paper';
 import { StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import TextInputField from '../../components/TextInputField';
 import GlobalHeader from '../../components/GlobalHeader';
 import PrimaryButton from '../../components/PrimaryButton';
 import { useAuth } from '../../hooks/useAuth';
 import { OTPInput, HeroSection, authStyles } from '../../components/auth';
+import { GOOGLE_CLIENT_ID } from '../../utils/BASE_URL';
+
+const GOOGLE_ICON = require('../../../assets/images/google.png');
 
 const LoginScreen = () => {
   const navigation = useNavigation();
-  const { login, requestOtp, verifyOtp, loading } = useAuth();
+  const { checkUser, requestOtp, verifyOtp, googleLogin, loading } = useAuth();
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [secureTextEntry, setSecureTextEntry] = useState(true);
+  const [fullName, setFullName] = useState('');
+  const [userExists, setUserExists] = useState(null);
+  const [checkingUser, setCheckingUser] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [googleSigningIn, setGoogleSigningIn] = useState(false);
   const [error, setError] = useState(null);
-  const [otpMode, setOtpMode] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState('');
   const otpInputRefs = useRef([]);
   const heroPulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    GoogleSignin.configure({
+      webClientId: GOOGLE_CLIENT_ID,
+    });
+  }, []);
 
   useEffect(() => {
     const animation = Animated.loop(
@@ -46,7 +67,7 @@ const LoginScreen = () => {
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
-      ])
+      ]),
     );
 
     animation.start();
@@ -58,23 +79,15 @@ const LoginScreen = () => {
     outputRange: [0, -8],
   });
 
-  const isValidEmail = (email) => {
+  const isValidEmail = email => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
-  const handleLogin = async () => {
-    try {
-      setError(null);
-      if (!email.trim() || !password.trim()) {
-        setError('Please enter both email and password.');
-        return;
-      }
-      await login({ email, password });
-      navigation.reset({ index: 0, routes: [{ name: 'AppTabs' }] });
-    } catch (apiError) {
-      setError(apiError.message || 'Login failed. Please check your credentials.');
-    }
+  const handleEmailChange = val => {
+    setEmail(val);
+    setError(null);
+    setUserExists(null);
   };
 
   const handleSendOtp = async () => {
@@ -84,29 +97,80 @@ const LoginScreen = () => {
         setError('Please enter a valid email address.');
         return;
       }
-      await requestOtp({ email });
+
+      setCheckingUser(true);
+
+      // Step 1: Check if user exists if we don't know yet
+      let exists = userExists;
+      if (exists === null) {
+        exists = await checkUser(email);
+        setUserExists(exists);
+
+        // If they don't exist, we show the name field first and stop here
+        if (exists === false) {
+          setCheckingUser(false);
+          return;
+        }
+      }
+
+      // Step 2: Validate name if it's a new user
+      if (userExists === false && !fullName.trim()) {
+        setError('Please enter your full name.');
+        setCheckingUser(false);
+        return;
+      }
+
+      // Step 3: Request OTP
+      await requestOtp({
+        email,
+        fullName: userExists === false ? fullName : undefined,
+      });
       setOtpSent(true);
-      setOtpMode(true);
       // Focus first OTP input after a short delay
       setTimeout(() => {
         otpInputRefs.current[0]?.focus();
       }, 100);
     } catch (apiError) {
       setError(apiError.message || 'Failed to send OTP. Please try again.');
+    } finally {
+      setCheckingUser(false);
+      setSendingOtp(false);
     }
   };
 
   const handleVerifyOtp = async () => {
     try {
       setError(null);
-      if (otp.length !== 6) {
-        setError('Please enter the complete 6-digit code.');
+      if (otp.length !== 4) {
+        setError('Please enter the complete 4-digit code.');
         return;
       }
+      setVerifyingOtp(true);
       await verifyOtp({ otp, email });
       navigation.reset({ index: 0, routes: [{ name: 'AppTabs' }] });
     } catch (apiError) {
       setError(apiError.message || 'Invalid OTP. Please try again.');
+    } finally {
+      setVerifyingOtp(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setError(null);
+      await GoogleSignin.hasPlayServices();
+      const userInfo = await GoogleSignin.signIn();
+      const idToken = userInfo.data?.idToken;
+      if (idToken) {
+        setGoogleSigningIn(true);
+        await googleLogin(idToken);
+        navigation.reset({ index: 0, routes: [{ name: 'AppTabs' }] });
+      }
+    } catch (err) {
+      console.error('Google Sign In Error:', err);
+      setError('Google Sign In failed. Please try again.');
+    } finally {
+      setGoogleSigningIn(false);
     }
   };
 
@@ -122,136 +186,142 @@ const LoginScreen = () => {
           end={{ x: 1, y: 1 }}
           style={authStyles.gradient}
         >
-      <GlobalHeader
-          backgroundColor="transparent"
-          // showLeftIcon
-          // leftIconColor="#F8FAFC"
-          // onLeftIconPress={() => navigation.goBack()}
-          renderRightComponent={() => null}
-      />
-      <ScrollView contentContainerStyle={authStyles.content} keyboardShouldPersistTaps="handled">
-          <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-          <View style={authStyles.heroContainer}>
-            <Animated.View style={[authStyles.heroCard, { transform: [{ translateY: heroTranslate }] }]}>
-              <Text variant="headlineMedium" style={authStyles.heroTitle}>
-                Welcome Back!
-            </Text>
-            </Animated.View>
-          </View>
-
-          <View style={authStyles.formCard}>
-            <TextInputField
-              label="Email"
-              value={email}
-              onChangeText={(val) => {
-                setEmail(val);
-                if (otpSent) {
-                  setOtpSent(false);
-                  setOtpMode(false);
-                  setOtp('');
-                }
-              }}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              placeholder="Enter your email"
-              editable={!otpSent}
+          <GlobalHeader
+            backgroundColor="transparent"
+            renderRightComponent={() => null}
+          />
+          <ScrollView
+            contentContainerStyle={authStyles.content}
+            keyboardShouldPersistTaps="handled"
+          >
+            <StatusBar
+              barStyle="light-content"
+              backgroundColor="transparent"
+              translucent
             />
-
-            {!otpSent ? (
-              <>
-                <TextInputField
-                  label="Password"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  isSecureVisible={!secureTextEntry}
-                  onToggleSecureEntry={() => setSecureTextEntry(!secureTextEntry)}
-                  placeholder="Enter your password"
-                />
-
-                <View style={authStyles.forgotPasswordContainer}>
-                  <Button mode="text" onPress={() => { }} textColor="#3A6FF8" compact>
-                    Forgot Password?
-                  </Button>
-                </View>
-
-                {error ? (
-                  <Text variant="bodyMedium" style={authStyles.error}>
-                    {error}
-                  </Text>
-                ) : null}
-
-                <PrimaryButton
-                  title="Log In"
-                  onPress={handleLogin}
-                  loading={loading}
-                  style={authStyles.primaryButton}
-                  buttonColor="#3A6FF8"
-                />
-
-                <View style={authStyles.dividerContainer}>
-                  <View style={authStyles.dividerLine} />
-                  <Text style={authStyles.dividerText}>or</Text>
-                  <View style={authStyles.dividerLine} />
-                </View>
-
-                <PrimaryButton
-                  title="Login with OTP"
-                  onPress={handleSendOtp}
-                  loading={loading}
-                  style={authStyles.otpButton}
-                  buttonColor="#1E293B"
-                  disabled={!isValidEmail(email)}
-                />
-              </>
-            ) : (
-              <>
-                <Text variant="bodyMedium" style={authStyles.otpInstructions}>
-                  Enter the 6-digit code sent to {email}
+            <View style={authStyles.heroContainer}>
+              <Animated.View
+                style={[
+                  authStyles.heroCard,
+                  { transform: [{ translateY: heroTranslate }] },
+                ]}
+              >
+                <Text variant="headlineMedium" style={authStyles.heroTitle}>
+                  {otpSent ? 'Verification' : 'Welcome to Fynace'}
                 </Text>
+              </Animated.View>
+            </View>
 
-                <OTPInput otp={otp} setOtp={setOtp} otpInputRefs={otpInputRefs} />
+            <View style={authStyles.formCard}>
+              {!otpSent ? (
+                <>
+                  <TextInputField
+                    label="Email"
+                    value={email}
+                    onChangeText={handleEmailChange}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    placeholder="Enter your email"
+                    editable={!loading}
+                    accessory={
+                      checkingUser ? (
+                        <ActivityIndicator size="small" color="#3A6FF8" />
+                      ) : null
+                    }
+                  />
 
-                {error ? (
-                  <Text variant="bodyMedium" style={authStyles.error}>
-                    {error}
+                  {userExists === false && isValidEmail(email) && (
+                    <TextInputField
+                      label="Full Name"
+                      value={fullName}
+                      onChangeText={setFullName}
+                      placeholder="Enter your full name"
+                      editable={!loading}
+                    />
+                  )}
+
+                  {error ? (
+                    <Text variant="bodyMedium" style={authStyles.error}>
+                      {error}
+                    </Text>
+                  ) : null}
+
+                  <PrimaryButton
+                    title={
+                      userExists === false && !fullName
+                        ? 'Continue'
+                        : 'Send OTP'
+                    }
+                    onPress={handleSendOtp}
+                    loading={sendingOtp || checkingUser}
+                    style={authStyles.primaryButton}
+                    buttonColor="#3A6FF8"
+                    disabled={!isValidEmail(email)}
+                  />
+
+                  <View style={authStyles.dividerContainer}>
+                    <View style={authStyles.dividerLine} />
+                    <Text style={authStyles.dividerText}>or</Text>
+                    <View style={authStyles.dividerLine} />
+                  </View>
+
+                  <PrimaryButton
+                    title="Continue with Google"
+                    onPress={handleGoogleSignIn}
+                    loading={googleSigningIn}
+                    style={authStyles.otpButton}
+                    buttonColor="#1E293B"
+                    leftIcon={
+                      <Image
+                        source={GOOGLE_ICON}
+                        style={{ width: 20, height: 20, marginRight: 8 }}
+                        resizeMode="contain"
+                      />
+                    }
+                  />
+                </>
+              ) : (
+                <>
+                  <Text variant="bodyMedium" style={authStyles.otpInstructions}>
+                    Enter the 4-digit code sent to {email}
                   </Text>
-                ) : null}
 
-                <PrimaryButton
-                  title="Verify OTP"
-                  onPress={handleVerifyOtp}
-                  loading={loading}
-                  style={authStyles.primaryButton}
-                  buttonColor="#3A6FF8"
-                  disabled={otp.length !== 6}
-                />
+                  <OTPInput
+                    otp={otp}
+                    setOtp={setOtp}
+                    otpInputRefs={otpInputRefs}
+                  />
 
-                <Button
-                  mode="text"
-                  onPress={() => {
-                    setOtpSent(false);
-                    setOtpMode(false);
-                    setOtp('');
-                  }}
-                  textColor="#3A6FF8"
-                  style={authStyles.backButton}
-                >
-                  Back to password login
-                </Button>
-              </>
-            )}
-          </View>
+                  {error ? (
+                    <Text variant="bodyMedium" style={authStyles.error}>
+                      {error}
+                    </Text>
+                  ) : null}
 
-          <View style={authStyles.footer}>
-            <Text variant="bodyMedium" style={authStyles.footerText}>
-              Don't have an account?
-            </Text>
-            <Button compact mode="text" onPress={() => navigation.navigate('Signup')} textColor="#3A6FF8">
-              Sign Up
-            </Button>
-          </View>
-      </ScrollView>
+                  <PrimaryButton
+                    title="Verify OTP"
+                    onPress={handleVerifyOtp}
+                    loading={verifyingOtp}
+                    style={authStyles.primaryButton}
+                    buttonColor="#3A6FF8"
+                    disabled={otp.length !== 4}
+                  />
+
+                  <Button
+                    mode="text"
+                    onPress={() => {
+                      setOtpSent(false);
+                      setOtp('');
+                    }}
+                    textColor="#3A6FF8"
+                    style={authStyles.backButton}
+                  >
+                    Change Email
+                  </Button>
+                </>
+              )}
+            </View>
+          </ScrollView>
         </LinearGradient>
       </KeyboardAvoidingView>
     </SafeAreaView>

@@ -13,6 +13,26 @@ const styles = StyleSheet.create({
   contentWrapper: {
     flex: 1,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  headerTitle: {
+    color: '#F8FAFC',
+    fontSize: 20,
+    fontFamily: Fonts.semibold,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   scrollContent: {
     paddingHorizontal: themeAssets.spacing[5],
     paddingBottom: themeAssets.spacing[2],
@@ -178,4 +198,3 @@ const styles = StyleSheet.create({
 });
 
 export default styles;
-

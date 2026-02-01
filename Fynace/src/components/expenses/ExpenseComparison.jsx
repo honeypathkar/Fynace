@@ -2,6 +2,7 @@ import React from 'react';
 import { View } from 'react-native';
 import { Card, Chip, Text } from 'react-native-paper';
 import styles from './styles';
+import { usePrivacy } from '../../context/PrivacyContext';
 
 const comparisonChipStyles = {
   positive: {
@@ -15,6 +16,7 @@ const comparisonChipStyles = {
 };
 
 const ExpenseComparison = ({ comparison }) => {
+  const { isPrivacyMode } = usePrivacy();
   if (!comparison) return null;
 
   const comparisonKeys = ['moneyIn', 'moneyOut', 'remaining'];
@@ -37,8 +39,10 @@ const ExpenseComparison = ({ comparison }) => {
             </Text>
             <View style={styles.comparisonValues}>
               <Text variant="bodyMedium">
-                {comparison[key].difference >= 0 ? '+' : ''}
-                {comparison[key].difference.toLocaleString()}
+                {isPrivacyMode
+                  ? '******'
+                  : (comparison[key].difference >= 0 ? '+' : '') +
+                    comparison[key].difference.toLocaleString()}
               </Text>
               <Chip
                 compact
@@ -60,4 +64,3 @@ const ExpenseComparison = ({ comparison }) => {
 };
 
 export default ExpenseComparison;
-

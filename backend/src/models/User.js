@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 
 const userSchema = new mongoose.Schema({
-  name: {
+  fullName: {
     type: String,
     required: true,
     trim: true,
@@ -34,6 +34,13 @@ const userSchema = new mongoose.Schema({
     sparse: true,
     index: true,
   },
+  userImage: {
+    type: String,
+  },
+  currency: {
+    type: String,
+    default: "INR",
+  },
   otp: {
     code: String,
     expiresAt: Date,
@@ -57,11 +64,7 @@ userSchema.pre("save", async function (next) {
   this.updatedAt = Date.now();
 
   // Hash password if modified
-  if (!this.isModified("password")) {
-    next();
-  }
-
-  if (this.password) {
+  if (this.isModified("password") && this.password) {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
   }
@@ -70,6 +73,7 @@ userSchema.pre("save", async function (next) {
 
 // Match user entered password to hashed password in database
 userSchema.methods.matchPassword = async function (enteredPassword) {
+  if (!this.password) return false;
   return await bcrypt.compare(enteredPassword, this.password);
 };
 

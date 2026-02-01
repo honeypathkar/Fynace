@@ -1,81 +1,59 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { body } = require('express-validator');
+const { body } = require("express-validator");
 const {
-  register,
-  login,
+  checkUser,
   sendOTPForLogin,
   verifyOTP,
-  googleSignIn,
+  googleLoginRegister,
   getProfile,
   updateProfile,
-} = require('../controllers/authController');
-const { authenticate } = require('../middleware/auth');
+} = require("../controllers/authController");
+const { authenticate } = require("../middleware/auth");
 
-// Register
+// Check User
 router.post(
-  '/register',
-  [
-    body('name').notEmpty().withMessage('Name is required'),
-    body('email').isEmail().withMessage('Valid email is required'),
-    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-  ],
-  register
-);
-
-// Login
-router.post(
-  '/login',
-  [
-    body('email').isEmail().withMessage('Valid email is required'),
-    body('password').exists().withMessage('Password is required'),
-  ],
-  login
+  "/check-user",
+  [body("email").isEmail().withMessage("Valid email is required")],
+  checkUser,
 );
 
 // Send OTP
 router.post(
-  '/otp/send',
+  "/otp/send",
   [
-    body('email').isEmail().withMessage('Valid email is required'),
-    body('phone').optional().isMobilePhone(),
+    body("email").isEmail().withMessage("Valid email is required"),
+    body("fullName").optional().trim(),
   ],
-  sendOTPForLogin
+  sendOTPForLogin,
 );
 
 // Verify OTP
 router.post(
-  '/otp/verify',
+  "/otp/verify",
   [
-    body('otp').isLength({ min: 6, max: 6 }).isNumeric(),
-    body('userId').optional().isMongoId(),
-    body('phone').optional(),
-    body('email').optional().isEmail(),
+    body("otp").isLength({ min: 4, max: 4 }).isNumeric(),
+    body("email").isEmail().withMessage("Valid email is required"),
   ],
-  verifyOTP
+  verifyOTP,
 );
 
-// Google Sign-In
-router.post(
-  '/google',
-  [body('idToken').notEmpty()],
-  googleSignIn
-);
+// Google Sign-In/Register
+router.post("/google", [body("idToken").notEmpty()], googleLoginRegister);
 
 // Get profile (protected)
-router.get('/profile', authenticate, getProfile);
+router.get("/profile", authenticate, getProfile);
 
 // Update profile (protected)
 router.put(
-  '/profile',
+  "/profile",
   authenticate,
   [
-    body('name').optional().trim().notEmpty(),
-    body('email').optional().isEmail(),
-    body('phone').optional().isMobilePhone(),
+    body("fullName").optional().trim().notEmpty(),
+    body("email").optional().isEmail(),
+    body("phone").optional().isMobilePhone(),
   ],
-  updateProfile
+  updateProfile,
 );
 
 module.exports = router;
-

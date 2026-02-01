@@ -14,9 +14,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import GlobalHeader from '../../components/GlobalHeader';
 import { useAuth } from '../../hooks/useAuth';
 import { apiClient, parseApiError } from '../../api/client';
-import { Check } from 'lucide-react-native';
+import { Check, ChevronLeft } from 'lucide-react-native';
 import PrimaryButton from '../../components/PrimaryButton';
-import { UploadSection, ExpenseRow, excelUploadStyles } from '../../components/excel-upload';
+import {
+  UploadSection,
+  ExpenseRow,
+  excelUploadStyles,
+} from '../../components/excel-upload';
 import {
   errorCodes,
   isErrorWithCode,
@@ -38,9 +42,9 @@ const ExcelUploadScreen = () => {
   const [editedData, setEditedData] = useState(null);
 
   // Convert month name to YYYY-MM format
-  const parseMonth = (monthString) => {
+  const parseMonth = monthString => {
     if (!monthString) return null;
-    
+
     // Check if already in YYYY-MM format
     const yyyyMMRegex = /^\d{4}-\d{2}$/;
     if (yyyyMMRegex.test(monthString.trim())) {
@@ -49,10 +53,30 @@ const ExcelUploadScreen = () => {
 
     // Try to parse month names like "June 2025", "June2025", "Jun 2025"
     const monthNames = [
-      'january', 'february', 'march', 'april', 'may', 'june',
-      'july', 'august', 'september', 'october', 'november', 'december',
-      'jan', 'feb', 'mar', 'apr', 'may', 'jun',
-      'jul', 'aug', 'sep', 'oct', 'nov', 'dec'
+      'january',
+      'february',
+      'march',
+      'april',
+      'may',
+      'june',
+      'july',
+      'august',
+      'september',
+      'october',
+      'november',
+      'december',
+      'jan',
+      'feb',
+      'mar',
+      'apr',
+      'may',
+      'jun',
+      'jul',
+      'aug',
+      'sep',
+      'oct',
+      'nov',
+      'dec',
     ];
 
     const cleanString = monthString.toString().toLowerCase().trim();
@@ -71,32 +95,42 @@ const ExcelUploadScreen = () => {
   };
 
   // Format YYYY-MM to "Month YYYY" format for display
-  const formatMonthForDisplay = (monthString) => {
+  const formatMonthForDisplay = monthString => {
     if (!monthString) return '';
-    
+
     // Check if already in readable format (contains month name)
     if (monthString.match(/[a-zA-Z]/)) {
       return monthString;
     }
-    
+
     // Parse YYYY-MM format
     const yyyyMMRegex = /^(\d{4})-(\d{2})$/;
     const match = monthString.match(yyyyMMRegex);
-    
+
     if (match) {
       const year = match[1];
       const monthIndex = parseInt(match[2], 10) - 1;
-      
+
       const monthNames = [
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December',
       ];
-      
+
       if (monthIndex >= 0 && monthIndex < 12) {
         return `${monthNames[monthIndex]} ${year}`;
       }
     }
-    
+
     return monthString;
   };
 
@@ -119,9 +153,11 @@ const ExcelUploadScreen = () => {
       // Use the URI directly from picker result
       // The picker result should have a uri property we can use directly
       const fileUri = pickerResult.uri;
-      
+
       if (!fileUri) {
-        throw new Error('Unable to get file URI. Please try selecting the file again.');
+        throw new Error(
+          'Unable to get file URI. Please try selecting the file again.',
+        );
       }
 
       // Read file content directly from URI
@@ -147,7 +183,7 @@ const ExcelUploadScreen = () => {
       const firstSheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[firstSheetName];
       // Get raw data first to see actual column names
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, {
         defval: '', // Default value for empty cells
         raw: true, // Keep raw values to preserve numbers
       });
@@ -177,7 +213,11 @@ const ExcelUploadScreen = () => {
           const found = rowKeys.find(rk => {
             const rkLower = rk.toLowerCase().trim();
             const keyLower = key.toLowerCase().trim();
-            return rkLower === keyLower || rkLower.includes(keyLower) || keyLower.includes(rkLower);
+            return (
+              rkLower === keyLower ||
+              rkLower.includes(keyLower) ||
+              keyLower.includes(rkLower)
+            );
           });
           if (found) {
             const value = row[found];
@@ -193,54 +233,102 @@ const ExcelUploadScreen = () => {
       const mappedData = jsonData.map((row, index) => {
         // Try different possible column names for month
         const monthValue = getValue(row, [
-          'Month', 'month', 'MONTH', 'Month ', 'month ', 
-          'Date', 'date', 'DATE'
+          'Month',
+          'month',
+          'MONTH',
+          'Month ',
+          'month ',
+          'Date',
+          'date',
+          'DATE',
         ]);
         const month = parseMonth(monthValue || '');
-        
+
         // Try different possible column names for item name
-        const itemName = getValue(row, [
-          'Name', 'name', 'NAME', 'Name ', 'name ',
-          'Item Name', 'item name', 'ItemName', 'itemName',
-          'Item', 'item', 'ITEM', 'Description', 'description'
-        ]) || '';
-        
+        const itemName =
+          getValue(row, [
+            'Name',
+            'name',
+            'NAME',
+            'Name ',
+            'name ',
+            'Item Name',
+            'item name',
+            'ItemName',
+            'itemName',
+            'Item',
+            'item',
+            'ITEM',
+            'Description',
+            'description',
+          ]) || '';
+
         // Try different possible column names for category
-        const category = getValue(row, [
-          'Category', 'category', 'CATEGORY', 'Category ', 'category ',
-          'Cat', 'cat', 'CAT'
-        ]) || '';
-        
+        const category =
+          getValue(row, [
+            'Category',
+            'category',
+            'CATEGORY',
+            'Category ',
+            'category ',
+            'Cat',
+            'cat',
+            'CAT',
+          ]) || '';
+
         // Try different possible column names for amount - check ALL possible variations
         let amountValue = getValue(row, [
-          'Amount (₹)', 'Amount(₹)', 'Amount (Rs)', 'Amount(Rs)',
-          'Amount (INR)', 'Amount(INR)', 'Amount', 'amount', 'AMOUNT',
-          'Amount ', 'amount ', 'AMOUNT (₹)', 'AMOUNT(₹)',
-          'Price', 'price', 'PRICE', 'Cost', 'cost', 'COST',
-          'Value', 'value', 'VALUE'
+          'Amount (₹)',
+          'Amount(₹)',
+          'Amount (Rs)',
+          'Amount(Rs)',
+          'Amount (INR)',
+          'Amount(INR)',
+          'Amount',
+          'amount',
+          'AMOUNT',
+          'Amount ',
+          'amount ',
+          'AMOUNT (₹)',
+          'AMOUNT(₹)',
+          'Price',
+          'price',
+          'PRICE',
+          'Cost',
+          'cost',
+          'COST',
+          'Value',
+          'value',
+          'VALUE',
         ]);
-        
+
         // If still not found, try to find any column that might contain amount
         if (!amountValue || amountValue === 0 || amountValue === '') {
           const rowKeys = Object.keys(row);
           const amountKey = rowKeys.find(key => {
             const keyLower = key.toLowerCase();
-            return keyLower.includes('amount') || 
-                   keyLower.includes('price') || 
-                   keyLower.includes('cost') || 
-                   keyLower.includes('value') ||
-                   keyLower.includes('₹') ||
-                   keyLower.includes('rs') ||
-                   keyLower.includes('inr');
+            return (
+              keyLower.includes('amount') ||
+              keyLower.includes('price') ||
+              keyLower.includes('cost') ||
+              keyLower.includes('value') ||
+              keyLower.includes('₹') ||
+              keyLower.includes('rs') ||
+              keyLower.includes('inr')
+            );
           });
           if (amountKey) {
             amountValue = row[amountKey];
           }
         }
-        
+
         // Clean and parse the amount value
         let amount = 0;
-        if (amountValue !== null && amountValue !== undefined && amountValue !== '') {
+        if (
+          amountValue !== null &&
+          amountValue !== undefined &&
+          amountValue !== ''
+        ) {
           // If it's already a number, use it directly
           if (typeof amountValue === 'number') {
             amount = Math.abs(amountValue);
@@ -250,7 +338,7 @@ const ExcelUploadScreen = () => {
               .replace(/[₹,Rs\s]/gi, '') // Remove currency symbols, commas, and spaces
               .replace(/[^\d.-]/g, '') // Remove all non-numeric except dots and minus
               .trim();
-            
+
             // Parse as number
             const parsed = parseFloat(amountStr);
             amount = isNaN(parsed) ? 0 : Math.abs(parsed);
@@ -274,7 +362,15 @@ const ExcelUploadScreen = () => {
           itemName: itemName || '',
           category: category || '',
           amount: amount,
-          notes: getValue(row, ['Notes', 'notes', 'Note', 'note', 'Description', 'description']) || '',
+          notes:
+            getValue(row, [
+              'Notes',
+              'notes',
+              'Note',
+              'note',
+              'Description',
+              'description',
+            ]) || '',
           originalRow: row,
         };
       });
@@ -295,14 +391,14 @@ const ExcelUploadScreen = () => {
     }
   }, []);
 
-  const handleEditRow = (index) => {
+  const handleEditRow = index => {
     setEditingIndex(index);
     setEditedData({ ...extractedData[index] });
   };
 
   const handleSaveEdit = () => {
     if (!editedData) return;
-    
+
     const updated = [...extractedData];
     updated[editingIndex] = {
       ...editedData,
@@ -319,7 +415,7 @@ const ExcelUploadScreen = () => {
     setEditedData(null);
   };
 
-  const handleDeleteRow = (index) => {
+  const handleDeleteRow = index => {
     const updated = extractedData.filter((_, i) => i !== index);
     setExtractedData(updated);
     if (Platform.OS === 'android') {
@@ -335,7 +431,10 @@ const ExcelUploadScreen = () => {
 
     if (!token) {
       if (Platform.OS === 'android') {
-        ToastAndroid.show('Please log in to upload expenses', ToastAndroid.LONG);
+        ToastAndroid.show(
+          'Please log in to upload expenses',
+          ToastAndroid.LONG,
+        );
       }
       return;
     }
@@ -348,8 +447,11 @@ const ExcelUploadScreen = () => {
     }
 
     // Validate all rows have required fields
-    const invalidRows = extractedData.filter((row) => {
-      const amount = typeof row.amount === 'number' ? row.amount : parseFloat(row.amount) || 0;
+    const invalidRows = extractedData.filter(row => {
+      const amount =
+        typeof row.amount === 'number'
+          ? row.amount
+          : parseFloat(row.amount) || 0;
       return !row.month || !row.itemName || !amount || amount <= 0;
     });
 
@@ -357,7 +459,7 @@ const ExcelUploadScreen = () => {
       if (Platform.OS === 'android') {
         ToastAndroid.show(
           `Please fix ${invalidRows.length} row(s) with missing or invalid data (Month, Name, and Amount are required)`,
-          ToastAndroid.LONG
+          ToastAndroid.LONG,
         );
       }
       return;
@@ -368,7 +470,7 @@ const ExcelUploadScreen = () => {
       setError(null);
 
       // Convert to API format
-      const expenses = extractedData.map((row) => ({
+      const expenses = extractedData.map(row => ({
         month: row.month,
         itemName: row.itemName,
         category: row.category || '',
@@ -384,11 +486,14 @@ const ExcelUploadScreen = () => {
       if (Platform.OS === 'android') {
         ToastAndroid.show(
           `${expenses.length} expenses uploaded successfully!`,
-          ToastAndroid.LONG
+          ToastAndroid.LONG,
         );
       } else {
         if (Platform.OS === 'android') {
-          ToastAndroid.show(`${expenses.length} expenses uploaded successfully!`, ToastAndroid.LONG);
+          ToastAndroid.show(
+            `${expenses.length} expenses uploaded successfully!`,
+            ToastAndroid.LONG,
+          );
         }
       }
 
@@ -400,7 +505,10 @@ const ExcelUploadScreen = () => {
       const apiError = parseApiError(err);
       setError(apiError.message);
       if (Platform.OS === 'android') {
-        ToastAndroid.show(`Upload Failed: ${apiError.message}`, ToastAndroid.LONG);
+        ToastAndroid.show(
+          `Upload Failed: ${apiError.message}`,
+          ToastAndroid.LONG,
+        );
       }
     } finally {
       setUploading(false);
@@ -410,14 +518,16 @@ const ExcelUploadScreen = () => {
   if (!token) {
     return (
       <View style={excelUploadStyles.container}>
-        <GlobalHeader
-          title="Upload Excel"
-          subtitle="Log in to upload expenses"
-          showLeftIcon={true}
-          onLeftIconPress={() => navigation.goBack()}
-          leftIconName="arrow-left"
-          leftIconColor="#F8FAFC"
-        />
+        <View style={excelUploadStyles.header}>
+          <TouchableOpacity
+            style={excelUploadStyles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <ChevronLeft size={28} color="#F8FAFC" />
+          </TouchableOpacity>
+          <Text style={excelUploadStyles.headerTitle}>Upload Excel</Text>
+          <View style={{ width: 40 }} />
+        </View>
         <View style={excelUploadStyles.centered}>
           <Text variant="titleMedium" style={excelUploadStyles.centeredTitle}>
             You're not logged in!
@@ -436,20 +546,23 @@ const ExcelUploadScreen = () => {
         style={excelUploadStyles.keyboardView}
         behavior={Platform.select({ ios: 'padding', android: undefined })}
       >
-        <GlobalHeader
-          title="Upload Excel"
-          subtitle="Upload and review your expenses"
-          showLeftIcon={true}
-          onLeftIconPress={() => navigation.goBack()}
-          leftIconName="arrow-left"
-          leftIconColor="#F8FAFC"
-        />
+        <View style={excelUploadStyles.header}>
+          <TouchableOpacity
+            style={excelUploadStyles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <ChevronLeft size={28} color="#F8FAFC" />
+          </TouchableOpacity>
+          <Text style={excelUploadStyles.headerTitle}>Upload Excel</Text>
+          <View style={{ width: 40 }} />
+        </View>
 
         <View style={excelUploadStyles.contentWrapper}>
           <ScrollView
             contentContainerStyle={[
               excelUploadStyles.scrollContent,
-              extractedData.length > 0 && excelUploadStyles.scrollContentWithButtons,
+              extractedData.length > 0 &&
+                excelUploadStyles.scrollContentWithButtons,
             ]}
             showsVerticalScrollIndicator={false}
           >
@@ -462,21 +575,29 @@ const ExcelUploadScreen = () => {
                 </Text>
 
                 <View style={excelUploadStyles.dataHeader}>
-                  <Text variant="bodyMedium" style={excelUploadStyles.dataTitle}>
+                  <Text
+                    variant="bodyMedium"
+                    style={excelUploadStyles.dataTitle}
+                  >
                     Extracted Data ({extractedData.length} rows)
                   </Text>
                   <TouchableOpacity
                     onPress={handleFilePick}
                     style={excelUploadStyles.changeFileButton}
                   >
-                    <Text style={excelUploadStyles.changeFileText}>Change File</Text>
+                    <Text style={excelUploadStyles.changeFileText}>
+                      Change File
+                    </Text>
                   </TouchableOpacity>
                 </View>
 
                 {error && (
                   <Card style={excelUploadStyles.errorCard}>
                     <Card.Content>
-                      <Text variant="bodyMedium" style={excelUploadStyles.errorText}>
+                      <Text
+                        variant="bodyMedium"
+                        style={excelUploadStyles.errorText}
+                      >
                         {error}
                       </Text>
                     </Card.Content>
@@ -486,7 +607,7 @@ const ExcelUploadScreen = () => {
                 <View style={{ minHeight: extractedData.length * 120 }}>
                   <FlashList
                     data={extractedData}
-                    keyExtractor={(item) => item.id.toString()}
+                    keyExtractor={item => item.id.toString()}
                     estimatedItemSize={120}
                     scrollEnabled={false}
                     renderItem={({ item, index }) => (
@@ -538,4 +659,3 @@ const ExcelUploadScreen = () => {
 };
 
 export default ExcelUploadScreen;
-

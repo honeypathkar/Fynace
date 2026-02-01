@@ -1,10 +1,10 @@
-const nodemailer = require('nodemailer');
-const otpGenerator = require('otp-generator');
+const nodemailer = require("nodemailer");
+const otpGenerator = require("otp-generator");
 
 // Create reusable transporter object using Gmail SMTP
 const createTransporter = () => {
   return nodemailer.createTransport({
-    service: 'gmail',
+    service: "gmail",
     auth: {
       user: process.env.GMAIL_USER,
       pass: process.env.GMAIL_APP_PASSWORD, // Use App Password, not regular password
@@ -14,7 +14,7 @@ const createTransporter = () => {
 
 // Generate OTP
 const generateOTP = () => {
-  return otpGenerator.generate(6, {
+  return otpGenerator.generate(4, {
     upperCaseAlphabets: false,
     lowerCaseAlphabets: false,
     specialChars: false,
@@ -25,11 +25,11 @@ const generateOTP = () => {
 const sendOTP = async (email, otp) => {
   try {
     const transporter = createTransporter();
-    
+
     const mailOptions = {
       from: process.env.GMAIL_USER,
       to: email,
-      subject: 'Expense Tracker - OTP Verification',
+      subject: "Expense Tracker - OTP Verification",
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4;">
           <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px;">
@@ -46,11 +46,11 @@ const sendOTP = async (email, otp) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log('OTP sent successfully:', info.messageId);
+    console.log("OTP sent successfully:", info.messageId);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error('Error sending OTP:', error);
-    throw new Error('Failed to send OTP email');
+    console.error("Error sending OTP:", error);
+    throw new Error("Failed to send OTP email");
   }
 };
 
@@ -58,4 +58,3 @@ module.exports = {
   generateOTP,
   sendOTP,
 };
-

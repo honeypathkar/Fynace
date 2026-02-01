@@ -4,6 +4,8 @@ import { Text } from 'react-native-paper';
 import { PieChart } from 'react-native-chart-kit';
 import LinearGradient from 'react-native-linear-gradient';
 import styles from './styles';
+import { usePrivacy } from '../../context/PrivacyContext';
+import { useAuth } from '../../hooks/useAuth';
 
 const PieChartCard = ({
   title,
@@ -13,6 +15,8 @@ const PieChartCard = ({
   screenWidth,
   chartConfig,
 }) => {
+  const { user } = useAuth();
+  const { formatAmount } = usePrivacy();
   const hasValidPieData =
     pieChartData &&
     Array.isArray(pieChartData) &&
@@ -117,7 +121,7 @@ const PieChartCard = ({
                       {item.percentage}%
                     </Text>
                     <Text style={styles.categoryAmount}>
-                      ₹{item.amount.toLocaleString()}
+                      {formatAmount(item.amount, user?.currency)}
                     </Text>
                   </View>
                 </View>

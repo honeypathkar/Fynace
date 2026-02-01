@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   scrollContent: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 10,
     paddingBottom: 100,
     gap: 24,
   },

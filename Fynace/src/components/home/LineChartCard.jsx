@@ -4,6 +4,8 @@ import { Text } from 'react-native-paper';
 import { LineChart } from 'react-native-chart-kit';
 import LinearGradient from 'react-native-linear-gradient';
 import styles from './styles';
+import { usePrivacy } from '../../context/PrivacyContext';
+import { useAuth } from '../../hooks/useAuth';
 
 const LineChartCard = ({
   title,
@@ -13,6 +15,8 @@ const LineChartCard = ({
   screenWidth,
   chartConfig,
 }) => {
+  const { user } = useAuth();
+  const { formatAmount, isPrivacyMode } = usePrivacy();
   return (
     <LinearGradient
       colors={['#1E293B', '#0F172A', '#1E293B']}
@@ -27,7 +31,7 @@ const LineChartCard = ({
         variant="displaySmall"
         style={[styles.netBalance, { textAlign: 'left' }]}
       >
-        ₹{netBalance.toLocaleString()}
+        {formatAmount(netBalance, user?.currency)}
         <Text variant="bodyMedium" style={styles.netBalanceLabel}>
           {' '}
           {netBalanceLabel}
@@ -52,6 +56,7 @@ const LineChartCard = ({
             fromZero={true}
             yAxisInterval={1}
             formatYLabel={value => {
+              if (isPrivacyMode) return '***';
               const num = parseInt(value);
               if (num >= 100000) return `${(num / 100000).toFixed(1)}L`;
               if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;

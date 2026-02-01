@@ -35,6 +35,12 @@
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string/>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Fynace requires FaceID access to secure your financial data.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Fynace needs access to your camera to scan UPI QR codes.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Fynace needs access to your gallery to scan QR codes from photos.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIRequiredDeviceCapabilities</key>

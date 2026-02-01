@@ -14,26 +14,24 @@ const OTPInput = ({ otp, setOtp, otpInputRefs }) => {
 
   return (
     <View style={styles.otpContainer}>
-      {[0, 1, 2, 3, 4, 5].map((i) => (
+      {[0, 1, 2, 3].map(i => (
         <TextInput
           key={`otp-${i}`}
-          ref={(ref) => {
+          ref={ref => {
             if (ref) {
               otpInputRefs.current[i] = ref;
             }
           }}
           value={otp[i] || ''}
-          onChangeText={(val) => {
+          onChangeText={val => {
             const cleaned = (val || '').replace(/[^0-9]/g, '').slice(0, 1);
             const newOtp =
-              (otp + '______').slice(0, i) +
-              cleaned +
-              (otp.slice(i + 1) || '');
-            const finalOtp = newOtp.slice(0, 6);
+              (otp + '____').slice(0, i) + cleaned + (otp.slice(i + 1) || '');
+            const finalOtp = newOtp.slice(0, 4);
             setOtp(finalOtp);
 
             // Auto-focus next input if digit entered and not last box
-            if (cleaned && i < 5) {
+            if (cleaned && i < 3) {
               otpInputRefs.current[i + 1]?.focus();
             }
           }}
@@ -54,4 +52,3 @@ const OTPInput = ({ otp, setOtp, otpInputRefs }) => {
 };
 
 export default OTPInput;
-

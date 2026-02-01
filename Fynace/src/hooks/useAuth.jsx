@@ -20,7 +20,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [otpRequestId, setOtpRequestId] = useState();
 
-  const refreshProfileInternal = useCallback(async (activeToken) => {
+  const refreshProfileInternal = useCallback(async activeToken => {
     try {
       setLoading(true);
       if (activeToken) {
@@ -55,7 +55,7 @@ export const AuthProvider = ({ children }) => {
     bootstrap();
   }, [refreshProfileInternal]);
 
-  const persistToken = useCallback(async (authToken) => {
+  const persistToken = useCallback(async authToken => {
     if (!authToken) {
       await AsyncStorage.removeItem(STORAGE_KEY);
       setAuthToken(undefined);
@@ -68,11 +68,25 @@ export const AuthProvider = ({ children }) => {
     setTokenState(authToken);
   }, []);
 
-  const requestOtp = useCallback(async ({ email }) => {
+  const checkUser = useCallback(async email => {
+    try {
+      setLoading(true);
+      const response = await apiClient.post('/auth/check-user', { email });
+      return response.data.exists;
+    } catch (error) {
+      const apiError = parseApiError(error);
+      throw apiError;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const requestOtp = useCallback(async ({ email, fullName }) => {
     try {
       setLoading(true);
       const response = await apiClient.post('/auth/otp/send', {
         email,
+        fullName,
       });
       const requestedUserId = response.data?.userId;
       setOtpRequestId(requestedUserId);
@@ -86,12 +100,11 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const verifyOtp = useCallback(
-    async ({ otp, userId, email }) => {
+    async ({ otp, email }) => {
       try {
         setLoading(true);
         const response = await apiClient.post('/auth/otp/verify', {
           otp,
-          userId: userId || otpRequestId,
           email,
         });
 
@@ -108,17 +121,14 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
       }
     },
-    [otpRequestId, persistToken]
+    [persistToken],
   );
 
-  const login = useCallback(
-    async ({ email, password }) => {
+  const googleLogin = useCallback(
+    async idToken => {
       try {
         setLoading(true);
-        const response = await apiClient.post('/auth/login', {
-          email,
-          password,
-        });
+        const response = await apiClient.post('/auth/google', { idToken });
 
         const authToken = response.data?.token;
         if (authToken) {
@@ -132,33 +142,7 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
       }
     },
-    [persistToken]
-  );
-
-  const register = useCallback(
-    async ({ name, email, password, phone }) => {
-      try {
-        setLoading(true);
-        const response = await apiClient.post('/auth/register', {
-          name,
-          email,
-          password,
-          phone,
-        });
-
-        const authToken = response.data?.token;
-        if (authToken) {
-          await persistToken(authToken);
-          setUser(response.data?.user);
-        }
-      } catch (error) {
-        const apiError = parseApiError(error);
-        throw apiError;
-      } finally {
-        setLoading(false);
-      }
-    },
-    [persistToken]
+    [persistToken],
   );
 
   const logout = useCallback(async () => {
@@ -171,7 +155,7 @@ export const AuthProvider = ({ children }) => {
     await refreshProfileInternal();
   }, [refreshProfileInternal]);
 
-  const updateProfile = useCallback(async (payload) => {
+  const updateProfile = useCallback(async payload => {
     try {
       setLoading(true);
       const response = await apiClient.put('/auth/profile', payload);
@@ -191,10 +175,10 @@ export const AuthProvider = ({ children }) => {
       initializing,
       loading,
       otpRequestId,
+      checkUser,
       requestOtp,
       verifyOtp,
-      login,
-      register,
+      googleLogin,
       logout,
       refreshProfile,
       updateProfile,
@@ -205,14 +189,14 @@ export const AuthProvider = ({ children }) => {
       initializing,
       loading,
       otpRequestId,
+      checkUser,
       requestOtp,
       verifyOtp,
-      login,
-      register,
+      googleLogin,
       logout,
       refreshProfile,
       updateProfile,
-    ]
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -225,4 +209,3 @@ export const useAuth = () => {
   }
   return context;
 };
-

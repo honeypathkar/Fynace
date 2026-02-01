@@ -4,8 +4,20 @@ import { Text } from 'react-native-paper';
 import LinearGradient from 'react-native-linear-gradient';
 import { TrendingUp, TrendingDown } from 'lucide-react-native';
 import styles from './styles';
+import { usePrivacy } from '../../context/PrivacyContext';
+import { useAuth } from '../../hooks/useAuth';
 
-const StatCard = ({ label, value, trend, trendValue, type, onPress, style }) => {
+const StatCard = ({
+  label,
+  value,
+  trend,
+  trendValue,
+  type,
+  onPress,
+  style,
+}) => {
+  const { user } = useAuth();
+  const { formatAmount } = usePrivacy();
   const isMoneyIn = type === 'in';
   const TrendIcon = isMoneyIn ? TrendingUp : TrendingDown;
   const trendColor = isMoneyIn ? '#22C55E' : '#EF4444';
@@ -17,9 +29,11 @@ const StatCard = ({ label, value, trend, trendValue, type, onPress, style }) => 
       colors={['#1E293B', '#0F172A']}
       style={[styles.statCard, style]}
     >
-      <Text variant="bodyMedium" style={styles.statLabel}>{label}</Text>
+      <Text variant="bodyMedium" style={styles.statLabel}>
+        {label}
+      </Text>
       <Text variant="titleLarge" style={valueStyle}>
-        ₹{value.toLocaleString()}
+        {formatAmount(value, user?.currency)}
       </Text>
       {trend && (
         <View style={styles.trendRow}>
@@ -32,7 +46,11 @@ const StatCard = ({ label, value, trend, trendValue, type, onPress, style }) => 
 
   if (onPress) {
     return (
-      <TouchableOpacity activeOpacity={0.8} onPress={onPress} style={{ flex: 1 }}>
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={onPress}
+        style={{ flex: 1 }}
+      >
         {content}
       </TouchableOpacity>
     );
@@ -42,4 +60,3 @@ const StatCard = ({ label, value, trend, trendValue, type, onPress, style }) => 
 };
 
 export default StatCard;
-

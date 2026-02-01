@@ -13,6 +13,8 @@ import AppNavigator from './src/navigation/AppNavigator';
 import { buildPaperTheme } from './src/theme';
 import { AuthProvider } from './src/hooks/useAuth';
 import { BottomBarProvider } from './src/context/BottomBarContext';
+import { PrivacyProvider } from './src/context/PrivacyContext';
+import { SecurityProvider } from './src/context/SecurityContext';
 
 function App() {
   const scheme = useColorScheme();
@@ -22,13 +24,17 @@ function App() {
     <SafeAreaProvider>
       <PaperProvider theme={paperTheme}>
         <AuthProvider>
-          <BottomBarProvider>
-            <StatusBar
-              barStyle="light-content"
-              backgroundColor={paperTheme.colors.background}
-            />
-            <AppNavigator />
-          </BottomBarProvider>
+          <SecurityProvider>
+            <PrivacyProvider>
+              <BottomBarProvider>
+                <StatusBar
+                  barStyle="light-content"
+                  backgroundColor={paperTheme.colors.background}
+                />
+                <AppNavigator />
+              </BottomBarProvider>
+            </PrivacyProvider>
+          </SecurityProvider>
         </AuthProvider>
       </PaperProvider>
     </SafeAreaProvider>

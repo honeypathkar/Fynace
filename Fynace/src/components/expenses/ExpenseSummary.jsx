@@ -3,8 +3,12 @@ import { TouchableOpacity, View } from 'react-native';
 import { Card, Text } from 'react-native-paper';
 import { Plus } from 'lucide-react-native';
 import styles from './styles';
+import { usePrivacy } from '../../context/PrivacyContext';
+import { useAuth } from '../../hooks/useAuth';
 
 const ExpenseSummary = ({ allTimeSummary, onAddPress }) => {
+  const { user } = useAuth();
+  const { formatAmount } = usePrivacy();
   return (
     <Card style={styles.summaryCard}>
       <Card.Content>
@@ -27,7 +31,7 @@ const ExpenseSummary = ({ allTimeSummary, onAddPress }) => {
               Money In
             </Text>
             <Text variant="headlineSmall" style={styles.summaryValueIn}>
-              ₹{allTimeSummary?.totalMoneyIn?.toLocaleString() || 0}
+              {formatAmount(allTimeSummary?.totalMoneyIn || 0, user?.currency)}
             </Text>
           </View>
           <View style={styles.summaryItem}>
@@ -35,7 +39,7 @@ const ExpenseSummary = ({ allTimeSummary, onAddPress }) => {
               Money Out
             </Text>
             <Text variant="headlineSmall" style={styles.summaryValueOut}>
-              ₹{allTimeSummary?.totalMoneyOut?.toLocaleString() || 0}
+              {formatAmount(allTimeSummary?.totalMoneyOut || 0, user?.currency)}
             </Text>
           </View>
           <View style={styles.summaryItem}>
@@ -43,7 +47,7 @@ const ExpenseSummary = ({ allTimeSummary, onAddPress }) => {
               Remaining
             </Text>
             <Text variant="headlineSmall" style={styles.summaryValueRemaining}>
-              ₹{allTimeSummary?.remaining?.toLocaleString() || 0}
+              {formatAmount(allTimeSummary?.remaining || 0, user?.currency)}
             </Text>
           </View>
           <View style={styles.summaryItem}>
@@ -61,4 +65,3 @@ const ExpenseSummary = ({ allTimeSummary, onAddPress }) => {
 };
 
 export default ExpenseSummary;
-

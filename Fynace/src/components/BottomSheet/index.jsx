@@ -218,7 +218,6 @@ const BottomSheet = forwardRef(
                 <Animated.View
                   style={[
                     {
-                      flex: 1,
                       paddingBottom:
                         Platform.OS === 'ios' ? spacing.xxl : spacing.m,
                     },
@@ -249,9 +248,11 @@ const BottomSheet = forwardRef(
                   <View style={[styles.modalContent, contentStyle]}>
                     {options.length > 0 ? (
                       <ScrollView
+                        style={{ flex: 1 }}
                         showsVerticalScrollIndicator={false}
                         contentContainerStyle={{ paddingBottom: spacing.xl }}
                         keyboardShouldPersistTaps="handled"
+                        nestedScrollEnabled={true}
                       >
                         <View style={styles.optionsList}>
                           {options.map(option => {

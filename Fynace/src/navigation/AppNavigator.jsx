@@ -7,14 +7,17 @@ import { Home, PieChart } from 'lucide-react-native';
 import SplashScreen from '../screens/Auth/SplashScreen';
 import OnboardingScreen from '../screens/Auth/OnboardingScreen';
 import LoginScreen from '../screens/Auth/LoginScreen';
-import SignupScreen from '../screens/Auth/SignupScreen';
 import HomeScreen from '../screens/Home/HomeScreen';
 import ExpensesScreen from '../screens/Expenses/ExpensesScreen';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
 import EditProfileScreen from '../screens/Profile/EditProfileScreen';
+import ToolScreen from '../screens/Profile/ToolScreen';
 import MoneyInScreen from '../screens/MoneyIn/MoneyInScreen';
 import ExcelUploadScreen from '../screens/Expenses/ExcelUploadScreen';
 import AddExpenseScreen from '../screens/Expenses/AddExpenseScreen';
+import QRScannerScreen from '../screens/Expenses/QRScannerScreen';
+import AddQRBasedExpenseScreen from '../screens/Expenses/AddQRBasedExpenseScreen';
+import WebViewScreen from '../screens/Profile/WebViewScreen';
 import CustomTabBar from './CustomTabBar';
 
 const Tab = createBottomTabNavigator();
@@ -101,11 +104,6 @@ const AppNavigator = () => {
           options={{ animation: 'fade' }}
         />
         <Stack.Screen
-          name="Signup"
-          component={SignupScreen}
-          options={{ animation: 'fade' }}
-        />
-        <Stack.Screen
           name="AppTabs"
           component={AppTabs}
           options={{ animation: 'fade' }}
@@ -118,6 +116,11 @@ const AppNavigator = () => {
         <Stack.Screen
           name="EditProfile"
           component={EditProfileScreen}
+          options={{ animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="Tools"
+          component={ToolScreen}
           options={{ animation: 'slide_from_bottom' }}
         />
         <Stack.Screen
@@ -134,6 +137,21 @@ const AppNavigator = () => {
           name="AddExpense"
           component={AddExpenseScreen}
           options={{ animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="QRScanner"
+          component={QRScannerScreen}
+          options={{ animation: 'fade' }}
+        />
+        <Stack.Screen
+          name="AddQRBasedExpense"
+          component={AddQRBasedExpenseScreen}
+          options={{ animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="WebView"
+          component={WebViewScreen}
+          options={{ animation: 'slide_from_right' }}
         />
       </Stack.Navigator>
     </NavigationContainer>

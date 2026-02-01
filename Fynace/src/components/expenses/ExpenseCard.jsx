@@ -3,6 +3,8 @@ import { TouchableOpacity, View } from 'react-native';
 import { Card, Text } from 'react-native-paper';
 import { Pencil, Trash2 } from 'lucide-react-native';
 import styles from './styles';
+import { usePrivacy } from '../../context/PrivacyContext';
+import { useAuth } from '../../hooks/useAuth';
 
 const ExpenseCard = ({
   item,
@@ -11,6 +13,8 @@ const ExpenseCard = ({
   onEdit,
   onDelete,
 }) => {
+  const { user } = useAuth();
+  const { formatAmount, isPrivacyMode } = usePrivacy();
   return (
     <Card style={styles.expenseItem}>
       <Card.Title
@@ -30,15 +34,19 @@ const ExpenseCard = ({
           <View style={styles.expenseAmounts}>
             {item.amount > 0 ? (
               <Text style={styles.expenseAmount}>
-                ₹{item.amount.toLocaleString()}
+                {formatAmount(item.amount, user?.currency)}
               </Text>
             ) : item.moneyOut > 0 ? (
               <Text style={styles.moneyOut}>
-                -₹{item.moneyOut.toLocaleString()}
+                {isPrivacyMode
+                  ? '******'
+                  : `-${formatAmount(item.moneyOut, user?.currency)}`}
               </Text>
             ) : item.moneyIn > 0 ? (
               <Text style={styles.moneyIn}>
-                +₹{item.moneyIn.toLocaleString()}
+                {isPrivacyMode
+                  ? '******'
+                  : `+${formatAmount(item.moneyIn, user?.currency)}`}
               </Text>
             ) : null}
             <TouchableOpacity

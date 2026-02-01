@@ -8,7 +8,7 @@ const ExpenseSearch = ({ searchQuery, onSearchChange }) => {
     <View style={styles.searchContainer}>
       <Search size={20} color="#94A3B8" style={styles.searchIcon} />
       <TextInput
-        placeholder="Search by item name, category or notes"
+        placeholder="Search by item name, category"
         placeholderTextColor="#94A3B8"
         value={searchQuery}
         onChangeText={onSearchChange}
@@ -19,4 +19,3 @@ const ExpenseSearch = ({ searchQuery, onSearchChange }) => {
 };
 
 export default ExpenseSearch;
-

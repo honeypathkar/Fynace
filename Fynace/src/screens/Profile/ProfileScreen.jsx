@@ -1,12 +1,29 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, View, ScrollView } from 'react-native';
+import {
+  Animated,
+  Pressable,
+  StyleSheet,
+  View,
+  ScrollView,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import GlobalHeader from '../../components/GlobalHeader';
 import { useAuth } from '../../hooks/useAuth';
-import { User, Pencil, Wrench, Info, Shield, LogOut, ChevronRight } from 'lucide-react-native';
+import {
+  User,
+  Pencil,
+  Wrench,
+  Info,
+  Shield,
+  LogOut,
+  ChevronRight,
+} from 'lucide-react-native';
 import Fonts from '../../../assets/fonts';
+import { BASE_URL } from '../../utils/BASE_URL';
+
+const ROOT_URL = BASE_URL.replace('/api', '');
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
@@ -24,16 +41,13 @@ const ProfileScreen = () => {
 
   const handleLogout = async () => {
     try {
-      // Clear token and user data
       await logout();
-      // Reset navigation stack and navigate to SplashScreen
       navigation.reset({
         index: 0,
         routes: [{ name: 'Splash' }],
       });
     } catch (error) {
       console.error('Logout error:', error);
-      // Even if logout fails, reset navigation
       navigation.reset({
         index: 0,
         routes: [{ name: 'Splash' }],
@@ -41,23 +55,43 @@ const ProfileScreen = () => {
     }
   };
 
-  const MenuItem = ({ icon: Icon, label, onPress, isDestructive = false }) => (
+  const MenuItem = ({
+    icon: Icon,
+    label,
+    onPress,
+    isDestructive = false,
+    right,
+  }) => (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [
         styles.menuItem,
-        pressed && styles.menuItemPressed
+        pressed && styles.menuItemPressed,
       ]}
     >
       <View style={styles.menuItemLeft}>
-        <View style={[styles.iconContainer, isDestructive && styles.iconContainerDestructive]}>
+        <View
+          style={[
+            styles.iconContainer,
+            isDestructive && styles.iconContainerDestructive,
+          ]}
+        >
           <Icon size={20} color={isDestructive ? '#EF4444' : '#1E293B'} />
         </View>
-        <Text style={[styles.menuItemLabel, isDestructive && styles.menuItemLabelDestructive]}>
+        <Text
+          style={[
+            styles.menuItemLabel,
+            isDestructive && styles.menuItemLabelDestructive,
+          ]}
+        >
           {label}
         </Text>
       </View>
-      {!isDestructive && <ChevronRight size={20} color="#94A3B8" />}
+      <View style={styles.menuItemRight}>
+        {right
+          ? right
+          : !isDestructive && <ChevronRight size={20} color="#94A3B8" />}
+      </View>
     </Pressable>
   );
 
@@ -73,14 +107,16 @@ const ProfileScreen = () => {
       />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-      <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+        <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
           <View style={styles.profileCard}>
             <View style={styles.avatarContainer}>
               <User size={64} color="#F97316" />
             </View>
-            <Text style={styles.userName}>{user?.name || 'User Name'}</Text>
-            <Text style={styles.userEmail}>{user?.email || 'user@example.com'}</Text>
-              </View>
+            <Text style={styles.userName}>{user?.fullName || 'User Name'}</Text>
+            <Text style={styles.userEmail}>
+              {user?.email || 'user@example.com'}
+            </Text>
+          </View>
 
           <View style={styles.menuContainer}>
             <MenuItem
@@ -88,20 +124,36 @@ const ProfileScreen = () => {
               label="Edit Profile"
               onPress={() => navigation.navigate('EditProfile')}
             />
+
+            <Text style={styles.sectionLabel}>Tools & Preferences</Text>
+
             <MenuItem
               icon={Wrench}
-              label="Tools"
-              onPress={() => { }}
+              label="Tools & Privacy"
+              onPress={() => navigation.navigate('Tools')}
             />
-            <MenuItem
-              icon={Info}
-              label="About Us"
-              onPress={() => { }}
-            />
+
+            <Text style={styles.sectionLabel}>More</Text>
+
             <MenuItem
               icon={Shield}
               label="Privacy Policy"
-              onPress={() => { }}
+              onPress={() =>
+                navigation.navigate('WebView', {
+                  url: `${ROOT_URL}/privacy-policy`,
+                  title: 'Privacy Policy',
+                })
+              }
+            />
+            <MenuItem
+              icon={Info}
+              label="Terms & Conditions"
+              onPress={() =>
+                navigation.navigate('WebView', {
+                  url: `${ROOT_URL}/terms-and-conditions`,
+                  title: 'Terms & Conditions',
+                })
+              }
             />
             <View style={styles.menuDivider} />
             <MenuItem
@@ -110,8 +162,8 @@ const ProfileScreen = () => {
               onPress={handleLogout}
               isDestructive
             />
-              </View>
-      </Animated.View>
+          </View>
+        </Animated.View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -140,7 +192,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#FFE4D6', // Light orange background for avatar
+    backgroundColor: '#FFE4D6',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
@@ -157,22 +209,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#94A3B8',
   },
+  sectionLabel: {
+    fontSize: 12,
+    fontFamily: Fonts.bold,
+    color: '#64748B',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginTop: 24,
+    marginBottom: 8,
+    marginLeft: 8,
+  },
   menuContainer: {
     width: '100%',
-    // backgroundColor: '#1E293B',
-    // borderRadius: 24,
-    // padding: 8,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
+    paddingVertical: 12,
     paddingHorizontal: 8,
     borderRadius: 16,
   },
   menuItemPressed: {
-    backgroundColor: '#334155',
+    backgroundColor: '#1E293B',
   },
   menuItemLeft: {
     flexDirection: 'row',
@@ -198,6 +257,32 @@ const styles = StyleSheet.create({
   menuItemLabelDestructive: {
     color: '#EF4444',
   },
+  menuItemRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  currencyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 4,
+  },
+  currencyBadgeText: {
+    color: '#3A6FF8',
+    fontFamily: Fonts.bold,
+    fontSize: 14,
+  },
+  menuContent: {
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+  },
+  menuItemText: {
+    color: '#F8FAFC',
+    fontFamily: Fonts.medium,
+  },
   menuDivider: {
     height: 1,
     backgroundColor: '#334155',
@@ -205,4 +290,3 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
   },
 });
-
