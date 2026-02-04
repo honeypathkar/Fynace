@@ -1,0 +1,28 @@
+<svg width="420" height="680" viewBox="0 0 420 680" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0E1628" />
+      <stop offset="100%" stop-color="#131F37" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4F83FF" />
+      <stop offset="100%" stop-color="#5AD0FF" />
+    </linearGradient>
+  </defs>
+  <rect width="420" height="680" rx="36" fill="url(#bg)" stroke="#1E2A44" stroke-width="2" />
+  <circle cx="72" cy="72" r="30" fill="#1B2946" />
+  <path d="M64 72H80" stroke="#D6E1FF" stroke-width="4" stroke-linecap="round" />
+  <text x="120" y="82" fill="#E8EEF9" font-size="24" font-family="Bricolage Grotesque, Arial" font-weight="700">Hello, Honey</text>
+  <text x="120" y="108" fill="#93A7C8" font-size="14" font-family="Bricolage Grotesque, Arial">Your financial overview</text>
+  <rect x="36" y="150" width="348" height="200" rx="24" fill="#16243F" />
+  <circle cx="210" cy="250" r="80" fill="url(#accent)" opacity="0.2" />
+  <circle cx="210" cy="250" r="60" fill="#4F83FF" opacity="0.7" />
+  <circle cx="210" cy="250" r="40" fill="#FF8C5A" opacity="0.8" />
+  <rect x="36" y="380" width="348" height="90" rx="20" fill="#172644" />
+  <text x="60" y="420" fill="#E8EEF9" font-size="18" font-family="Bricolage Grotesque, Arial" font-weight="600">Spending breakdown</text>
+  <rect x="36" y="490" width="348" height="130" rx="22" fill="#1B2C4D" />
+  <text x="60" y="530" fill="#8EA4C9" font-size="14" font-family="Bricolage Grotesque, Arial">Total savings</text>
+  <text x="60" y="565" fill="#E8EEF9" font-size="28" font-family="Bricolage Grotesque, Arial" font-weight="700">₹ 24,850</text>
+  <rect x="36" y="630" width="160" height="28" rx="14" fill="#234071" />
+  <rect x="212" y="630" width="172" height="28" rx="14" fill="#1E345D" />
+</svg>
