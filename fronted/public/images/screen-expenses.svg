@@ -1,0 +1,12 @@
+<svg width="320" height="540" viewBox="0 0 320 540" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="320" height="540" rx="28" fill="#10192C" stroke="#1E2A44" stroke-width="2" />
+  <text x="32" y="60" fill="#E8EEF9" font-size="20" font-family="Bricolage Grotesque, Arial" font-weight="700">Expenses</text>
+  <rect x="24" y="90" width="272" height="110" rx="20" fill="#182747" />
+  <rect x="24" y="214" width="272" height="46" rx="16" fill="#172644" />
+  <rect x="24" y="280" width="272" height="70" rx="18" fill="#1B2C4D" />
+  <rect x="24" y="364" width="272" height="70" rx="18" fill="#172644" />
+  <rect x="24" y="448" width="272" height="70" rx="18" fill="#1B2C4D" />
+  <circle cx="272" cy="500" r="20" fill="#3B6CF4" />
+  <rect x="260" y="498" width="24" height="4" rx="2" fill="#E8EEF9" />
+  <rect x="270" y="488" width="4" height="24" rx="2" fill="#E8EEF9" />
+</svg>
