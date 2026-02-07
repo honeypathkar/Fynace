@@ -21,9 +21,7 @@ import {
   ChevronRight,
 } from 'lucide-react-native';
 import Fonts from '../../../assets/fonts';
-import { BASE_URL } from '../../utils/BASE_URL';
-
-const ROOT_URL = BASE_URL.replace('/api', '');
+import { FRONTEND_URL } from '../../utils/BASE_URL';
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
@@ -140,7 +138,7 @@ const ProfileScreen = () => {
               label="Privacy Policy"
               onPress={() =>
                 navigation.navigate('WebView', {
-                  url: `${ROOT_URL}/privacy-policy`,
+                  url: `${FRONTEND_URL}/privacy-policy`,
                   title: 'Privacy Policy',
                 })
               }
@@ -150,7 +148,7 @@ const ProfileScreen = () => {
               label="Terms & Conditions"
               onPress={() =>
                 navigation.navigate('WebView', {
-                  url: `${ROOT_URL}/terms-and-conditions`,
+                  url: `${FRONTEND_URL}/terms-and-conditions`,
                   title: 'Terms & Conditions',
                 })
               }

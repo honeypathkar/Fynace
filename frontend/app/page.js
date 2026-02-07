@@ -121,6 +121,7 @@ export default function Home() {
     window.addEventListener("scroll", handleScroll);
 
     const ctx = gsap.context(() => {
+      // Hero Entrance
       gsap.from(".hero-text-animate", {
         opacity: 0,
         y: 60,
@@ -137,23 +138,36 @@ export default function Home() {
         delay: 0.5,
       });
 
-      gsap.utils.toArray(".feature-card").forEach((card) => {
+      // Floating Logo Effect
+      gsap.to(".hero-main-img", {
+        y: -15,
+        duration: 2.5,
+        repeat: -1,
+        yoyo: true,
+        ease: "power1.inOut",
+      });
+
+      // Staggered Sections
+      gsap.utils.toArray(".feature-card").forEach((card, i) => {
         gsap.from(card, {
           opacity: 0,
           y: 40,
           duration: 0.8,
+          delay: i * 0.1,
           scrollTrigger: {
             trigger: card,
             start: "top 85%",
+            toggleActions: "play none none reverse",
           },
         });
       });
 
-      gsap.utils.toArray(".screen-item").forEach((item) => {
+      gsap.utils.toArray(".screen-item").forEach((item, i) => {
         gsap.from(item, {
           opacity: 0,
-          scale: 0.95,
-          duration: 0.6,
+          scale: 0.9,
+          duration: 0.8,
+          delay: i * 0.1,
           scrollTrigger: {
             trigger: item,
             start: "top 90%",
