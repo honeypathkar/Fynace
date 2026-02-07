@@ -12,6 +12,7 @@ const expenseRoutes = require("./routes/expenseRoutes");
 const chartRoutes = require("./routes/chartRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
 const moneyInRoutes = require("./routes/moneyInRoutes");
+const landingRoutes = require("./routes/landingRoutes");
 
 // Initialize Express app
 const app = express();
@@ -32,14 +33,7 @@ app.use(express.urlencoded({ extended: true }));
 // Serve static files
 app.use(express.static(path.join(__dirname, "../public")));
 
-// Route for Privacy Policy and T&C
-app.get("/privacy-policy", (req, res) => {
-  res.sendFile(path.join(__dirname, "../public/privacy-policy.html"));
-});
-
-app.get("/terms-and-conditions", (req, res) => {
-  res.sendFile(path.join(__dirname, "../public/terms-and-conditions.html"));
-});
+// Note: Legal pages are now handled within the Next.js application
 
 // Get network IP address
 const getNetworkIP = () => {
@@ -75,6 +69,7 @@ app.use("/api/expenses", expenseRoutes);
 app.use("/api/chart", chartRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/money-in", moneyInRoutes);
+app.use("/api/landing", landingRoutes);
 
 // 404 handler
 app.use("*", (req, res) => {

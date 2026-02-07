@@ -4,7 +4,7 @@ A complete backend API for an expense tracker application built with Node.js, Ex
 
 ## Features
 
-- 🔐 **Authentication**: OTP-based login via Gmail and Google OAuth2
+- 🔐 **Authentication**: OTP-based login via Brevo and Google OAuth2
 - 📊 **Expense Management**: Upload, add, retrieve, and compare expenses
 - 📈 **Charts & Insights**: Monthly totals, category distribution, and trend analysis
 - 🗄️ **MongoDB**: Robust data storage with Mongoose ODM
@@ -13,35 +13,42 @@ A complete backend API for an expense tracker application built with Node.js, Ex
 
 - Node.js (v14 or higher)
 - MongoDB (local or cloud instance)
-- Gmail account with App Password (for OTP emails)
+- Brevo account with SMTP access (for OTP emails)
 - Google OAuth2 credentials (for Google Sign-In)
 
 ## Installation
 
 1. Install dependencies:
+
 ```bash
 npm install
 ```
 
 2. Copy `.env.example` to `.env` and update with your values:
+
 ```bash
 cp .env.example .env
 ```
 
 3. Edit `.env` file with your configuration:
+
 ```env
 PORT=3000
 NODE_ENV=development
 MONGODB_URI=mongodb://localhost:27017/expense-tracker
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
-GMAIL_USER=your-email@gmail.com
-GMAIL_APP_PASSWORD=your-gmail-app-password
+SMTP_HOST=smtp-relay.brevo.com
+SMTP_PORT=587
+SMTP_USER=your-brevo-login-email
+SMTP_PASS=your-brevo-api-key
+EMAIL_FROM=your-verified-sender-email
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
 FRONTEND_URL=http://localhost:3001
 ```
 
 4. Start the server:
+
 ```bash
 # Development mode (with nodemon)
 npm run dev
@@ -55,30 +62,35 @@ npm start
 ### Authentication
 
 #### Send OTP
+
 ```
 POST /api/auth/otp/send
 Body: { "phone": "1234567890" } or { "email": "user@example.com" }
 ```
 
 #### Verify OTP
+
 ```
 POST /api/auth/otp/verify
 Body: { "userId": "...", "otp": "123456" }
 ```
 
 #### Google Sign-In
+
 ```
 POST /api/auth/google
 Body: { "idToken": "google-id-token" }
 ```
 
 #### Get Profile
+
 ```
 GET /api/auth/profile
 Headers: { "Authorization": "Bearer <token>" }
 ```
 
 #### Update Profile
+
 ```
 PUT /api/auth/profile
 Headers: { "Authorization": "Bearer <token>" }
@@ -88,6 +100,7 @@ Body: { "name": "John Doe", "email": "john@example.com" }
 ### Expenses
 
 #### Upload Expenses (Bulk)
+
 ```
 POST /api/expenses/upload
 Headers: { "Authorization": "Bearer <token>" }
@@ -107,6 +120,7 @@ Body: {
 ```
 
 #### Add Single Expense
+
 ```
 POST /api/expenses
 Headers: { "Authorization": "Bearer <token>" }
@@ -121,6 +135,7 @@ Body: {
 ```
 
 #### Get Expenses by Month
+
 ```
 GET /api/expenses/:month
 Headers: { "Authorization": "Bearer <token>" }
@@ -128,6 +143,7 @@ Example: GET /api/expenses/2024-01
 ```
 
 #### Get Expense Summary
+
 ```
 GET /api/expenses/summary/:month
 Headers: { "Authorization": "Bearer <token>" }
@@ -135,6 +151,7 @@ Example: GET /api/expenses/summary/2024-01
 ```
 
 #### Compare Expenses
+
 ```
 GET /api/expenses/compare?month1=2024-01&month2=2024-02
 Headers: { "Authorization": "Bearer <token>" }
@@ -143,12 +160,14 @@ Headers: { "Authorization": "Bearer <token>" }
 ### Charts & Insights
 
 #### Monthly Totals
+
 ```
 GET /api/chart/monthly?limit=12
 Headers: { "Authorization": "Bearer <token>" }
 ```
 
 #### Category Distribution
+
 ```
 GET /api/chart/category/:month
 Headers: { "Authorization": "Bearer <token>" }
@@ -156,6 +175,7 @@ Example: GET /api/chart/category/2024-01
 ```
 
 #### Trends
+
 ```
 GET /api/chart/trend?limit=12
 Headers: { "Authorization": "Bearer <token>" }
@@ -164,6 +184,7 @@ Headers: { "Authorization": "Bearer <token>" }
 ## Data Models
 
 ### User
+
 ```javascript
 {
   name: String,
@@ -178,6 +199,7 @@ Headers: { "Authorization": "Bearer <token>" }
 ```
 
 ### Expense
+
 ```javascript
 {
   userId: ObjectId,
@@ -193,13 +215,12 @@ Headers: { "Authorization": "Bearer <token>" }
 }
 ```
 
-## Gmail App Password Setup
+## Brevo SMTP Setup
 
-1. Go to your Google Account settings
-2. Enable 2-Step Verification
-3. Go to App Passwords
-4. Generate a new app password for "Mail"
-5. Use this password in `GMAIL_APP_PASSWORD` (not your regular Gmail password)
+1. Go to your Brevo Account settings
+2. Navigate to "SMTP & API"
+3. Create a new SMTP key
+4. Use the provided SMTP Server, Port, Login, and Key in your `.env` file
 
 ## Google OAuth2 Setup
 
@@ -244,6 +265,7 @@ backend/
 ## Error Handling
 
 All errors are handled consistently with the following format:
+
 ```json
 {
   "success": false,
@@ -263,4 +285,3 @@ All errors are handled consistently with the following format:
 ## License
 
 ISC
-
