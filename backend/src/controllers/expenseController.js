@@ -261,17 +261,22 @@ const getExpensesByMonth = async (req, res) => {
     const userId = req.userId;
     const limit = parseInt(req.query.limit) || 20;
     const lastCreatedAt = req.query.lastCreatedAt;
-
-    // Validate month format
-    const monthRegex = /^\d{4}-\d{2}$/;
-    if (!monthRegex.test(month)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid month format. Expected format: YYYY-MM",
-      });
-    }
+    const { category, search } = req.query;
 
     const query = { userId, month };
+
+    if (category && category !== "All") {
+      query.category = category;
+    }
+
+    if (search) {
+      query.$or = [
+        { itemName: { $regex: search, $options: "i" } },
+        { category: { $regex: search, $options: "i" } },
+        { notes: { $regex: search, $options: "i" } },
+      ];
+    }
+
     if (lastCreatedAt) {
       query.createdAt = { $lt: new Date(lastCreatedAt) };
     }
@@ -279,7 +284,10 @@ const getExpensesByMonth = async (req, res) => {
     const expenses = await Expense.find(query)
       .sort({ createdAt: -1 })
       .limit(limit + 1)
-      .select("amount category itemName date month createdAt moneyIn moneyOut");
+      .select(
+        "amount category itemName date month createdAt moneyIn moneyOut notes",
+      )
+      .lean();
 
     const hasMore = expenses.length > limit;
     const results = hasMore ? expenses.slice(0, limit) : expenses;
@@ -309,8 +317,22 @@ const getAllExpenses = async (req, res) => {
     const userId = req.userId;
     const limit = parseInt(req.query.limit) || 20;
     const lastCreatedAt = req.query.lastCreatedAt;
+    const { category, search } = req.query;
 
     const query = { userId };
+
+    if (category && category !== "All") {
+      query.category = category;
+    }
+
+    if (search) {
+      query.$or = [
+        { itemName: { $regex: search, $options: "i" } },
+        { category: { $regex: search, $options: "i" } },
+        { notes: { $regex: search, $options: "i" } },
+      ];
+    }
+
     if (lastCreatedAt) {
       query.createdAt = { $lt: new Date(lastCreatedAt) };
     }
@@ -318,7 +340,10 @@ const getAllExpenses = async (req, res) => {
     const expenses = await Expense.find(query)
       .sort({ createdAt: -1 })
       .limit(limit + 1)
-      .select("amount category itemName date month createdAt moneyIn moneyOut");
+      .select(
+        "amount category itemName date month createdAt moneyIn moneyOut notes",
+      )
+      .lean();
 
     const hasMore = expenses.length > limit;
     const results = hasMore ? expenses.slice(0, limit) : expenses;
@@ -346,13 +371,91 @@ const getExpenseSummary = async (req, res) => {
   try {
     const { month } = req.params;
     const userId = req.userId;
+    const { category, search } = req.query;
 
-    // Validate month format
-    const monthRegex = /^\d{4}-\d{2}$/;
-    if (!monthRegex.test(month)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid month format. Expected format: YYYY-MM",
+    // If filtering, we must compute summary on the fly
+    if ((category && category !== "All") || search) {
+      const matchQuery = { userId: new mongoose.Types.ObjectId(userId), month };
+      if (category && category !== "All") {
+        matchQuery.category = category;
+      }
+      if (search) {
+        matchQuery.$or = [
+          { itemName: { $regex: search, $options: "i" } },
+          { category: { $regex: search, $options: "i" } },
+          { notes: { $regex: search, $options: "i" } },
+        ];
+      }
+
+      const results = await Expense.aggregate([
+        { $match: matchQuery },
+        {
+          $facet: {
+            summaryStats: [
+              {
+                $group: {
+                  _id: null,
+                  totalMoneyIn: { $sum: "$moneyIn" },
+                  totalMoneyOut: {
+                    $sum: {
+                      $cond: [
+                        { $gt: ["$moneyOut", 0] },
+                        "$moneyOut",
+                        "$amount",
+                      ],
+                    },
+                  },
+                  totalExpenses: { $sum: 1 },
+                },
+              },
+            ],
+            categoryBreakdown: [
+              {
+                $group: {
+                  _id: "$category",
+                  totalAmount: { $sum: "$amount" },
+                  totalMoneyIn: { $sum: "$moneyIn" },
+                  totalMoneyOut: {
+                    $sum: {
+                      $cond: [
+                        { $gt: ["$moneyOut", 0] },
+                        "$moneyOut",
+                        "$amount",
+                      ],
+                    },
+                  },
+                  count: { $sum: 1 },
+                },
+              },
+            ],
+          },
+        },
+      ]);
+
+      const stats = results[0]?.summaryStats[0] || {
+        totalMoneyIn: 0,
+        totalMoneyOut: 0,
+        totalExpenses: 0,
+      };
+
+      const breakdown = results[0]?.categoryBreakdown || [];
+
+      return res.status(200).json({
+        success: true,
+        month,
+        summary: {
+          totalMoneyIn: stats.totalMoneyIn,
+          totalMoneyOut: stats.totalMoneyOut,
+          remaining: stats.totalMoneyIn - stats.totalMoneyOut,
+          totalExpenses: stats.totalExpenses,
+        },
+        categoryBreakdown: breakdown.map((c) => ({
+          category: c._id,
+          totalAmount: c.totalAmount,
+          totalMoneyIn: c.totalMoneyIn,
+          totalMoneyOut: c.totalMoneyOut,
+          count: c.count,
+        })),
       });
     }
 
@@ -516,20 +619,72 @@ const compareExpenses = async (req, res) => {
 const getAllTimeSummary = async (req, res) => {
   try {
     const userId = req.userId;
+    const { category, search } = req.query;
 
-    const [expenseStats, moneyInStats, categoryStats] = await Promise.all([
+    const matchQuery = { userId: new mongoose.Types.ObjectId(userId) };
+    if (category && category !== "All") {
+      matchQuery.category = category;
+    }
+    if (search) {
+      matchQuery.$or = [
+        { itemName: { $regex: search, $options: "i" } },
+        { category: { $regex: search, $options: "i" } },
+        { notes: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const [results, moneyInStats] = await Promise.all([
       Expense.aggregate([
-        { $match: { userId: new mongoose.Types.ObjectId(userId) } },
+        { $match: matchQuery },
         {
-          $group: {
-            _id: null,
-            totalMoneyIn: { $sum: "$moneyIn" },
-            totalMoneyOut: {
-              $sum: {
-                $cond: [{ $gt: ["$moneyOut", 0] }, "$moneyOut", "$amount"],
+          $facet: {
+            expenseStats: [
+              {
+                $group: {
+                  _id: null,
+                  totalMoneyIn: { $sum: "$moneyIn" },
+                  totalMoneyOut: {
+                    $sum: {
+                      $cond: [
+                        { $gt: ["$moneyOut", 0] },
+                        "$moneyOut",
+                        "$amount",
+                      ],
+                    },
+                  },
+                  totalExpenses: { $sum: 1 },
+                },
               },
-            },
-            totalExpenses: { $sum: 1 },
+            ],
+            categoryStats: [
+              {
+                $group: {
+                  _id: { $ifNull: ["$category", "Uncategorized"] },
+                  totalAmount: { $sum: "$amount" },
+                  totalMoneyIn: { $sum: "$moneyIn" },
+                  totalMoneyOut: {
+                    $sum: {
+                      $cond: [
+                        { $gt: ["$moneyOut", 0] },
+                        "$moneyOut",
+                        "$amount",
+                      ],
+                    },
+                  },
+                  count: { $sum: 1 },
+                },
+              },
+              {
+                $project: {
+                  category: "$_id",
+                  totalAmount: 1,
+                  totalMoneyIn: 1,
+                  totalMoneyOut: 1,
+                  count: 1,
+                  _id: 0,
+                },
+              },
+            ],
           },
         },
       ]),
@@ -537,39 +692,14 @@ const getAllTimeSummary = async (req, res) => {
         { $match: { userId: new mongoose.Types.ObjectId(userId) } },
         { $group: { _id: null, total: { $sum: "$amount" } } },
       ]),
-      Expense.aggregate([
-        { $match: { userId: new mongoose.Types.ObjectId(userId) } },
-        {
-          $group: {
-            _id: { $ifNull: ["$category", "Uncategorized"] },
-            totalAmount: { $sum: "$amount" },
-            totalMoneyIn: { $sum: "$moneyIn" },
-            totalMoneyOut: {
-              $sum: {
-                $cond: [{ $gt: ["$moneyOut", 0] }, "$moneyOut", "$amount"],
-              },
-            },
-            count: { $sum: 1 },
-          },
-        },
-        {
-          $project: {
-            category: "$_id",
-            totalAmount: 1,
-            totalMoneyIn: 1,
-            totalMoneyOut: 1,
-            count: 1,
-            _id: 0,
-          },
-        },
-      ]),
     ]);
 
-    const expStats = expenseStats[0] || {
+    const expStats = results[0]?.expenseStats[0] || {
       totalMoneyIn: 0,
       totalMoneyOut: 0,
       totalExpenses: 0,
     };
+    const categoryStats = results[0]?.categoryStats || [];
     const minStats = moneyInStats[0] || { total: 0 };
 
     const totalMoneyIn = expStats.totalMoneyIn + minStats.total;

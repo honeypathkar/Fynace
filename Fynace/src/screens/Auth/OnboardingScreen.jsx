@@ -73,7 +73,10 @@ const OnboardingScreen = () => {
       >
         <View style={styles.imageContainer}>
           <View style={styles.imageWrapper}>
-            <Text style={styles.emoji}>💰</Text>
+            <Image
+              source={require('../../../assets/images/logo.png')}
+              style={styles.logo}
+            />
           </View>
         </View>
 
@@ -125,8 +128,11 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'rgba(58, 111, 248, 0.3)',
   },
-  emoji: {
-    fontSize: 100,
+  logo: {
+    width: 140,
+    height: 140,
+    resizeMode: 'contain',
+    borderRadius: 70,
   },
   textContainer: {
     alignItems: 'center',

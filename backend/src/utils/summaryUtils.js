@@ -39,7 +39,9 @@ const updateMonthlySummary = async (userId, month) => {
             date: { $gte: startDate, $lte: endDate },
           },
         },
-        { $group: { _id: null, total: { $sum: "$amount" } } },
+        {
+          $group: { _id: null, total: { $sum: "$amount" }, count: { $sum: 1 } },
+        },
       ]),
       Expense.aggregate([
         { $match: { userId: new mongoose.Types.ObjectId(userId), month } },
@@ -70,7 +72,7 @@ const updateMonthlySummary = async (userId, month) => {
       totalMoneyOut: 0,
       totalExpenses: 0,
     };
-    const minStats = moneyInStats[0] || { total: 0 };
+    const minStats = moneyInStats[0] || { total: 0, count: 0 };
 
     const totalMoneyIn = expStats.totalMoneyInFromExpenses + minStats.total;
     const totalMoneyOut = expStats.totalMoneyOut;
@@ -83,6 +85,8 @@ const updateMonthlySummary = async (userId, month) => {
         totalMoneyOut,
         remaining,
         totalExpenses: expStats.totalExpenses,
+        moneyInCount: minStats.count || 0,
+        expenseCount: expStats.totalExpenses || 0,
         categoryBreakdown: categoryStats,
         updatedAt: new Date(),
       },

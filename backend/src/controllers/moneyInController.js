@@ -69,7 +69,8 @@ const getMoneyInHistory = async (req, res) => {
     const moneyInEntries = await MoneyIn.find(query)
       .sort({ createdAt: -1 })
       .limit(limit + 1)
-      .select("amount date notes createdAt");
+      .select("amount date notes createdAt")
+      .lean();
 
     const hasMore = moneyInEntries.length > limit;
     const results = hasMore ? moneyInEntries.slice(0, limit) : moneyInEntries;

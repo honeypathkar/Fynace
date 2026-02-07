@@ -26,6 +26,14 @@ const monthlySummarySchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  moneyInCount: {
+    type: Number,
+    default: 0,
+  },
+  expenseCount: {
+    type: Number,
+    default: 0,
+  },
   categoryBreakdown: [
     {
       category: String,

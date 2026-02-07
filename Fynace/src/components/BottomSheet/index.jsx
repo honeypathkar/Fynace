@@ -67,7 +67,7 @@ const BottomSheet = forwardRef(
     const close = useCallback(() => {
       translateY.value = withTiming(
         SNAP_POINTS.CLOSED,
-        { duration: 250 },
+        { duration: 200 },
         finished => {
           if (finished) {
             runOnJS(setIsVisible)(false);

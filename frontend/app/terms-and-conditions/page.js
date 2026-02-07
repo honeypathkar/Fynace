@@ -5,16 +5,11 @@ import Link from "next/link";
 
 export default function TermsAndConditions() {
   return (
-    <div
-      className="container"
-      style={{ paddingTop: "120px", paddingBottom: "80px", maxWidth: "800px" }}
-    >
+    <div>
       <div
         style={{
           background: "var(--surface)",
-          padding: "48px",
-          borderRadius: "24px",
-          border: "1px solid var(--glass-border)",
+          padding: "20px",
         }}
       >
         <h1 style={{ marginBottom: "16px" }}>Terms & Conditions</h1>

@@ -159,6 +159,14 @@ const LoginScreen = () => {
     try {
       setError(null);
       await GoogleSignin.hasPlayServices();
+
+      // Clear previous sign-in to ensure account picker shows
+      try {
+        await GoogleSignin.signOut();
+      } catch (e) {
+        // Ignore if not already signed in
+      }
+
       const userInfo = await GoogleSignin.signIn();
       const idToken = userInfo.data?.idToken;
       if (idToken) {
@@ -206,6 +214,14 @@ const LoginScreen = () => {
                   { transform: [{ translateY: heroTranslate }] },
                 ]}
               >
+                {!otpSent && (
+                  <View style={styles.logoContainer}>
+                    <Image
+                      source={require('../../../assets/images/logo.png')}
+                      style={styles.logo}
+                    />
+                  </View>
+                )}
                 <Text variant="headlineMedium" style={authStyles.heroTitle}>
                   {otpSent ? 'Verification' : 'Welcome to Fynace'}
                 </Text>
@@ -327,5 +343,18 @@ const LoginScreen = () => {
     </SafeAreaView>
   );
 };
+
+const styles = StyleSheet.create({
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  logo: {
+    width: 100,
+    height: 100,
+    resizeMode: 'contain',
+    borderRadius: 50,
+  },
+});
 
 export default LoginScreen;

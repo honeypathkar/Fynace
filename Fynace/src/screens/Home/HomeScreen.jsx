@@ -32,14 +32,6 @@ const HomeSkeleton = () => (
     contentContainerStyle={homeStyles.scrollContent}
     showsVerticalScrollIndicator={false}
   >
-    <View style={homeStyles.header}>
-      <View style={{ flex: 1 }}>
-        <SkeletonPulse style={{ width: 120, height: 28, marginBottom: 8 }} />
-        <SkeletonPulse style={{ width: 200, height: 16 }} />
-      </View>
-      <SkeletonPulse style={{ width: 40, height: 40, borderRadius: 20 }} />
-    </View>
-
     <View style={homeStyles.statsRow}>
       <SkeletonPulse style={[homeStyles.statCard, { height: 100 }]} />
       <SkeletonPulse style={[homeStyles.statCard, { height: 100 }]} />
@@ -141,81 +133,91 @@ const HomeScreen = () => {
     };
   }, []);
 
-  const fetchDashboardData = useCallback(async () => {
-    if (!token) {
-      return;
-    }
+  const fetchDashboardData = useCallback(
+    async (isSilent = false) => {
+      if (!token) {
+        return;
+      }
 
-    try {
-      setLoading(true);
-      setError(null);
+      try {
+        if (!isSilent) {
+          setLoading(true);
+        }
+        setError(null);
 
-      // Get current month for comparison
-      const now = new Date();
-      const currentYear = now.getFullYear();
-      const currentMonth = String(now.getMonth() + 1).padStart(2, '0');
-      const currentMonthStr = `${currentYear}-${currentMonth}`;
+        // Get current month for comparison
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = String(now.getMonth() + 1).padStart(2, '0');
+        const currentMonthStr = `${currentYear}-${currentMonth}`;
 
-      // Calculate previous month
-      const prevMonthDate = new Date(currentYear, now.getMonth() - 1, 1);
-      const prevYear = prevMonthDate.getFullYear();
-      const prevMonth = String(prevMonthDate.getMonth() + 1).padStart(2, '0');
-      const prevMonthStr = `${prevYear}-${prevMonth}`;
+        // Calculate previous month
+        const prevMonthDate = new Date(currentYear, now.getMonth() - 1, 1);
+        const prevYear = prevMonthDate.getFullYear();
+        const prevMonth = String(prevMonthDate.getMonth() + 1).padStart(2, '0');
+        const prevMonthStr = `${prevYear}-${prevMonth}`;
 
-      // PHASE 1: Critical Stats (Summaries)
-      const [
-        allTimeSummaryResponse,
-        currentMonthSummaryResponse,
-        previousMonthSummaryResponse,
-      ] = await Promise.all([
-        apiClient
-          .get('/expenses/summary/all-time')
-          .catch(() => ({ data: { summary: null } })),
-        apiClient
-          .get(`/expenses/summary/${currentMonthStr}`)
-          .catch(() => ({ data: { summary: null } })),
-        apiClient
-          .get(`/expenses/summary/${prevMonthStr}`)
-          .catch(() => ({ data: { summary: null } })),
-      ]);
+        // PHASE 1: Critical Stats (Summaries)
+        const [
+          allTimeSummaryResponse,
+          currentMonthSummaryResponse,
+          previousMonthSummaryResponse,
+        ] = await Promise.all([
+          apiClient
+            .get('/expenses/summary/all-time')
+            .catch(() => ({ data: { summary: null } })),
+          apiClient
+            .get(`/expenses/summary/${currentMonthStr}`)
+            .catch(() => ({ data: { summary: null } })),
+          apiClient
+            .get(`/expenses/summary/${prevMonthStr}`)
+            .catch(() => ({ data: { summary: null } })),
+        ]);
 
-      setAllTimeSummary(allTimeSummaryResponse?.data?.summary || null);
-      setCurrentMonthSummary(
-        currentMonthSummaryResponse?.data?.summary || null,
-      );
-      setPreviousMonthSummary(
-        previousMonthSummaryResponse?.data?.summary || null,
-      );
+        if (allTimeSummaryResponse?.data?.summary) {
+          setAllTimeSummary(allTimeSummaryResponse.data.summary);
+        }
+        if (currentMonthSummaryResponse?.data?.summary) {
+          setCurrentMonthSummary(currentMonthSummaryResponse.data.summary);
+        }
+        if (previousMonthSummaryResponse?.data?.summary) {
+          setPreviousMonthSummary(previousMonthSummaryResponse.data.summary);
+        }
 
-      // Stop primary loading after summaries are in
-      setLoading(false);
+        // Stop primary loading after summaries are in
+        setLoading(false);
 
-      // PHASE 2: Heavy Data (Charts) - Load in background
-      Promise.all([
-        apiClient.get('/chart/monthly').catch(() => ({ data: { data: [] } })),
-        apiClient.get('/chart/trend').catch(() => ({ data: { data: [] } })),
-        apiClient
-          .get('/chart/category/all-time')
-          .catch(() => ({ data: { data: [] } })),
-      ])
-        .then(([monthlyResponse, trendResponse, categoryResponse]) => {
-          setMonthlyData(monthlyResponse.data?.data || []);
-          setTrendData(trendResponse.data?.data || []);
-          setCategoryData(categoryResponse.data?.data || []);
-        })
-        .catch(err => {
-          console.error('Error loading chart data:', err);
-        });
-    } catch (err) {
-      const apiError = parseApiError(err);
-      setError(apiError.message);
-      setLoading(false);
-    }
-  }, [token]);
+        // PHASE 2: Heavy Data (Charts) - Load in background
+        Promise.all([
+          apiClient.get('/chart/monthly').catch(() => ({ data: { data: [] } })),
+          apiClient.get('/chart/trend').catch(() => ({ data: { data: [] } })),
+          apiClient
+            .get('/chart/category/all-time')
+            .catch(() => ({ data: { data: [] } })),
+        ])
+          .then(([monthlyResponse, trendResponse, categoryResponse]) => {
+            setMonthlyData(monthlyResponse.data?.data || []);
+            setTrendData(trendResponse.data?.data || []);
+            setCategoryData(categoryResponse.data?.data || []);
+          })
+          .catch(err => {
+            console.error('Error loading chart data:', err);
+          });
+      } catch (err) {
+        const apiError = parseApiError(err);
+        setError(apiError.message);
+        setLoading(false);
+      }
+    },
+    [token],
+  );
 
   useFocusEffect(
     useCallback(() => {
-      fetchDashboardData();
+      // If we already have summaries, do a silent background refresh
+      // instead of showing a full loader.
+      const isSilent = allTimeSummary !== undefined && allTimeSummary !== null;
+      fetchDashboardData(isSilent);
     }, [fetchDashboardData]),
   );
 

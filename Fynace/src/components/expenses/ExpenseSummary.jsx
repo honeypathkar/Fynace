@@ -64,4 +64,4 @@ const ExpenseSummary = ({ allTimeSummary, onAddPress }) => {
   );
 };
 
-export default ExpenseSummary;
+export default React.memo(ExpenseSummary);

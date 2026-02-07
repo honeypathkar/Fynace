@@ -18,6 +18,8 @@ import {
   UIManager,
   Easing,
   StyleSheet,
+  TouchableOpacity,
+  Pressable,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Button, Card, Chip, Text, useTheme } from 'react-native-paper';
@@ -46,7 +48,6 @@ import {
   Eye,
   EyeOff,
 } from 'lucide-react-native';
-import { TouchableOpacity, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { usePrivacy } from '../../context/PrivacyContext';
 import Fonts from '../../../assets/fonts';
@@ -92,6 +93,7 @@ const ExpensesScreen = () => {
   const [comparison, setComparison] = useState();
   const [categoryBreakdown, setCategoryBreakdown] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [categories, setCategories] = useState({
     default: [],
@@ -100,13 +102,25 @@ const ExpensesScreen = () => {
   });
   const [initialLoad, setInitialLoad] = useState(true);
   const [fabOpen, setFabOpen] = useState(false);
-  const [filterSheetVisible, setFilterSheetVisible] = useState(false);
   const [lastCreatedAt, setLastCreatedAt] = useState(null);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (token) {
+      fetchMonthsAndData();
+    }
+  }, [token, fetchMonthsAndData]);
   const [loadingFilters, setLoadingFilters] = useState(false);
   const fabMenuSheetRef = useRef(null);
   const filterSheetRef = useRef(null);
@@ -182,43 +196,91 @@ const ExpensesScreen = () => {
   }, [months.length, categories.all.length]);
 
   const fetchExpenses = useCallback(
-    async (month = 'All', lastCreated = null, append = false) => {
+    async (
+      monthSelection = selectedMonth,
+      lastCreated = null,
+      append = false,
+      categorySelection = selectedCategory,
+      searchSelection = debouncedSearch,
+    ) => {
       try {
         if (!lastCreated) {
-          setLoading(true);
+          // Only show full loading skeletons if we don't have data,
+          // or if the month/category/search filters have actually changed.
+          // This prevents flickering when the screen focuses or background refreshes.
+          const filtersChanged =
+            monthSelection !== selectedMonth ||
+            categorySelection !== selectedCategory ||
+            searchSelection !== debouncedSearch;
+
+          if (expenses.length === 0 || filtersChanged) {
+            setLoading(true);
+          }
           loadingMoreRef.current = false;
         } else {
           setLoadingMore(true);
           loadingMoreRef.current = true;
         }
-        setSelectedMonth(month);
 
         // Fetch expenses - all time or by month using cursor-based pagination
-        const params = { limit: 20 };
+        const params = {
+          limit: 20,
+          category: categorySelection !== 'All' ? categorySelection : undefined,
+          search: searchSelection || undefined,
+        };
+
         if (lastCreated) {
           params.lastCreatedAt = lastCreated;
         }
 
         const expensesPromise =
-          month === 'All'
+          monthSelection === 'All'
             ? apiClient.get('/expenses/all', { params })
-            : apiClient.get(`/expenses/${month}`, { params });
+            : apiClient.get(`/expenses/${monthSelection}`, { params });
 
-        // Fetch summary based on selected month - only on initial load (no cursor)
+        // Fetch summary based on selected month (parallelized)
+        const summaryParams = {
+          category: categorySelection !== 'All' ? categorySelection : undefined,
+          search: searchSelection || undefined,
+        };
+
         const summaryPromise = !lastCreated
-          ? month === 'All'
+          ? monthSelection === 'All'
             ? apiClient
-                .get('/expenses/summary/all-time')
+                .get('/expenses/summary/all-time', { params: summaryParams })
                 .catch(() => ({ data: { summary: null } }))
             : apiClient
-                .get(`/expenses/summary/${month}`)
+                .get(`/expenses/summary/${monthSelection}`, {
+                  params: summaryParams,
+                })
                 .catch(() => ({ data: { summary: null } }))
           : Promise.resolve(null);
 
-        const [expensesResponse, summaryResponse] = await Promise.all([
-          expensesPromise,
-          summaryPromise,
-        ]);
+        // Fetch comparison if a specific month is selected (parallelized)
+        const comparePromise =
+          monthSelection !== 'All'
+            ? (async () => {
+                const availableMonths =
+                  months.length > 0 ? months : [monthSelection];
+                const currentMonthIndex =
+                  availableMonths.indexOf(monthSelection);
+                if (currentMonthIndex > 0) {
+                  const previousMonth = availableMonths[currentMonthIndex - 1];
+                  return apiClient
+                    .get('/expenses/compare', {
+                      params: {
+                        month1: previousMonth,
+                        month2: monthSelection,
+                      },
+                    })
+                    .catch(() => ({ data: { comparison: null } }));
+                }
+                return { data: { comparison: null } };
+              })()
+            : Promise.resolve({ data: { comparison: null } });
+
+        const [expensesResponse, summaryResponse, compareResponse] =
+          await Promise.all([expensesPromise, summaryPromise, comparePromise]);
 
         // Only use LayoutAnimation for initial load, not for pagination
         if (!append) {
@@ -236,7 +298,7 @@ const ExpensesScreen = () => {
           const summaryData = responseData.summary || responseData;
           const breakdown = responseData.categoryBreakdown || [];
 
-          if (month === 'All') {
+          if (monthSelection === 'All') {
             setAllTimeSummary(summaryData);
             setSummary(null);
             setCategoryBreakdown(breakdown);
@@ -269,34 +331,9 @@ const ExpensesScreen = () => {
         lastCreatedAtRef.current = newLastCreatedAt;
         hasMoreRef.current = hasMoreData;
 
-        // Debug logging
-        console.log('Pagination Debug:', {
-          lastCreatedAt: newLastCreatedAt,
-          received: newExpenses.length,
-          hasMore: hasMoreData,
-          append,
-        });
-
-        // Only fetch comparison if a specific month is selected
-        if (month !== 'All') {
-          const availableMonths = months.length > 0 ? months : [month];
-          const currentMonthIndex = availableMonths.indexOf(month);
-          if (currentMonthIndex > 0) {
-            const previousMonth = availableMonths[currentMonthIndex - 1];
-            try {
-              const compareResponse = await apiClient.get('/expenses/compare', {
-                params: {
-                  month1: previousMonth,
-                  month2: month,
-                },
-              });
-              setComparison(compareResponse.data?.comparison);
-            } catch (err) {
-              setComparison(undefined);
-            }
-          } else {
-            setComparison(undefined);
-          }
+        // Set comparison from the parallel fetch
+        if (compareResponse && compareResponse.data) {
+          setComparison(compareResponse.data.comparison);
         } else {
           setComparison(undefined);
         }
@@ -307,9 +344,10 @@ const ExpensesScreen = () => {
         setLoading(false);
         setLoadingMore(false);
         loadingMoreRef.current = false;
+        setInitialLoad(false);
       }
     },
-    [months, selectedMonth],
+    [selectedMonth, selectedCategory, debouncedSearch, months],
   );
 
   const loadMoreExpenses = useCallback(() => {
@@ -328,21 +366,21 @@ const ExpensesScreen = () => {
 
     if (!currentlyLoadingMore && currentHasMore && !loading) {
       const lastCreated = lastCreatedAtRef.current;
-      console.log('Loading more from cursor:', lastCreated);
-      fetchExpenses(selectedMonth, lastCreated, true);
-    } else {
-      console.log('Skipping load more:', {
-        currentlyLoadingMore,
-        currentHasMore,
-        loading,
-        reason: currentlyLoadingMore
-          ? 'already loading'
-          : !currentHasMore
-          ? 'no more data'
-          : 'initial loading',
-      });
+      fetchExpenses(
+        selectedMonth,
+        lastCreated,
+        true,
+        selectedCategory,
+        debouncedSearch,
+      );
     }
-  }, [loading, selectedMonth, fetchExpenses, expenses.length]);
+  }, [
+    loading,
+    selectedMonth,
+    selectedCategory,
+    debouncedSearch,
+    fetchExpenses,
+  ]);
 
   const fetchMonthsAndData = useCallback(async () => {
     if (!token) {
@@ -397,132 +435,79 @@ const ExpensesScreen = () => {
       setHasMore(true);
       lastCreatedAtRef.current = null;
       hasMoreRef.current = true;
-      await fetchExpenses(selectedMonth, null, false);
+      await fetchExpenses(
+        selectedMonth,
+        null,
+        false,
+        selectedCategory,
+        debouncedSearch,
+      );
     } catch (err) {
       const apiError = parseApiError(err);
       setError(apiError.message);
     } finally {
       setIsRefreshing(false);
     }
-  }, [selectedMonth, fetchExpenses]);
+  }, [selectedMonth, selectedCategory, debouncedSearch, fetchExpenses]);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!token) return;
-      let isMounted = true;
-      let hasFetched = false;
+  useEffect(() => {
+    if (!token) return;
 
-      const loadData = async () => {
-        // Only set loading if it's the very first load or if filters change
-        const isActuallyInitial = initialLoad && expenses.length === 0;
-        if (isActuallyInitial) {
-          setLoading(true);
-        }
-
-        try {
-          if (isMounted) {
-            setLastCreatedAt(null);
-            setHasMore(true);
-            lastCreatedAtRef.current = null;
-            hasMoreRef.current = true;
-
-            // Step 1: Fetch expenses (Priorities data)
-            const expensesPromise =
-              selectedMonth === 'All'
-                ? apiClient.get('/expenses/all', { params: { limit: 20 } })
-                : apiClient.get(`/expenses/${selectedMonth}`, {
-                    params: { limit: 20 },
-                  });
-
-            // Handle expenses first to show list ASAP
-            const expensesResponse = await expensesPromise;
-            if (isMounted) {
-              const newExpenses = expensesResponse.data?.expenses || [];
-              setExpenses(newExpenses);
-
-              const backendHasMore = expensesResponse.data?.hasMore;
-              const hasMoreData =
-                backendHasMore !== undefined
-                  ? backendHasMore
-                  : newExpenses.length >= 20;
-              setHasMore(hasMoreData);
-              const newLastCreatedAt =
-                newExpenses.length > 0
-                  ? newExpenses[newExpenses.length - 1].createdAt
-                  : null;
-              setLastCreatedAt(newLastCreatedAt);
-              lastCreatedAtRef.current = newLastCreatedAt;
-              hasMoreRef.current = hasMoreData;
-
-              // End loading state once we have expenses
-              setLoading(false);
-              setInitialLoad(false);
-            }
-
-            // Step 2: Fetch Summary in background
-            const summaryUrl =
-              selectedMonth === 'All'
-                ? '/expenses/summary/all-time'
-                : `/expenses/summary/${selectedMonth}`;
-
-            const summaryResponse = await apiClient
-              .get(summaryUrl)
-              .catch(() => ({ data: { summary: null } }));
-
-            if (isMounted) {
-              const responseData = summaryResponse?.data || {};
-              const summaryData = responseData.summary || responseData;
-              const breakdown = responseData.categoryBreakdown || [];
-
-              if (selectedMonth === 'All') {
-                setAllTimeSummary(summaryData);
-                setSummary(null);
-                setCategoryBreakdown(breakdown);
-              } else {
-                setSummary(summaryData);
-                setCategoryBreakdown(breakdown);
-              }
-            }
-          }
-        } catch (err) {
-          if (isMounted) {
-            const apiError = parseApiError(err);
-            setError(apiError.message);
-          }
-        } finally {
-          if (isMounted) {
-            setLoading(false);
-            setInitialLoad(false);
-          }
-        }
-      };
-
-      loadData();
-
-      return () => {
-        isMounted = false;
-      };
-    }, [token, selectedMonth, initialLoad]), // Only re-run when month changes or token updates, OR if initialLoad is true
-  );
-
-  const filteredExpenses = useMemo(() => {
-    let list = expenses;
-    if (selectedCategory !== 'All') {
-      list = list.filter(expense => expense.category === selectedCategory);
-    }
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      list = list.filter(
-        expense =>
-          (expense.itemName || expense.category || '')
-            .toLowerCase()
-            .includes(query) ||
-          (expense.category || '').toLowerCase().includes(query) ||
-          (expense.notes || '').toLowerCase().includes(query),
+    const loadData = async () => {
+      setLastCreatedAt(null);
+      setHasMore(true);
+      lastCreatedAtRef.current = null;
+      hasMoreRef.current = true;
+      await fetchExpenses(
+        selectedMonth,
+        null,
+        false,
+        selectedCategory,
+        debouncedSearch,
       );
-    }
-    return list;
-  }, [expenses, searchQuery, selectedCategory]);
+    };
+
+    loadData();
+  }, [token, selectedMonth, selectedCategory, debouncedSearch]);
+
+  const filteredExpenses = useMemo(() => expenses, [expenses]);
+
+  const renderItem = useCallback(
+    ({ item, index }) => {
+      const skipAnimation = index >= 20;
+      const currentDate = formatItemDate(item.createdAt);
+      const prevDate =
+        index > 0 ? formatItemDate(expenses[index - 1].createdAt) : null;
+      const showDateHeader = currentDate && currentDate !== prevDate;
+
+      return (
+        <View>
+          {showDateHeader && (
+            <View style={expenseStyles.dateHeader}>
+              <Text style={expenseStyles.dateHeaderText}>{currentDate}</Text>
+            </View>
+          )}
+          <AnimatedExpenseCard index={index} skipAnimation={skipAnimation}>
+            <ExpenseCard
+              item={item}
+              transformMonthLabel={transformMonthLabel}
+              formatItemTime={formatItemTime}
+              onEdit={openForm}
+              onDelete={handleDeleteExpense}
+            />
+          </AnimatedExpenseCard>
+        </View>
+      );
+    },
+    [
+      expenses,
+      formatItemDate,
+      transformMonthLabel,
+      formatItemTime,
+      openForm,
+      handleDeleteExpense,
+    ],
+  );
 
   const expenseCategories = useMemo(() => {
     const unique = new Set([
@@ -533,54 +518,8 @@ const ExpensesScreen = () => {
   }, [expenses, categories.all]);
 
   const displaySummary = useMemo(() => {
-    const baseSummary = selectedMonth === 'All' ? allTimeSummary : summary;
-
-    if (selectedCategory === 'All' && !searchQuery) {
-      return baseSummary;
-    }
-
-    // If only category filter is active, use the server breakdown for accuracy
-    if (
-      selectedCategory !== 'All' &&
-      !searchQuery &&
-      categoryBreakdown.length > 0
-    ) {
-      const catData = categoryBreakdown.find(
-        c => c.category === selectedCategory,
-      );
-      if (catData) {
-        return {
-          totalMoneyIn: catData.totalMoneyIn || 0,
-          totalMoneyOut: catData.totalMoneyOut || catData.totalAmount || 0,
-          remaining:
-            (catData.totalMoneyIn || 0) -
-            (catData.totalMoneyOut || catData.totalAmount || 0),
-          totalExpenses: catData.count || 0,
-        };
-      }
-    }
-
-    // Otherwise (search active or partial results), calculate from loaded filtered expenses
-    const totalMoneyOut = filteredExpenses.reduce(
-      (sum, exp) => sum + (exp.amount || exp.moneyOut || 0),
-      0,
-    );
-
-    return {
-      totalMoneyIn: 0,
-      totalMoneyOut,
-      remaining: (baseSummary?.totalMoneyIn || 0) - totalMoneyOut,
-      totalExpenses: filteredExpenses.length,
-    };
-  }, [
-    allTimeSummary,
-    summary,
-    selectedMonth,
-    selectedCategory,
-    categoryBreakdown,
-    searchQuery,
-    filteredExpenses,
-  ]);
+    return selectedMonth === 'All' ? allTimeSummary : summary;
+  }, [allTimeSummary, summary, selectedMonth]);
 
   const comparisonKeys = ['moneyIn', 'moneyOut', 'remaining'];
 
@@ -657,7 +596,6 @@ const ExpensesScreen = () => {
   };
 
   const handleOpenFilters = () => {
-    setFilterSheetVisible(true);
     filterSheetRef.current?.open();
     fetchFilters();
   };
@@ -682,34 +620,21 @@ const ExpensesScreen = () => {
     fabMenuSheetRef.current?.close();
     setTimeout(() => {
       setFabOpen(false);
-      if (Platform.OS === 'android') {
-        ToastAndroid.show('SMS fetch feature coming soon!', ToastAndroid.LONG);
-      }
+      navigation.navigate('SmsFetch');
     }, 200);
   };
 
-  const handleFilterMonth = useCallback(
-    async month => {
-      setFilterSheetVisible(false);
-      filterSheetRef.current?.close();
-      // Small delay to allow sheet to start closing
-      setTimeout(async () => {
-        setSelectedMonth(month);
-        setLastCreatedAt(null);
-        setHasMore(true);
-        lastCreatedAtRef.current = null;
-        hasMoreRef.current = true;
-        setExpenses([]); // Clear current expenses
-        await fetchExpenses(month, null, false);
-      }, 100);
-    },
-    [fetchExpenses],
-  );
+  const handleFilterMonth = useCallback(async month => {
+    filterSheetRef.current?.close();
+    // Short delay to let animation start smoothly
+    setTimeout(() => {
+      setSelectedMonth(month);
+    }, 100);
+  }, []);
 
   const handleFilterCategory = useCallback(category => {
-    setFilterSheetVisible(false);
     filterSheetRef.current?.close();
-    // Small delay to allow sheet to start closing
+    // Short delay to let animation start smoothly
     setTimeout(() => {
       setSelectedCategory(category);
     }, 100);
@@ -801,12 +726,25 @@ const ExpensesScreen = () => {
               <TouchableOpacity
                 onPress={handleOpenFilters}
                 style={{
-                  padding: 8,
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
                   borderRadius: 12,
                   backgroundColor: '#1E293B',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
                 }}
               >
-                <Filter size={20} color="#F8FAFC" />
+                <Filter size={18} color="#F8FAFC" />
+                <Text
+                  style={{
+                    color: '#F8FAFC',
+                    fontFamily: Fonts.semibold,
+                    fontSize: 13,
+                  }}
+                >
+                  Filters
+                </Text>
               </TouchableOpacity>
             </View>
           )}
@@ -939,10 +877,10 @@ const ExpensesScreen = () => {
                 {/* <TouchableOpacity
                   style={expenseStyles.filterButton}
                   onPress={() => {
-                    setFilterSheetVisible(true);
-                    filterSheetRef.current?.open();
-                  }}
-                  activeOpacity={0.7}
+                  filterSheetRef.current?.open();
+                  fetchFilters();
+                }}
+  activeOpacity={0.7}
                 >
                   <Filter size={20} color="#94A3B8" />
                   <Text style={expenseStyles.filterButtonText}>Filters</Text>
@@ -950,39 +888,7 @@ const ExpensesScreen = () => {
                 </TouchableOpacity> */}
               </View>
             }
-            renderItem={({ item, index }) => {
-              const skipAnimation = index >= 20;
-              const currentDate = formatItemDate(item.createdAt);
-              const prevDate =
-                index > 0
-                  ? formatItemDate(filteredExpenses[index - 1].createdAt)
-                  : null;
-              const showDateHeader = currentDate && currentDate !== prevDate;
-
-              return (
-                <View>
-                  {showDateHeader && (
-                    <View style={expenseStyles.dateHeader}>
-                      <Text style={expenseStyles.dateHeaderText}>
-                        {currentDate}
-                      </Text>
-                    </View>
-                  )}
-                  <AnimatedExpenseCard
-                    index={index}
-                    skipAnimation={skipAnimation}
-                  >
-                    <ExpenseCard
-                      item={item}
-                      transformMonthLabel={transformMonthLabel}
-                      formatItemTime={formatItemTime}
-                      onEdit={openForm}
-                      onDelete={handleDeleteExpense}
-                    />
-                  </AnimatedExpenseCard>
-                </View>
-              );
-            }}
+            renderItem={renderItem}
             ListEmptyComponent={
               <View style={expenseStyles.emptyState}>
                 <Text variant="titleMedium" style={expenseStyles.emptyTitle}>
@@ -1031,8 +937,7 @@ const ExpensesScreen = () => {
 
         <FilterSheet
           sheetRef={filterSheetRef}
-          visible={filterSheetVisible}
-          onClose={() => setFilterSheetVisible(false)}
+          onClose={() => {}}
           selectedMonth={selectedMonth}
           months={months}
           selectedCategory={selectedCategory}

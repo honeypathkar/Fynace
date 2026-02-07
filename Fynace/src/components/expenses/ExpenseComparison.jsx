@@ -63,4 +63,4 @@ const ExpenseComparison = ({ comparison }) => {
   );
 };
 
-export default ExpenseComparison;
+export default React.memo(ExpenseComparison);

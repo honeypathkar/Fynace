@@ -4,9 +4,9 @@ import {
   View,
   ScrollView,
   Pressable,
-  Alert,
   Platform,
   PermissionsAndroid,
+  ToastAndroid,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import messaging from '@react-native-firebase/messaging';
@@ -154,9 +154,9 @@ const ToolScreen = () => {
 
   const handleSmsToggle = async value => {
     if (Platform.OS !== 'android') {
-      showAlert(
-        'Not Supported',
+      ToastAndroid.show(
         'Automatic SMS tracking is only available on Android devices.',
+        ToastAndroid.SHORT,
       );
       return;
     }
@@ -204,9 +204,10 @@ const ToolScreen = () => {
       await updateProfile({ currency });
     } catch (err) {
       console.error('Failed to update currency', err);
-      showAlert('Error', 'Failed to update currency preference', {
-        type: 'error',
-      });
+      ToastAndroid.show(
+        'Failed to update currency preference',
+        ToastAndroid.SHORT,
+      );
     }
   };
 
@@ -338,6 +339,12 @@ const ToolScreen = () => {
                 Automatically log expenses from bank alerts. We only securely
                 scan financial transaction messages.
               </Text>
+              <Divider style={styles.divider} />
+              <MenuItem
+                icon={ChevronRight}
+                label="SMS Config"
+                onPress={() => navigation.navigate('BankSmsConfig')}
+              />
             </View>
           )}
 
@@ -512,5 +519,10 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     fontFamily: Fonts.bold,
     fontSize: 16,
+  },
+  divider: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    marginVertical: 4,
+    marginHorizontal: 16,
   },
 });

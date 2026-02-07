@@ -1,5 +1,6 @@
 const Expense = require("../models/Expense");
 const MoneyIn = require("../models/MoneyIn");
+const MonthlySummary = require("../models/MonthlySummary");
 const mongoose = require("mongoose");
 
 // Get monthly totals for chart visualization
@@ -8,68 +9,21 @@ const getMonthlyTotals = async (req, res) => {
     const userId = req.userId;
     const { limit = 12 } = req.query; // Default to last 12 months
 
-    const [expenseStats, moneyInStats] = await Promise.all([
-      Expense.aggregate([
-        { $match: { userId: new mongoose.Types.ObjectId(userId) } },
-        {
-          $group: {
-            _id: "$month",
-            totalMoneyIn: { $sum: "$moneyIn" },
-            totalMoneyOut: {
-              $sum: {
-                $cond: [{ $gt: ["$moneyOut", 0] }, "$moneyOut", "$amount"],
-              },
-            },
-            totalExpenses: { $sum: 1 },
-          },
-        },
-      ]),
-      MoneyIn.aggregate([
-        { $match: { userId: new mongoose.Types.ObjectId(userId) } },
-        {
-          $group: {
-            _id: {
-              $dateToString: { format: "%Y-%m", date: "$date" },
-            },
-            totalMoneyIn: { $sum: "$amount" },
-          },
-        },
-      ]),
-    ]);
+    const summaries = await MonthlySummary.find({ userId })
+      .sort({ month: -1 })
+      .limit(parseInt(limit))
+      .lean();
 
-    const monthlyData = {};
-
-    expenseStats.forEach((stat) => {
-      const month = stat._id;
-      monthlyData[month] = {
-        month,
-        totalMoneyIn: stat.totalMoneyIn,
-        totalMoneyOut: stat.totalMoneyOut,
-        totalExpenses: stat.totalExpenses,
-      };
-    });
-
-    moneyInStats.forEach((stat) => {
-      const month = stat._id;
-      if (!monthlyData[month]) {
-        monthlyData[month] = {
-          month,
-          totalMoneyIn: 0,
-          totalMoneyOut: 0,
-          totalExpenses: 0,
-        };
-      }
-      monthlyData[month].totalMoneyIn += stat.totalMoneyIn;
-    });
-
-    let monthlyArray = Object.values(monthlyData).map((data) => ({
-      ...data,
-      remaining: data.totalMoneyIn - data.totalMoneyOut,
-    }));
-
-    monthlyArray.sort((a, b) => b.month.localeCompare(a.month));
-    monthlyArray = monthlyArray.slice(0, parseInt(limit));
-    monthlyArray.sort((a, b) => a.month.localeCompare(b.month));
+    // The frontend expects the array in ascending order for charts
+    const monthlyArray = summaries
+      .map((s) => ({
+        month: s.month,
+        totalMoneyIn: s.totalMoneyIn,
+        totalMoneyOut: s.totalMoneyOut,
+        totalExpenses: s.totalExpenses,
+        remaining: s.remaining,
+      }))
+      .sort((a, b) => a.month.localeCompare(b.month));
 
     res.status(200).json({
       success: true,
@@ -164,79 +118,32 @@ const getTrends = async (req, res) => {
     const userId = req.userId;
     const { limit = 12 } = req.query; // Default to last 12 months
 
-    // Get all expenses
-    const expenses = await Expense.find({ userId }).sort({
-      month: -1,
-      createdAt: -1,
-    });
+    const summaries = await MonthlySummary.find({ userId })
+      .sort({ month: -1 })
+      .limit(parseInt(limit) + 1) // Get one extra to calculate growth for the oldest month in the limit
+      .lean();
 
-    // Get all MoneyIn entries
-    const moneyInEntries = await MoneyIn.find({ userId });
+    if (summaries.length === 0) {
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        data: [],
+      });
+    }
 
-    // Group by month
-    const monthlyData = {};
-    expenses.forEach((expense) => {
-      const month = expense.month;
-      if (!monthlyData[month]) {
-        monthlyData[month] = {
-          month,
-          moneyIn: [],
-          moneyOut: [],
-          totalMoneyIn: 0,
-          totalMoneyOut: 0,
-        };
-      }
-      if (expense.moneyIn > 0) {
-        monthlyData[month].moneyIn.push(expense.moneyIn);
-        monthlyData[month].totalMoneyIn += expense.moneyIn;
-      }
-      // If moneyOut is 0 but amount > 0, use amount as moneyOut
-      const moneyOut = expense.moneyOut || 0;
-      const amount = expense.amount || 0;
-      const finalMoneyOut = moneyOut > 0 ? moneyOut : amount;
-      if (finalMoneyOut > 0) {
-        monthlyData[month].moneyOut.push(finalMoneyOut);
-        monthlyData[month].totalMoneyOut += finalMoneyOut;
-      }
-    });
-
-    // Add MoneyIn entries to trends
-    moneyInEntries.forEach((entry) => {
-      const entryDate = new Date(entry.date);
-      const month = `${entryDate.getFullYear()}-${String(entryDate.getMonth() + 1).padStart(2, "0")}`;
-      if (!monthlyData[month]) {
-        monthlyData[month] = {
-          month,
-          moneyIn: [],
-          moneyOut: [],
-          totalMoneyIn: 0,
-          totalMoneyOut: 0,
-        };
-      }
-      monthlyData[month].moneyIn.push(entry.amount);
-      monthlyData[month].totalMoneyIn += entry.amount || 0;
-    });
-
-    // Convert to array
-    let trendArray = Object.values(monthlyData).map((data) => ({
-      month: data.month,
-      totalMoneyIn: data.totalMoneyIn,
-      totalMoneyOut: data.totalMoneyOut,
-      remaining: data.totalMoneyIn - data.totalMoneyOut,
-      averageMoneyIn:
-        data.moneyIn.length > 0 ? data.totalMoneyIn / data.moneyIn.length : 0,
+    // Convert to the format expected by the frontend
+    let trendArray = summaries.map((s) => ({
+      month: s.month,
+      totalMoneyIn: s.totalMoneyIn,
+      totalMoneyOut: s.totalMoneyOut,
+      remaining: s.remaining,
+      averageMoneyIn: s.moneyInCount > 0 ? s.totalMoneyIn / s.moneyInCount : 0,
       averageMoneyOut:
-        data.moneyOut.length > 0
-          ? data.totalMoneyOut / data.moneyOut.length
-          : 0,
-      transactionCount: data.moneyIn.length + data.moneyOut.length,
+        s.expenseCount > 0 ? s.totalMoneyOut / s.expenseCount : 0,
+      transactionCount: (s.moneyInCount || 0) + (s.expenseCount || 0),
     }));
 
-    // Sort by month (descending) and limit
-    trendArray.sort((a, b) => b.month.localeCompare(a.month));
-    trendArray = trendArray.slice(0, parseInt(limit));
-
-    // Sort by month (ascending) for chart display
+    // Sort by month (ascending) for growth calculation
     trendArray.sort((a, b) => a.month.localeCompare(b.month));
 
     // Calculate growth rates
@@ -278,10 +185,16 @@ const getTrends = async (req, res) => {
       };
     });
 
+    // If we fetched an extra month for growth calculation, remove it if it exceeds the limit
+    const finalData =
+      trendsWithGrowth.length > parseInt(limit)
+        ? trendsWithGrowth.slice(1)
+        : trendsWithGrowth;
+
     res.status(200).json({
       success: true,
-      count: trendsWithGrowth.length,
-      data: trendsWithGrowth,
+      count: finalData.length,
+      data: finalData,
     });
   } catch (error) {
     console.error("Error in getTrends:", error);

@@ -70,6 +70,7 @@ app.use("/api/chart", chartRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/money-in", moneyInRoutes);
 app.use("/api/landing", landingRoutes);
+app.use("/api/banks", require("./routes/bankRoutes"));
 
 // 404 handler
 app.use("*", (req, res) => {

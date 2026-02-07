@@ -18,6 +18,8 @@ import AddExpenseScreen from '../screens/Expenses/AddExpenseScreen';
 import QRScannerScreen from '../screens/Expenses/QRScannerScreen';
 import AddQRBasedExpenseScreen from '../screens/Expenses/AddQRBasedExpenseScreen';
 import WebViewScreen from '../screens/Profile/WebViewScreen';
+import BankSmsConfigScreen from '../screens/Profile/BankSmsConfigScreen';
+import SmsFetchScreen from '../screens/Expenses/SmsFetchScreen';
 import CustomTabBar from './CustomTabBar';
 
 const Tab = createBottomTabNavigator();
@@ -141,7 +143,7 @@ const AppNavigator = () => {
         <Stack.Screen
           name="QRScanner"
           component={QRScannerScreen}
-          options={{ animation: 'fade' }}
+          options={{ animation: 'slide_from_bottom' }}
         />
         <Stack.Screen
           name="AddQRBasedExpense"
@@ -151,7 +153,17 @@ const AppNavigator = () => {
         <Stack.Screen
           name="WebView"
           component={WebViewScreen}
-          options={{ animation: 'slide_from_right' }}
+          options={{ animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="BankSmsConfig"
+          component={BankSmsConfigScreen}
+          options={{ animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="SmsFetch"
+          component={SmsFetchScreen}
+          options={{ animation: 'slide_from_bottom' }}
         />
       </Stack.Navigator>
     </NavigationContainer>

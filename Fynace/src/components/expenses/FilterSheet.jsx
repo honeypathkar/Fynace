@@ -12,7 +12,6 @@ import Fonts from '../../../assets/fonts';
 
 const FilterSheet = ({
   sheetRef,
-  visible,
   onClose,
   selectedMonth,
   months,
@@ -23,8 +22,6 @@ const FilterSheet = ({
   onSelectCategory,
   loading = false,
 }) => {
-  if (!visible) return null;
-
   return (
     <BottomSheet
       ref={sheetRef}

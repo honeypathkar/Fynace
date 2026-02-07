@@ -18,4 +18,4 @@ const ExpenseSearch = ({ searchQuery, onSearchChange }) => {
   );
 };
 
-export default ExpenseSearch;
+export default React.memo(ExpenseSearch);
