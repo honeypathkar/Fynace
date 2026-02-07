@@ -100,13 +100,41 @@ export default function TermsAndConditions() {
               color: "var(--text-main)",
             }}
           >
-            4. Data Accuracy
+            4. SMS Fetching & Data Accuracy
           </h2>
           <p style={{ color: "var(--text-muted)" }}>
-            Expense insights and analytics are based on user-provided data and
-            selected SMS messages. We do not guarantee 100% accuracy of
-            financial insights.
+            Fynace includes an on-device SMS fetching tool to help you identify
+            financial transactions. By using this feature, you acknowledge that:
           </p>
+          <ul
+            style={{
+              color: "var(--text-muted)",
+              paddingLeft: "20px",
+              marginTop: "8px",
+            }}
+          >
+            <li>
+              <strong>Local Processing:</strong> All SMS scanning occurs locally
+              on your mobile device. No SMS content is ever transmitted to or
+              stored on our servers.
+            </li>
+            <li>
+              <strong>Automated Detection:</strong> The tool uses algorithms to
+              detect transaction amounts and merchants. It may not recognize all
+              messages or may occasionally misinterpret data.
+            </li>
+            <li>
+              <strong>Bank Identification:</strong> To simplify entry, the app
+              may store the names of banks identified from your SMS locally on
+              your device. These names are never sent to or stored on Fynace
+              servers.
+            </li>
+            <li>
+              <strong>Verification:</strong> You are responsible for reviewing
+              and confirming any expenses fetched from SMS before they are saved
+              to your account.
+            </li>
+          </ul>
         </section>
 
         <section style={{ marginBottom: "32px" }}>

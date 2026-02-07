@@ -46,8 +46,7 @@ export default function PrivacyPolicy() {
             </h3>
             <ul style={{ color: "var(--text-muted)", paddingLeft: "20px" }}>
               <li>Name</li>
-              <li>Email address</li>
-              <li>Phone number (for OTP-based login)</li>
+              <li>Email address (via Google Sign-In)</li>
             </ul>
           </div>
 
@@ -56,7 +55,7 @@ export default function PrivacyPolicy() {
               b. Authentication Data
             </h3>
             <ul style={{ color: "var(--text-muted)", paddingLeft: "20px" }}>
-              <li>OTP for login verification</li>
+              <li>OTP (for email verification)</li>
               <li>Google Sign-In credentials (name & email only)</li>
             </ul>
           </div>
@@ -67,6 +66,7 @@ export default function PrivacyPolicy() {
             </h3>
             <ul style={{ color: "var(--text-muted)", paddingLeft: "20px" }}>
               <li>Expense details (amount, category, date, notes)</li>
+              <li>Bank names (stored locally on device only)</li>
               <li>Upcoming expenses & runway alerts</li>
               <li>Monthly and category-wise expense data (used for charts)</li>
             </ul>
@@ -74,13 +74,28 @@ export default function PrivacyPolicy() {
 
           <div style={{ marginTop: "16px" }}>
             <h3 style={{ fontSize: "1.1rem", marginBottom: "8px" }}>
-              d. SMS Access (Optional & Permission-Based)
+              d. SMS Access (Optional & On-Device Processing)
             </h3>
             <ul style={{ color: "var(--text-muted)", paddingLeft: "20px" }}>
-              <li>We only read bank-related SMS messages</li>
-              <li>Only messages explicitly selected by the user</li>
-              <li>Used strictly for expense detection and tracking</li>
-              <li>We do not read personal or unrelated messages</li>
+              <li>
+                <strong>On-Device Processing:</strong> All SMS scanning and
+                parsing happens entirely on your device. We do not upload,
+                store, or process your SMS messages on our servers.
+              </li>
+              <li>
+                <strong>Transactional Focus:</strong> We only look for
+                bank-related or financial transaction messages to help you track
+                expenses.
+              </li>
+              <li>
+                <strong>User Control:</strong> The app only fetches transaction
+                details when you explicitly trigger the "Scan" feature, and
+                nothing is saved to your account until you confirm it.
+              </li>
+              <li>
+                <strong>Privacy:</strong> We strictly ignore personal
+                conversations, OTPs (unless for login), and unrelated messages.
+              </li>
             </ul>
           </div>
 
@@ -145,6 +160,11 @@ export default function PrivacyPolicy() {
             </li>
             <li>
               We do not sell or share your personal data with third parties
+            </li>
+            <li>
+              <strong>Bank Info:</strong> Any bank names associated with your
+              expenses are stored in your device's local storage (e.g.,
+              SharedPreferences/UserDefaults) and are not synced to our servers.
             </li>
           </ul>
         </section>
