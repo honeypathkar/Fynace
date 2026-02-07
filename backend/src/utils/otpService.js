@@ -27,8 +27,8 @@ const generateOTP = () => {
 const sendOTP = async (email, otp) => {
   try {
     const transporter = createTransporter();
-    const logoPath =
-      "/Users/honey-kalpintelligence/Desktop/Honey/expenss-tracker/frontend/public/images/logo.png";
+    const path = require("path");
+    const logoPath = path.join(__dirname, "../../public/logo.png");
 
     const mailOptions = {
       from: process.env.EMAIL_FROM,
