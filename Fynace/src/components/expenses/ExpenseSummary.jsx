@@ -14,7 +14,7 @@ const ExpenseSummary = ({ allTimeSummary, onAddPress }) => {
       <Card.Content>
         <View style={styles.summaryHeader}>
           <Text variant="titleMedium" style={styles.summaryTitle}>
-            Summary
+            Summarry
           </Text>
           <TouchableOpacity
             style={styles.summaryAddButton}

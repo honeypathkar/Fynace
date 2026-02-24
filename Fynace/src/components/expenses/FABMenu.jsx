@@ -69,7 +69,7 @@ const FABMenu = ({
           />
         </TouchableOpacity>
 
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={styles.actionMenuItem}
           onPress={onSmsFetch}
           activeOpacity={0.7}
@@ -88,7 +88,7 @@ const FABMenu = ({
             color="#94A3B8"
             style={{ transform: [{ rotate: '-90deg' }] }}
           />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
     </BottomSheet>
   );

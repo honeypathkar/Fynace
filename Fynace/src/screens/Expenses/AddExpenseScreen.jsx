@@ -20,6 +20,9 @@ import { apiClient, parseApiError } from '../../api/client';
 import { useAuth } from '../../hooks/useAuth';
 import { themeAssets } from '../../theme';
 import Fonts from '../../../assets/fonts';
+import { database } from '../../database';
+import { Q } from '@nozbe/watermelondb';
+import { syncManager } from '../../sync/SyncManager';
 
 const defaultFormState = {
   month: '',
@@ -71,16 +74,20 @@ const AddExpenseScreen = () => {
   }, [editingExpense]);
 
   const fetchCategories = useCallback(async () => {
-    if (!token) return;
     try {
-      const response = await apiClient.get('/categories');
-      setCategories(
-        response.data?.data || { default: [], custom: [], all: [] },
-      );
+      const localCategories = await database
+        .get('categories')
+        .query(Q.where('is_deleted', false))
+        .fetch();
+      setCategories({
+        all: localCategories.map(c => c.name),
+        default: [],
+        custom: [],
+      });
     } catch (err) {
-      console.warn('Failed to fetch categories');
+      console.warn('Failed to fetch local categories');
     }
-  }, [token]);
+  }, []);
 
   useEffect(() => {
     fetchCategories();
@@ -127,18 +134,28 @@ const AddExpenseScreen = () => {
 
   const createCategory = useCallback(
     async categoryName => {
-      if (!token || !categoryName.trim() || creatingCategory) return;
+      if (!categoryName.trim() || creatingCategory) return;
       try {
         setCreatingCategory(true);
-        await apiClient.post('/categories', { name: categoryName.trim() });
+        await database.write(async () => {
+          await database.get('categories').create(record => {
+            record.name = categoryName.trim();
+            record.type = 'expense';
+            record.synced = false;
+            record.updatedAt = Date.now();
+            record.isDeleted = false;
+          });
+        });
         await fetchCategories();
         setNewCategoryName('');
         setShowAddCategory(false);
+
+        // Background sync
+        syncManager.sync().catch(console.error);
       } catch (err) {
-        const apiError = parseApiError(err);
         if (Platform.OS === 'android') {
           ToastAndroid.show(
-            apiError.message || 'Failed to create category',
+            'Failed to create local category',
             ToastAndroid.LONG,
           );
         }
@@ -146,7 +163,7 @@ const AddExpenseScreen = () => {
         setCreatingCategory(false);
       }
     },
-    [token, fetchCategories, creatingCategory],
+    [fetchCategories, creatingCategory],
   );
 
   const handleSave = async () => {
@@ -165,34 +182,52 @@ const AddExpenseScreen = () => {
         return;
       }
 
-      const payload = {
-        month: formValues.month,
-        itemName: formValues.itemName,
-        category: formValues.category || '',
-        amount: Number(formValues.amount) || 0,
-        notes: formValues.notes,
-      };
-
-      if (editingExpenseId) {
-        await apiClient.put(`/expenses/${editingExpenseId}`, payload);
-      } else {
-        await apiClient.post('/expenses', payload);
-      }
+      await database.write(async () => {
+        if (editingExpenseId) {
+          const expense = await database.get('expenses').find(editingExpenseId);
+          await expense.update(record => {
+            record.month = formValues.month;
+            record.itemName = formValues.itemName;
+            record.category = formValues.category || '';
+            record.amount = Number(formValues.amount) || 0;
+            record.notes = formValues.notes;
+            record.synced = false;
+            record.updatedAt = Date.now();
+          });
+        } else {
+          await database.get('expenses').create(record => {
+            record.month = formValues.month;
+            record.itemName = formValues.itemName;
+            record.category = formValues.category || '';
+            record.amount = Number(formValues.amount) || 0;
+            record.notes = formValues.notes;
+            record.date = new Date().toISOString();
+            record.synced = false;
+            record.updatedAt = Date.now();
+            record.isDeleted = false;
+          });
+        }
+      });
 
       if (Platform.OS === 'android') {
         ToastAndroid.show(
-          editingExpenseId ? 'Expense updated' : 'Expense added',
+          editingExpenseId
+            ? 'Expense updated locally'
+            : 'Expense added locally',
           ToastAndroid.SHORT,
         );
       }
 
       navigation.goBack();
-      // If we need to trigger a refresh on the previous screen,
-      // we could use a listener or expect it to refresh on focus.
+
+      // Proactively trigger sync in background
+      syncManager.sync().catch(console.error);
     } catch (err) {
-      const apiError = parseApiError(err);
       if (Platform.OS === 'android') {
-        ToastAndroid.show(apiError.message, ToastAndroid.LONG);
+        ToastAndroid.show(
+          err.message || 'Failed to save locally',
+          ToastAndroid.LONG,
+        );
       }
     } finally {
       setSavingExpense(false);

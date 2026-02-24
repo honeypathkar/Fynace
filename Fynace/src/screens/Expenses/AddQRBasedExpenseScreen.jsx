@@ -90,8 +90,10 @@ const AddQRBasedExpenseScreen = () => {
       // 🔒 Force correct values
       baseParams.pa = formValues.upiId;
       baseParams.pn = formValues.itemName.trim();
-      baseParams.am = String(formValues.amount); // MUST be string
+      baseParams.am = parseFloat(formValues.amount).toFixed(2); // Ensure 1.00 format
       baseParams.cu = 'INR';
+      baseParams.mode = '02'; // Secure/Standard mode
+      baseParams.orgid = ''; // Leave empty if not a merchant
 
       // ✅ Ensure required fields
       if (!baseParams.tr) {
@@ -105,7 +107,10 @@ const AddQRBasedExpenseScreen = () => {
       // 🚀 Build final UPI URL
       const upiQuery = Object.entries(baseParams)
         .filter(([_, value]) => value !== undefined && value !== '')
-        .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+        .map(
+          ([key, value]) =>
+            `${key}=${encodeURIComponent(value).replace(/%20/g, '+')}`,
+        )
         .join('&');
 
       const upiUrl = `upi://pay?${upiQuery}`;
@@ -114,18 +119,27 @@ const AddQRBasedExpenseScreen = () => {
       console.log('📦 Final Params:', baseParams);
 
       try {
-        await Linking.openURL(upiUrl);
+        const supported = await Linking.canOpenURL(upiUrl);
 
-        Alert.alert('Payment Initiated', 'Did you complete the payment?', [
-          { text: 'No', style: 'cancel' },
-          { text: 'Yes', onPress: () => saveExpense() },
-        ]);
+        if (supported) {
+          await Linking.openURL(upiUrl);
+
+          Alert.alert('Payment Initiated', 'Did you complete the payment?', [
+            { text: 'No', style: 'cancel' },
+            { text: 'Yes', onPress: () => saveExpense() },
+          ]);
+        } else {
+          Alert.alert(
+            'UPI Error',
+            'No UPI app found to handle this request. Please install GPay, PhonePe, or Paytm.',
+          );
+        }
       } catch (err) {
         console.error('UPI Open Error:', err);
 
         Alert.alert(
           'UPI Error',
-          'Unable to open UPI app. Please check if a UPI app is installed.',
+          'An unexpected error occurred while trying to open the UPI app.',
         );
       }
     } else {

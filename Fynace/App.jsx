@@ -16,9 +16,16 @@ import { BottomBarProvider } from './src/context/BottomBarContext';
 import { PrivacyProvider } from './src/context/PrivacyContext';
 import { SecurityProvider } from './src/context/SecurityContext';
 
+import { syncManager } from './src/sync/SyncManager';
+
 function App() {
   const scheme = useColorScheme();
   const paperTheme = React.useMemo(() => buildPaperTheme(scheme), [scheme]);
+
+  React.useEffect(() => {
+    // Initial background sync
+    syncManager.sync().catch(console.error);
+  }, []);
 
   return (
     <SafeAreaProvider>

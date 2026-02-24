@@ -63,6 +63,9 @@ import {
   FilterSheet,
 } from '../../components/expenses';
 import expenseStyles from '../../components/expenses/styles';
+import { database } from '../../database';
+import { Q } from '@nozbe/watermelondb';
+import { syncManager } from '../../sync/SyncManager';
 
 if (
   Platform.OS === 'android' &&
@@ -179,15 +182,42 @@ const ExpensesScreen = () => {
 
       const monthsFetched =
         monthlyResponse.data?.data?.map(item => item.month) || [];
-      const sortedMonths = monthsFetched.sort((a, b) => a.localeCompare(b));
+
+      // Always merge with local data
+      const [allLocalExpenses, allLocalMoneyIn, allLocalCategories] =
+        await Promise.all([
+          database.get('expenses').query(Q.where('is_deleted', false)).fetch(),
+          database.get('money_in').query(Q.where('is_deleted', false)).fetch(),
+          database
+            .get('categories')
+            .query(Q.where('is_deleted', false))
+            .fetch(),
+        ]);
+
+      const localMonths = [
+        ...new Set([
+          ...allLocalExpenses.map(e => e.month),
+          ...allLocalMoneyIn.map(m => m.month),
+        ]),
+      ].filter(Boolean);
+
+      const combinedMonths = [...new Set([...monthsFetched, ...localMonths])];
+      const sortedMonths = combinedMonths.sort((a, b) => b.localeCompare(a));
+
+      console.log(`Navigation found months: ${sortedMonths.join(', ')}`);
       setMonths(sortedMonths);
-      setCategories(
-        categoriesResponse.data?.data || {
-          default: [],
-          custom: [],
-          all: [],
-        },
-      );
+
+      const remoteCategories = categoriesResponse.data?.data?.all || [];
+      const localCategoryNames = allLocalCategories.map(c => c.name);
+      const combinedCategories = [
+        ...new Set([...remoteCategories, ...localCategoryNames]),
+      ];
+
+      setCategories({
+        default: categoriesResponse.data?.data?.default || [],
+        custom: categoriesResponse.data?.data?.custom || [],
+        all: combinedCategories,
+      });
     } catch (err) {
       console.warn('Failed to fetch filters', err);
     } finally {
@@ -202,144 +232,122 @@ const ExpensesScreen = () => {
       append = false,
       categorySelection = selectedCategory,
       searchSelection = debouncedSearch,
+      currentCount = 0,
     ) => {
       try {
         if (!lastCreated) {
-          // Only show full loading skeletons if we don't have data,
-          // or if the month/category/search filters have actually changed.
-          // This prevents flickering when the screen focuses or background refreshes.
-          const filtersChanged =
-            monthSelection !== selectedMonth ||
-            categorySelection !== selectedCategory ||
-            searchSelection !== debouncedSearch;
-
-          if (expenses.length === 0 || filtersChanged) {
-            setLoading(true);
-          }
+          setLoading(true);
           loadingMoreRef.current = false;
         } else {
           setLoadingMore(true);
           loadingMoreRef.current = true;
         }
 
-        // Fetch expenses - all time or by month using cursor-based pagination
-        const params = {
-          limit: 20,
-          category: categorySelection !== 'All' ? categorySelection : undefined,
-          search: searchSelection || undefined,
-        };
+        // Build query clauses
+        const clauses = [Q.where('is_deleted', false)];
 
-        if (lastCreated) {
-          params.lastCreatedAt = lastCreated;
+        if (monthSelection !== 'All') {
+          clauses.push(Q.where('month', monthSelection));
         }
 
-        const expensesPromise =
-          monthSelection === 'All'
-            ? apiClient.get('/expenses/all', { params })
-            : apiClient.get(`/expenses/${monthSelection}`, { params });
+        if (categorySelection !== 'All') {
+          clauses.push(Q.where('category', categorySelection));
+        }
 
-        // Fetch summary based on selected month (parallelized)
-        const summaryParams = {
-          category: categorySelection !== 'All' ? categorySelection : undefined,
-          search: searchSelection || undefined,
-        };
+        if (searchSelection) {
+          clauses.push(
+            Q.where(
+              'item_name',
+              Q.like(`%${Q.sanitizeLikeString(searchSelection)}%`),
+            ),
+          );
+        }
 
-        const summaryPromise = !lastCreated
-          ? monthSelection === 'All'
-            ? apiClient
-                .get('/expenses/summary/all-time', { params: summaryParams })
-                .catch(() => ({ data: { summary: null } }))
-            : apiClient
-                .get(`/expenses/summary/${monthSelection}`, {
-                  params: summaryParams,
-                })
-                .catch(() => ({ data: { summary: null } }))
-          : Promise.resolve(null);
+        clauses.push(Q.sortBy('date', Q.desc));
 
-        // Fetch comparison if a specific month is selected (parallelized)
-        const comparePromise =
-          monthSelection !== 'All'
-            ? (async () => {
-                const availableMonths =
-                  months.length > 0 ? months : [monthSelection];
-                const currentMonthIndex =
-                  availableMonths.indexOf(monthSelection);
-                if (currentMonthIndex > 0) {
-                  const previousMonth = availableMonths[currentMonthIndex - 1];
-                  return apiClient
-                    .get('/expenses/compare', {
-                      params: {
-                        month1: previousMonth,
-                        month2: monthSelection,
-                      },
-                    })
-                    .catch(() => ({ data: { comparison: null } }));
-                }
-                return { data: { comparison: null } };
-              })()
-            : Promise.resolve({ data: { comparison: null } });
+        const query = database.get('expenses').query(...clauses);
+        const allLocalMatching = await query.fetch();
 
-        const [expensesResponse, summaryResponse, compareResponse] =
-          await Promise.all([expensesPromise, summaryPromise, comparePromise]);
+        // Manual pagination logic
+        const offset = append ? currentCount : 0;
+        const newExpenses = allLocalMatching.slice(offset, offset + 20);
 
-        // Only use LayoutAnimation for initial load, not for pagination
         if (!append) {
           LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        }
-        const newExpenses = expensesResponse.data?.expenses || [];
-        if (append) {
-          setExpenses(prev => [...prev, ...newExpenses]);
-        } else {
           setExpenses(newExpenses);
-        }
-        // Set summary based on selected month - only if we fetched it
-        if (summaryResponse) {
-          const responseData = summaryResponse?.data || {};
-          const summaryData = responseData.summary || responseData;
-          const breakdown = responseData.categoryBreakdown || [];
-
-          if (monthSelection === 'All') {
-            setAllTimeSummary(summaryData);
-            setSummary(null);
-            setCategoryBreakdown(breakdown);
-          } else {
-            setSummary(summaryData);
-            setCategoryBreakdown(breakdown);
+        } else {
+          // If no new items found for the next page, don't append anything
+          if (newExpenses.length > 0) {
+            setExpenses(prev => [...prev, ...newExpenses]);
           }
         }
 
-        // Check if there are more expenses - prioritize backend hasMore
-        const backendHasMore = expensesResponse.data?.hasMore;
-        let hasMoreData = false;
-
-        if (backendHasMore !== undefined) {
-          // Use backend's hasMore if available
-          hasMoreData = backendHasMore;
-        } else {
-          // Fallback: check if we got a full page of results
-          hasMoreData = newExpenses.length >= 20;
+        // Calculate summary once on every fetch
+        const summaryClauses = [Q.where('is_deleted', false)];
+        if (monthSelection !== 'All') {
+          summaryClauses.push(Q.where('month', monthSelection));
         }
 
+        const [allIn, allOut] = await Promise.all([
+          database
+            .get('money_in')
+            .query(...summaryClauses)
+            .fetch(),
+          database
+            .get('expenses')
+            .query(...summaryClauses)
+            .fetch(),
+        ]);
+
+        const totalMoneyOut = allOut.reduce(
+          (sum, exp) => sum + (exp.moneyOut || exp.amount || 0),
+          0,
+        );
+        const totalMoneyIn = allIn.reduce(
+          (sum, entry) => sum + (entry.amount || 0),
+          0,
+        );
+        const remaining = totalMoneyIn - totalMoneyOut;
+
+        const breakdownObj = allOut.reduce((acc, exp) => {
+          const amt = exp.moneyOut || exp.amount || 0;
+          acc[exp.category] = (acc[exp.category] || 0) + amt;
+          return acc;
+        }, {});
+
+        const breakdown = Object.entries(breakdownObj).map(([name, value]) => ({
+          name,
+          value,
+        }));
+        const finalSummary = {
+          totalMoneyIn,
+          totalMoneyOut,
+          remaining,
+          totalExpenses: allOut.length,
+        };
+
+        if (monthSelection === 'All') {
+          setAllTimeSummary(finalSummary);
+          setSummary(null);
+        } else {
+          setSummary(finalSummary);
+        }
+        setCategoryBreakdown(breakdown);
+
+        const hasMoreData =
+          allLocalMatching.length > offset + newExpenses.length;
         setHasMore(hasMoreData);
-        const newLastCreatedAt =
+        hasMoreRef.current = hasMoreData;
+
+        const newLastCreated =
           newExpenses.length > 0
             ? newExpenses[newExpenses.length - 1].createdAt
             : null;
-        setLastCreatedAt(newLastCreatedAt);
-
-        // Update refs for fresh state in callbacks
-        lastCreatedAtRef.current = newLastCreatedAt;
-        hasMoreRef.current = hasMoreData;
-
-        // Set comparison from the parallel fetch
-        if (compareResponse && compareResponse.data) {
-          setComparison(compareResponse.data.comparison);
-        } else {
-          setComparison(undefined);
-        }
+        setLastCreatedAt(newLastCreated);
+        lastCreatedAtRef.current = newLastCreated;
       } catch (err) {
-        const apiError = parseApiError(err);
-        setError(apiError.message);
+        console.error('Fetch error:', err);
+        setError(err.message || 'Failed to fetch local expenses');
       } finally {
         setLoading(false);
         setLoadingMore(false);
@@ -347,22 +355,13 @@ const ExpensesScreen = () => {
         setInitialLoad(false);
       }
     },
-    [selectedMonth, selectedCategory, debouncedSearch, months],
+    [selectedMonth, selectedCategory, debouncedSearch, expenses.length],
   );
 
   const loadMoreExpenses = useCallback(() => {
     // Use refs to get fresh state values
     const currentHasMore = hasMoreRef.current;
     const currentlyLoadingMore = loadingMoreRef.current;
-
-    console.log('loadMoreExpenses called:', {
-      lastCreatedAt: lastCreatedAtRef.current,
-      currentHasMore,
-      currentlyLoadingMore,
-      loading,
-      selectedMonth,
-      expensesCount: expenses.length,
-    });
 
     if (!currentlyLoadingMore && currentHasMore && !loading) {
       const lastCreated = lastCreatedAtRef.current;
@@ -372,6 +371,7 @@ const ExpensesScreen = () => {
         true,
         selectedCategory,
         debouncedSearch,
+        expenses.length,
       );
     }
   }, [
@@ -380,6 +380,7 @@ const ExpensesScreen = () => {
     selectedCategory,
     debouncedSearch,
     fetchExpenses,
+    expenses.length,
   ]);
 
   const fetchMonthsAndData = useCallback(async () => {
@@ -391,19 +392,37 @@ const ExpensesScreen = () => {
       setLoading(true);
       setError(null);
 
-      const monthlyResponse = await apiClient.get('/chart/monthly');
-      const monthsFetched =
-        monthlyResponse.data?.data?.map(item => item.month) || [];
+      const monthlyResponse = await apiClient
+        .get('/chart/monthly')
+        .catch(() => ({ data: { data: [] } }));
 
-      const sortedMonths = monthsFetched.sort((a, b) => a.localeCompare(b));
+      const [allLocalExpenses, allLocalMoneyIn] = await Promise.all([
+        database.get('expenses').query(Q.where('is_deleted', false)).fetch(),
+        database.get('money_in').query(Q.where('is_deleted', false)).fetch(),
+      ]);
+
+      const localMonths = [
+        ...new Set([
+          ...allLocalExpenses.map(e => e.month),
+          ...allLocalMoneyIn.map(m => m.month),
+        ]),
+      ].filter(Boolean);
+
+      const combinedMonths = [
+        ...new Set([
+          ...(monthlyResponse.data?.data?.map(item => item.month) || []),
+          ...localMonths,
+        ]),
+      ];
+      const sortedMonths = combinedMonths.sort((a, b) => b.localeCompare(a));
       setMonths(sortedMonths);
 
-      // By default, show all expenses (not filtered by month)
+      // By default, show all expenses
       setLastCreatedAt(null);
       setHasMore(true);
       lastCreatedAtRef.current = null;
       hasMoreRef.current = true;
-      await fetchExpenses('All', null, false);
+      await fetchExpenses('All', null, false, 'All', '', 0);
     } catch (err) {
       const apiError = parseApiError(err);
       setError(apiError.message);
@@ -416,21 +435,56 @@ const ExpensesScreen = () => {
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
+      // Trigger background sync (force full sync on manual refresh)
+      await syncManager.sync(true);
+
+      // Refresh months and categories locally/remotely
       const [monthlyResponse, categoriesResponse] = await Promise.all([
-        apiClient.get('/chart/monthly'),
-        apiClient.get('/categories').catch(() => ({ data: { data: null } })),
+        apiClient.get('/chart/monthly').catch(() => ({ data: { data: [] } })),
+        apiClient
+          .get('/categories')
+          .catch(() => ({ data: { data: { all: [] } } })),
       ]);
 
-      const monthsFetched =
-        monthlyResponse.data?.data?.map(item => item.month) || [];
-      const sortedMonths = monthsFetched.sort((a, b) => a.localeCompare(b));
+      const [allLocalExpenses, allLocalMoneyIn, allLocalCategories] =
+        await Promise.all([
+          database.get('expenses').query(Q.where('is_deleted', false)).fetch(),
+          database.get('money_in').query(Q.where('is_deleted', false)).fetch(),
+          database
+            .get('categories')
+            .query(Q.where('is_deleted', false))
+            .fetch(),
+        ]);
+
+      const localMonths = [
+        ...new Set([
+          ...allLocalExpenses.map(e => e.month),
+          ...allLocalMoneyIn.map(m => m.month),
+        ]),
+      ].filter(Boolean);
+
+      const combinedMonths = [
+        ...new Set([
+          ...(monthlyResponse.data?.data?.map(item => item.month) || []),
+          ...localMonths,
+        ]),
+      ];
+      const sortedMonths = combinedMonths.sort((a, b) => b.localeCompare(a));
       setMonths(sortedMonths);
 
-      if (categoriesResponse.data?.data) {
-        setCategories(categoriesResponse.data.data);
-      }
+      const remoteCategories = categoriesResponse.data?.data?.all || [];
+      const localCategoryNames = allLocalCategories.map(c => c.name);
+      const combinedCategories = [
+        ...new Set([...remoteCategories, ...localCategoryNames]),
+      ];
 
-      // Refresh current expenses view
+      setCategories({
+        default: categoriesResponse.data?.data?.default || [],
+        custom: categoriesResponse.data?.data?.custom || [],
+        all: combinedCategories,
+      });
+
+      // Refresh current expenses view from local DB
       setLastCreatedAt(null);
       setHasMore(true);
       lastCreatedAtRef.current = null;
@@ -441,10 +495,10 @@ const ExpensesScreen = () => {
         false,
         selectedCategory,
         debouncedSearch,
+        0,
       );
     } catch (err) {
-      const apiError = parseApiError(err);
-      setError(apiError.message);
+      setError(err.message);
     } finally {
       setIsRefreshing(false);
     }
@@ -654,7 +708,9 @@ const ExpensesScreen = () => {
         ToastAndroid.show('Deleting expense...', ToastAndroid.SHORT);
       }
 
-      await apiClient.delete(`/expenses/${expenseToDelete._id}`);
+      await apiClient.delete(
+        `/expenses/${expenseToDelete.id || expenseToDelete._id}`,
+      );
 
       if (Platform.OS === 'android') {
         ToastAndroid.show('Expense deleted successfully', ToastAndroid.SHORT);
@@ -810,7 +866,7 @@ const ExpensesScreen = () => {
           <FlatList
             contentContainerStyle={expenseStyles.listContent}
             data={filteredExpenses}
-            keyExtractor={item => item._id}
+            keyExtractor={item => item.id || item._id}
             onEndReached={loadMoreExpenses}
             onEndReachedThreshold={0.5}
             initialNumToRender={10}

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Dimensions,
   ScrollView,
@@ -26,6 +26,9 @@ import {
 import { SkeletonPulse } from '../../components/expenses';
 import { QrCode, Plus } from 'lucide-react-native';
 import { TouchableOpacity } from 'react-native';
+import { database } from '../../database';
+import { Q } from '@nozbe/watermelondb';
+import { syncManager } from '../../sync/SyncManager';
 
 const HomeSkeleton = () => (
   <ScrollView
@@ -91,6 +94,13 @@ const HomeScreen = () => {
   const [allTimeSummary, setAllTimeSummary] = useState();
   const [currentMonthSummary, setCurrentMonthSummary] = useState(null);
   const [previousMonthSummary, setPreviousMonthSummary] = useState(null);
+  const [syncStatus, setSyncStatus] = useState(syncManager.status);
+
+  useEffect(() => {
+    return syncManager.subscribe(status => {
+      setSyncStatus(status);
+    });
+  }, []);
 
   const chartConfig = useMemo(() => {
     return {
@@ -135,77 +145,93 @@ const HomeScreen = () => {
 
   const fetchDashboardData = useCallback(
     async (isSilent = false) => {
-      if (!token) {
-        return;
-      }
-
       try {
         if (!isSilent) {
           setLoading(true);
         }
         setError(null);
 
-        // Get current month for comparison
+        // Trigger background sync
+        syncManager.sync().catch(console.error);
+
         const now = new Date();
         const currentYear = now.getFullYear();
         const currentMonth = String(now.getMonth() + 1).padStart(2, '0');
         const currentMonthStr = `${currentYear}-${currentMonth}`;
 
-        // Calculate previous month
         const prevMonthDate = new Date(currentYear, now.getMonth() - 1, 1);
         const prevYear = prevMonthDate.getFullYear();
         const prevMonth = String(prevMonthDate.getMonth() + 1).padStart(2, '0');
         const prevMonthStr = `${prevYear}-${prevMonth}`;
 
-        // PHASE 1: Critical Stats (Summaries)
-        const [
-          allTimeSummaryResponse,
-          currentMonthSummaryResponse,
-          previousMonthSummaryResponse,
-        ] = await Promise.all([
-          apiClient
-            .get('/expenses/summary/all-time')
-            .catch(() => ({ data: { summary: null } })),
-          apiClient
-            .get(`/expenses/summary/${currentMonthStr}`)
-            .catch(() => ({ data: { summary: null } })),
-          apiClient
-            .get(`/expenses/summary/${prevMonthStr}`)
-            .catch(() => ({ data: { summary: null } })),
+        // Fetch local data
+        const [localExpenses, localMoneyIn] = await Promise.all([
+          database.get('expenses').query(Q.where('is_deleted', false)).fetch(),
+          database.get('money_in').query(Q.where('is_deleted', false)).fetch(),
         ]);
 
-        if (allTimeSummaryResponse?.data?.summary) {
-          setAllTimeSummary(allTimeSummaryResponse.data.summary);
-        }
-        if (currentMonthSummaryResponse?.data?.summary) {
-          setCurrentMonthSummary(currentMonthSummaryResponse.data.summary);
-        }
-        if (previousMonthSummaryResponse?.data?.summary) {
-          setPreviousMonthSummary(previousMonthSummaryResponse.data.summary);
-        }
+        console.log(
+          `HomeScreen: Fetched ${localExpenses.length} expenses, ${localMoneyIn.length} moneyIn`,
+        );
 
-        // Stop primary loading after summaries are in
+        // Calculate All-Time Summary
+        const allTimeIn = localMoneyIn.reduce(
+          (sum, entry) => sum + (entry.amount || 0),
+          0,
+        );
+        const allTimeOut = localExpenses.reduce(
+          (sum, exp) => sum + (exp.moneyOut || exp.amount || 0),
+          0,
+        );
+        setAllTimeSummary({
+          totalMoneyIn: allTimeIn,
+          totalMoneyOut: allTimeOut,
+        });
+
+        // Calculate Current Month Summary
+        const currentIn = localMoneyIn
+          .filter(entry => entry.month === currentMonthStr)
+          .reduce((sum, entry) => sum + (entry.amount || 0), 0);
+        const currentOut = localExpenses
+          .filter(exp => exp.month === currentMonthStr)
+          .reduce((sum, exp) => sum + (exp.moneyOut || exp.amount || 0), 0);
+        setCurrentMonthSummary({
+          totalMoneyIn: currentIn,
+          totalMoneyOut: currentOut,
+        });
+
+        // Calculate Previous Month Summary
+        const prevIn = localMoneyIn
+          .filter(entry => entry.month === prevMonthStr)
+          .reduce((sum, entry) => sum + (entry.amount || 0), 0);
+        const prevOut = localExpenses
+          .filter(exp => exp.month === prevMonthStr)
+          .reduce((sum, exp) => sum + (exp.amount || 0), 0);
+        setPreviousMonthSummary({
+          totalMoneyIn: prevIn,
+          totalMoneyOut: prevOut,
+        });
+
+        // For charts, we'll still try to fetch from API if online,
+        // but for now let's just use local data for trend if possible
+        // (Simplified for this phase: summaries are local, charts might stay skeleton if offline)
+
         setLoading(false);
 
-        // PHASE 2: Heavy Data (Charts) - Load in background
+        // Fetch heavy data from API in background (optional/as fallback)
         Promise.all([
           apiClient.get('/chart/monthly').catch(() => ({ data: { data: [] } })),
           apiClient.get('/chart/trend').catch(() => ({ data: { data: [] } })),
           apiClient
             .get('/chart/category/all-time')
             .catch(() => ({ data: { data: [] } })),
-        ])
-          .then(([monthlyResponse, trendResponse, categoryResponse]) => {
-            setMonthlyData(monthlyResponse.data?.data || []);
-            setTrendData(trendResponse.data?.data || []);
-            setCategoryData(categoryResponse.data?.data || []);
-          })
-          .catch(err => {
-            console.error('Error loading chart data:', err);
-          });
+        ]).then(([monthlyResponse, trendResponse, categoryResponse]) => {
+          setMonthlyData(monthlyResponse.data?.data || []);
+          setTrendData(trendResponse.data?.data || []);
+          setCategoryData(categoryResponse.data?.data || []);
+        });
       } catch (err) {
-        const apiError = parseApiError(err);
-        setError(apiError.message);
+        setError(err.message || 'Failed to load local dashboard data');
         setLoading(false);
       }
     },
@@ -390,6 +416,13 @@ const HomeScreen = () => {
         onProfilePress={() => navigation.navigate('Profile')}
       />
 
+      {syncStatus === 'syncing' && (
+        <View style={styles.syncIndicator}>
+          <ActivityIndicator size={12} color="#3A6FF8" />
+          <Text style={styles.syncText}>Syncing changes...</Text>
+        </View>
+      )}
+
       {loading && !monthlyData.length ? (
         <HomeSkeleton />
       ) : (
@@ -480,5 +513,18 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
+  },
+  syncIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(58, 111, 248, 0.1)',
+  },
+  syncText: {
+    fontSize: 10,
+    color: '#3A6FF8',
+    fontFamily: Fonts.medium,
   },
 });

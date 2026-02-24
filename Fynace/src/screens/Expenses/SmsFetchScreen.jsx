@@ -193,6 +193,12 @@ const SmsFetchScreen = () => {
   };
 
   const fetchSmsTransactions = async () => {
+    ToastAndroid.show(
+      'SMS fetching is temporarily unavailable to comply with Play Store policies.',
+      ToastAndroid.LONG,
+    );
+    return;
+
     if (Platform.OS !== 'android') {
       ToastAndroid.show(
         'SMS fetching is only available on Android.',

@@ -15,7 +15,7 @@ import { useSecurity } from '../../context/SecurityContext';
 
 const { width, height } = Dimensions.get('window');
 const CIRCLE_SIZE = Math.sqrt(width ** 2 + height ** 2);
-const STORAGE_KEY = '@spendo/auth-token';
+const STORAGE_KEY = '@spendo/access-token';
 const PRIMARY_COLOR = '#1E293B';
 
 const SplashScreen = () => {

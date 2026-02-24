@@ -23,6 +23,9 @@ import {
   MoneyInForm,
   moneyInStyles,
 } from '../../components/money-in';
+import { database } from '../../database';
+import { Q } from '@nozbe/watermelondb';
+import { syncManager } from '../../sync/SyncManager';
 
 const MoneyInScreen = ({ navigation }) => {
   const { token } = useAuth();
@@ -45,8 +48,7 @@ const MoneyInScreen = ({ navigation }) => {
   const bottomSheetRef = React.useRef(null);
 
   const fetchMoneyInHistory = useCallback(
-    async (lastCreated = null, append = false) => {
-      if (!token) return;
+    async (lastCreated = null, append = false, currentCount = 0) => {
       try {
         if (!lastCreated) {
           setLoading(true);
@@ -56,34 +58,28 @@ const MoneyInScreen = ({ navigation }) => {
           loadingMoreRef.current = true;
         }
 
-        const params = { limit: 20 };
-        if (lastCreated) {
-          params.lastCreatedAt = lastCreated;
-        }
+        // Query local database for MoneyIn history
+        const query = database
+          .get('money_in')
+          .query(Q.where('is_deleted', false), Q.sortBy('date', Q.desc));
 
-        const [historyResponse, totalResponse] = await Promise.all([
-          apiClient.get('/money-in/history', { params }),
-          !lastCreated
-            ? apiClient.get('/money-in/total')
-            : Promise.resolve(null),
-        ]);
-
-        const newEntries = historyResponse.data?.data || [];
-        const backendHasMore = historyResponse.data?.hasMore;
-        const hasMoreData =
-          backendHasMore !== undefined
-            ? backendHasMore
-            : newEntries.length >= 20;
+        const localHistory = await query.fetch();
+        const offset = append ? currentCount : 0;
+        const newEntries = localHistory.slice(offset, offset + 20);
 
         if (append) {
-          setMoneyInHistory(prev => [...prev, ...newEntries]);
+          if (newEntries.length > 0) {
+            setMoneyInHistory(prev => [...prev, ...newEntries]);
+          }
         } else {
           setMoneyInHistory(newEntries);
         }
 
-        if (totalResponse) {
-          setTotal(totalResponse.data?.data?.total || 0);
-        }
+        const totalMoneyIn = localHistory.reduce(
+          (sum, entry) => sum + (entry.amount || 0),
+          0,
+        );
+        setTotal(totalMoneyIn);
 
         const newLastCreatedAt =
           newEntries.length > 0
@@ -91,16 +87,12 @@ const MoneyInScreen = ({ navigation }) => {
             : null;
         setLastCreatedAt(newLastCreatedAt);
         lastCreatedAtRef.current = newLastCreatedAt;
+
+        const hasMoreData = localHistory.length > offset + newEntries.length;
         setHasMore(hasMoreData);
         hasMoreRef.current = hasMoreData;
       } catch (err) {
-        const apiError = parseApiError(err);
-        if (Platform.OS === 'android') {
-          ToastAndroid.show(
-            apiError.message || 'Failed to fetch money in history',
-            ToastAndroid.LONG,
-          );
-        }
+        console.error('MoneyIn fetch error:', err);
       } finally {
         setLoading(false);
         setLoadingMore(false);
@@ -112,9 +104,13 @@ const MoneyInScreen = ({ navigation }) => {
 
   const loadMore = useCallback(() => {
     if (!loadingMoreRef.current && hasMoreRef.current && !loading) {
-      fetchMoneyInHistory(lastCreatedAtRef.current, true);
+      fetchMoneyInHistory(
+        lastCreatedAtRef.current,
+        true,
+        moneyInHistory.length,
+      );
     }
-  }, [loading, fetchMoneyInHistory]);
+  }, [loading, fetchMoneyInHistory, moneyInHistory.length]);
 
   useFocusEffect(
     useCallback(() => {
@@ -163,26 +159,31 @@ const MoneyInScreen = ({ navigation }) => {
       }
 
       setSaving(true);
-      let finalDate = formValues.date;
-      const todayStr = new Date().toISOString().split('T')[0];
+      const finalDate = new Date(formValues.date).toISOString();
 
-      // If user picks today, send full ISO string to preserve the "true" recording time
-      if (finalDate === todayStr) {
-        finalDate = new Date().toISOString();
-      }
-
-      await apiClient.post('/money-in', {
-        amount: Number(formValues.amount),
-        date: finalDate,
-        notes: formValues.notes,
+      await database.write(async () => {
+        await database.get('money_in').create(record => {
+          record.amount = Number(formValues.amount);
+          record.date = finalDate;
+          record.notes = formValues.notes;
+          record.source = 'Manual Entry'; // or whatever default
+          record.month = finalDate.substring(0, 7);
+          record.category = 'General';
+          record.synced = false;
+          record.updatedAt = Date.now();
+          record.isDeleted = false;
+        });
       });
+
       closeForm();
-      await fetchMoneyInHistory();
+      fetchMoneyInHistory();
+
+      // Proactively trigger sync
+      syncManager.sync().catch(console.error);
     } catch (err) {
-      const apiError = parseApiError(err);
       if (Platform.OS === 'android') {
         ToastAndroid.show(
-          apiError.message || 'Failed to add money in',
+          err.message || 'Failed to save locally',
           ToastAndroid.LONG,
         );
       }
@@ -249,7 +250,7 @@ const MoneyInScreen = ({ navigation }) => {
       ) : (
         <FlatList
           data={moneyInHistory}
-          keyExtractor={item => item._id}
+          keyExtractor={item => item.id || item._id}
           contentContainerStyle={moneyInStyles.listContent}
           onEndReached={loadMore}
           onEndReachedThreshold={0.5}

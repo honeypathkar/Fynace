@@ -1,5 +1,6 @@
 require("dotenv").config();
 const express = require("express");
+const compression = require("compression");
 const cors = require("cors");
 const os = require("os");
 const path = require("path");
@@ -21,6 +22,7 @@ const app = express();
 connectDB();
 
 // Middleware
+app.use(compression());
 app.use(
   cors({
     origin: "*",
@@ -70,6 +72,7 @@ app.use("/api/chart", chartRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/money-in", moneyInRoutes);
 app.use("/api/landing", landingRoutes);
+app.use("/api/sync", require("./routes/syncRoutes"));
 app.use("/api/banks", require("./routes/bankRoutes"));
 
 // 404 handler

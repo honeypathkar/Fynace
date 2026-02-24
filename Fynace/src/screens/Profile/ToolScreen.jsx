@@ -321,7 +321,7 @@ const ToolScreen = () => {
             </Text>
           </View>
 
-          {Platform.OS === 'android' && (
+          {/* {Platform.OS === 'android' && (
             <View style={[styles.explanationCard, { marginTop: 12 }]}>
               <MenuItem
                 icon={Search}
@@ -346,7 +346,7 @@ const ToolScreen = () => {
                 onPress={() => navigation.navigate('BankSmsConfig')}
               />
             </View>
-          )}
+          )} */}
 
           <BottomSheet
             ref={alertSheetRef}
