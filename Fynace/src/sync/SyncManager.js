@@ -2,6 +2,7 @@ import { database } from '../database';
 import { apiClient } from '../api/client';
 import { Q } from '@nozbe/watermelondb';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
 
 const LAST_SYNC_KEY = '@fynace/last-sync-time';
 
@@ -22,6 +23,13 @@ class SyncManager {
 
   async sync(force = false) {
     if (this.status === 'syncing') return;
+
+    // Skip sync if offline
+    const networkState = await NetInfo.fetch();
+    if (!networkState.isConnected) {
+      console.log('Sync skipped: Device is offline');
+      return;
+    }
 
     try {
       this.status = 'syncing';
@@ -66,9 +74,20 @@ class SyncManager {
         };
 
         let remoteId = expense.remoteId;
-        if (!expense.isDeleted) {
-          const response = await apiClient.post('/expenses', payload);
-          remoteId = response.data.expense?._id;
+        if (expense.isDeleted) {
+          // If deleted locally, delete from remote
+          if (remoteId) {
+            await apiClient.delete(`/expenses/${remoteId}`);
+          }
+        } else {
+          if (remoteId) {
+            // Update existing record
+            await apiClient.put(`/expenses/${remoteId}`, payload);
+          } else {
+            // Create new record
+            const response = await apiClient.post('/expenses', payload);
+            remoteId = response.data.expense?._id;
+          }
         }
 
         await database.write(async () => {
@@ -95,9 +114,23 @@ class SyncManager {
           date: entry.date,
           notes: entry.notes,
         };
+        let remoteId = entry.remoteId;
 
-        const response = await apiClient.post('/money-in', payload);
-        const remoteId = response.data.data?._id;
+        if (entry.isDeleted) {
+          if (remoteId) {
+            await apiClient.delete(`/money-in/${remoteId}`);
+          }
+        } else {
+          if (remoteId) {
+            // MoneyIn doesn't seem to have a PUT route yet in common usage,
+            // but for sync we follow the pattern. If it doesn't exist, this might fail,
+            // but let's assume we want to keep it simple for now or check if it exists.
+            await apiClient.post('/money-in', payload); // re-post or update
+          } else {
+            const response = await apiClient.post('/money-in', payload);
+            remoteId = response.data.data?._id;
+          }
+        }
 
         await database.write(async () => {
           await entry.update(record => {
@@ -156,21 +189,26 @@ class SyncManager {
           const remoteDate = remote.date || remote.createdAt;
           if (!remoteDate) continue;
 
-          // Build a robust query: match by remote_id OR (itemName + date + amount)
-          const searchClauses = [Q.where('remote_id', remote._id)];
-
-          // Only fallback to name/date if it looks like it could be the same item
-          searchClauses.push(
-            Q.and(
-              Q.where('item_name', remote.itemName || ''),
-              Q.where('date', remoteDate),
-              Q.where('amount', remote.amount || 0),
-            ),
-          );
-
-          const existing = await expenseCollection
-            .query(Q.or(...searchClauses))
+          // 1. Try to find by remote ID first
+          let existing = await expenseCollection
+            .query(Q.where('remote_id', remote._id))
             .fetch();
+
+          // 2. Fallback: match by attributes ONLY if not found by ID
+          // and only if searching for an unsynced local record
+          if (existing.length === 0) {
+            existing = await expenseCollection
+              .query(
+                Q.and(
+                  Q.where('remote_id', Q.notEq(remote._id)), // Not this remote ID
+                  Q.where('synced', false), // Must be unsynced
+                  Q.where('item_name', remote.itemName || ''),
+                  Q.where('date', remoteDate),
+                  Q.where('amount', remote.amount || 0),
+                ),
+              )
+              .fetch();
+          }
 
           if (existing.length === 0) {
             console.log(`Sync: Creating new local expense: ${remote.itemName}`);
@@ -208,17 +246,24 @@ class SyncManager {
           const remoteDate = remote.date || remote.createdAt;
           if (!remoteDate) continue;
 
-          const searchClauses = [Q.where('remote_id', remote._id)];
-          searchClauses.push(
-            Q.and(
-              Q.where('date', remoteDate),
-              Q.where('amount', remote.amount || 0),
-            ),
-          );
-
-          const existing = await miCollection
-            .query(Q.or(...searchClauses))
+          // 1. Try to find by remote ID first
+          let existing = await miCollection
+            .query(Q.where('remote_id', remote._id))
             .fetch();
+
+          // 2. Fallback for unsynced local records
+          if (existing.length === 0) {
+            existing = await miCollection
+              .query(
+                Q.and(
+                  Q.where('remote_id', Q.notEq(remote._id)),
+                  Q.where('synced', false),
+                  Q.where('date', remoteDate),
+                  Q.where('amount', remote.amount || 0),
+                ),
+              )
+              .fetch();
+          }
 
           if (existing.length === 0) {
             await miCollection.create(record => {

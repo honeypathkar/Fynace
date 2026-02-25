@@ -8,6 +8,7 @@ const {
   googleLoginRegister,
   getProfile,
   updateProfile,
+  updateFCMToken,
 } = require("../controllers/authController");
 const { authenticate } = require("../middleware/auth");
 
@@ -55,5 +56,8 @@ router.put(
   ],
   updateProfile,
 );
+
+// Update FCM Token (protected)
+router.post("/fcm-token", authenticate, updateFCMToken);
 
 module.exports = router;

@@ -262,7 +262,7 @@ const getProfile = async (req, res) => {
 // Update user profile
 const updateProfile = async (req, res) => {
   try {
-    const { fullName, email, phone, currency } = req.body;
+    const { fullName, email, phone, currency, notificationSettings } = req.body;
 
     const user = await User.findById(req.userId);
 
@@ -277,6 +277,12 @@ const updateProfile = async (req, res) => {
     if (email) user.email = email;
     if (phone) user.phone = phone;
     if (currency) user.currency = currency;
+    if (notificationSettings) {
+      user.notificationSettings = {
+        ...user.notificationSettings,
+        ...notificationSettings,
+      };
+    }
 
     await user.save();
 
@@ -301,6 +307,66 @@ const updateProfile = async (req, res) => {
   }
 };
 
+// Update FCM Token for a device
+const updateFCMToken = async (req, res) => {
+  try {
+    const { deviceId, deviceName, token } = req.body;
+    const userId = req.userId;
+
+    if (!deviceId || !token) {
+      return res.status(400).json({
+        success: false,
+        message: "deviceId and token are required",
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Initialize devices array if it doesn't exist
+    if (!user.devices) {
+      user.devices = [];
+    }
+
+    // Find if device already exists
+    const deviceIndex = user.devices.findIndex((d) => d.deviceId === deviceId);
+
+    if (deviceIndex > -1) {
+      // Update existing device token
+      user.devices[deviceIndex].token = token;
+      user.devices[deviceIndex].deviceName =
+        deviceName || user.devices[deviceIndex].deviceName;
+      user.devices[deviceIndex].updatedAt = Date.now();
+    } else {
+      // Add new device
+      user.devices.push({
+        deviceId,
+        deviceName,
+        token,
+        updatedAt: Date.now(),
+      });
+    }
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "FCM token updated successfully",
+    });
+  } catch (error) {
+    console.error("Error in updateFCMToken:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to update FCM token",
+    });
+  }
+};
+
 module.exports = {
   checkUser,
   sendOTPForLogin,
@@ -308,4 +374,5 @@ module.exports = {
   googleLoginRegister,
   getProfile,
   updateProfile,
+  updateFCMToken,
 };

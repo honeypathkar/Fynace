@@ -143,7 +143,10 @@ const deleteMoneyIn = async (req, res) => {
       });
     }
 
-    await MoneyIn.findByIdAndDelete(id);
+    await MoneyIn.findByIdAndUpdate(id, {
+      isDeleted: true,
+      updatedAt: Date.now(),
+    });
 
     res.status(200).json({
       success: true,

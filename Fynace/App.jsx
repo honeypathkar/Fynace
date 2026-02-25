@@ -15,6 +15,7 @@ import { AuthProvider } from './src/hooks/useAuth';
 import { BottomBarProvider } from './src/context/BottomBarContext';
 import { PrivacyProvider } from './src/context/PrivacyContext';
 import { SecurityProvider } from './src/context/SecurityContext';
+import NotificationHandler from './src/components/NotificationHandler';
 
 import { syncManager } from './src/sync/SyncManager';
 
@@ -34,11 +35,13 @@ function App() {
           <SecurityProvider>
             <PrivacyProvider>
               <BottomBarProvider>
-                <StatusBar
-                  barStyle="light-content"
-                  backgroundColor={paperTheme.colors.background}
-                />
-                <AppNavigator />
+                <NotificationHandler>
+                  <StatusBar
+                    barStyle="light-content"
+                    backgroundColor={paperTheme.colors.background}
+                  />
+                  <AppNavigator />
+                </NotificationHandler>
               </BottomBarProvider>
             </PrivacyProvider>
           </SecurityProvider>

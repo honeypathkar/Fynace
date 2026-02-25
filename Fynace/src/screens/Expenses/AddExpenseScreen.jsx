@@ -39,7 +39,7 @@ const AddExpenseScreen = () => {
   const theme = useTheme();
 
   const editingExpense = route.params?.expense;
-  const editingExpenseId = editingExpense?._id;
+  const editingExpenseId = editingExpense?.id;
 
   const [formValues, setFormValues] = useState(defaultFormState);
   const [savingExpense, setSavingExpense] = useState(false);

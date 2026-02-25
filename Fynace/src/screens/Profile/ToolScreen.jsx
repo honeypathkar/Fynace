@@ -211,6 +211,20 @@ const ToolScreen = () => {
     }
   };
 
+  const handleSettingToggle = async (key, value) => {
+    try {
+      await updateProfile({
+        notificationSettings: {
+          ...user?.notificationSettings,
+          [key]: value,
+        },
+      });
+    } catch (err) {
+      console.error('Failed to update setting', err);
+      ToastAndroid.show('Failed to update setting', ToastAndroid.SHORT);
+    }
+  };
+
   const MenuItem = ({ icon: Icon, label, onPress, right }) => (
     <Pressable
       onPress={onPress}
@@ -319,6 +333,64 @@ const ToolScreen = () => {
               Get alerts for budget limits, spending milestones, and bill
               reminders.
             </Text>
+
+            {notificationsEnabled && (
+              <View style={styles.settingsGroup}>
+                <Divider style={styles.divider} />
+                <MenuItem
+                  icon={ChevronRight}
+                  label="Daily Reminders"
+                  right={
+                    <Switch
+                      value={user?.notificationSettings?.dailyReminder}
+                      onValueChange={v =>
+                        handleSettingToggle('dailyReminder', v)
+                      }
+                      color="#3A6FF8"
+                    />
+                  }
+                />
+                <MenuItem
+                  icon={ChevronRight}
+                  label="Monthly Summaries"
+                  right={
+                    <Switch
+                      value={user?.notificationSettings?.monthlySummary}
+                      onValueChange={v =>
+                        handleSettingToggle('monthlySummary', v)
+                      }
+                      color="#3A6FF8"
+                    />
+                  }
+                />
+                <MenuItem
+                  icon={ChevronRight}
+                  label="Budget Alerts"
+                  right={
+                    <Switch
+                      value={user?.notificationSettings?.budgetAlerts}
+                      onValueChange={v =>
+                        handleSettingToggle('budgetAlerts', v)
+                      }
+                      color="#3A6FF8"
+                    />
+                  }
+                />
+                <MenuItem
+                  icon={ChevronRight}
+                  label="Smart Insights"
+                  right={
+                    <Switch
+                      value={user?.notificationSettings?.smartInsights}
+                      onValueChange={v =>
+                        handleSettingToggle('smartInsights', v)
+                      }
+                      color="#3A6FF8"
+                    />
+                  }
+                />
+              </View>
+            )}
           </View>
 
           {/* {Platform.OS === 'android' && (
@@ -455,6 +527,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     lineHeight: 18,
     marginTop: -4,
+  },
+  settingsGroup: {
+    paddingTop: 8,
   },
   menuItemRight: {
     flexDirection: 'row',

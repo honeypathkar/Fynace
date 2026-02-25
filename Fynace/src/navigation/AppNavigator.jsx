@@ -65,6 +65,8 @@ const AppTabs = () => {
   );
 };
 
+import { navigationRef } from './navigationRef';
+
 const AppNavigator = () => {
   const paperTheme = useTheme();
 
@@ -85,7 +87,7 @@ const AppNavigator = () => {
   );
 
   return (
-    <NavigationContainer theme={navigationTheme}>
+    <NavigationContainer theme={navigationTheme} ref={navigationRef}>
       <Stack.Navigator
         initialRouteName="Splash"
         screenOptions={{ headerShown: false }}

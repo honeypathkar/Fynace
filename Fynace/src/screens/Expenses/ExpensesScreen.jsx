@@ -8,7 +8,6 @@ import React, {
 import {
   Alert,
   Animated,
-  FlatList,
   LayoutAnimation,
   View,
   Platform,
@@ -21,6 +20,7 @@ import {
   TouchableOpacity,
   Pressable,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Button, Card, Chip, Text, useTheme } from 'react-native-paper';
 import {
@@ -119,11 +119,6 @@ const ExpensesScreen = () => {
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
-  useEffect(() => {
-    if (token) {
-      fetchMonthsAndData();
-    }
-  }, [token, fetchMonthsAndData]);
   const [loadingFilters, setLoadingFilters] = useState(false);
   const fabMenuSheetRef = useRef(null);
   const filterSheetRef = useRef(null);
@@ -235,7 +230,7 @@ const ExpensesScreen = () => {
       currentCount = 0,
     ) => {
       try {
-        if (!lastCreated) {
+        if (!append) {
           setLoading(true);
           loadingMoreRef.current = false;
         } else {
@@ -263,85 +258,99 @@ const ExpensesScreen = () => {
           );
         }
 
-        clauses.push(Q.sortBy('date', Q.desc));
-
-        const query = database.get('expenses').query(...clauses);
-        const allLocalMatching = await query.fetch();
-
-        // Manual pagination logic
         const offset = append ? currentCount : 0;
-        const newExpenses = allLocalMatching.slice(offset, offset + 20);
+        const query = database
+          .get('expenses')
+          .query(
+            ...clauses,
+            Q.sortBy('date', Q.desc),
+            Q.skip(offset),
+            Q.take(20),
+          );
+
+        const [newExpenses, totalCount] = await Promise.all([
+          query.fetch(),
+          append
+            ? Promise.resolve(0)
+            : database
+                .get('expenses')
+                .query(...clauses)
+                .fetchCount(),
+        ]);
 
         if (!append) {
           LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
           setExpenses(newExpenses);
+
+          // Only calculate summary on initial fetch or filter change
+          const summaryClauses = [Q.where('is_deleted', false)];
+          if (monthSelection !== 'All') {
+            summaryClauses.push(Q.where('month', monthSelection));
+          }
+
+          const [allIn, allOut] = await Promise.all([
+            database
+              .get('money_in')
+              .query(...summaryClauses)
+              .fetch(),
+            database
+              .get('expenses')
+              .query(...summaryClauses)
+              .fetch(),
+          ]);
+
+          const totalMoneyOut = allOut.reduce(
+            (sum, exp) => sum + (exp.moneyOut || exp.amount || 0),
+            0,
+          );
+          const totalMoneyIn = allIn.reduce(
+            (sum, entry) => sum + (entry.amount || 0),
+            0,
+          );
+          const remaining = totalMoneyIn - totalMoneyOut;
+
+          const breakdownObj = allOut.reduce((acc, exp) => {
+            const amt = exp.moneyOut || exp.amount || 0;
+            acc[exp.category] = (acc[exp.category] || 0) + amt;
+            return acc;
+          }, {});
+
+          const breakdown = Object.entries(breakdownObj).map(
+            ([name, value]) => ({
+              name,
+              value,
+            }),
+          );
+          const finalSummary = {
+            totalMoneyIn,
+            totalMoneyOut,
+            remaining,
+            totalExpenses: allOut.length,
+          };
+
+          if (monthSelection === 'All') {
+            setAllTimeSummary(finalSummary);
+            setSummary(null);
+          } else {
+            setSummary(finalSummary);
+          }
+          setCategoryBreakdown(breakdown);
+
+          const hasMoreData = totalCount > newExpenses.length;
+          setHasMore(hasMoreData);
+          hasMoreRef.current = hasMoreData;
         } else {
-          // If no new items found for the next page, don't append anything
           if (newExpenses.length > 0) {
             setExpenses(prev => [...prev, ...newExpenses]);
           }
+          const hasMoreData = newExpenses.length === 20;
+          setHasMore(hasMoreData);
+          hasMoreRef.current = hasMoreData;
         }
-
-        // Calculate summary once on every fetch
-        const summaryClauses = [Q.where('is_deleted', false)];
-        if (monthSelection !== 'All') {
-          summaryClauses.push(Q.where('month', monthSelection));
-        }
-
-        const [allIn, allOut] = await Promise.all([
-          database
-            .get('money_in')
-            .query(...summaryClauses)
-            .fetch(),
-          database
-            .get('expenses')
-            .query(...summaryClauses)
-            .fetch(),
-        ]);
-
-        const totalMoneyOut = allOut.reduce(
-          (sum, exp) => sum + (exp.moneyOut || exp.amount || 0),
-          0,
-        );
-        const totalMoneyIn = allIn.reduce(
-          (sum, entry) => sum + (entry.amount || 0),
-          0,
-        );
-        const remaining = totalMoneyIn - totalMoneyOut;
-
-        const breakdownObj = allOut.reduce((acc, exp) => {
-          const amt = exp.moneyOut || exp.amount || 0;
-          acc[exp.category] = (acc[exp.category] || 0) + amt;
-          return acc;
-        }, {});
-
-        const breakdown = Object.entries(breakdownObj).map(([name, value]) => ({
-          name,
-          value,
-        }));
-        const finalSummary = {
-          totalMoneyIn,
-          totalMoneyOut,
-          remaining,
-          totalExpenses: allOut.length,
-        };
-
-        if (monthSelection === 'All') {
-          setAllTimeSummary(finalSummary);
-          setSummary(null);
-        } else {
-          setSummary(finalSummary);
-        }
-        setCategoryBreakdown(breakdown);
-
-        const hasMoreData =
-          allLocalMatching.length > offset + newExpenses.length;
-        setHasMore(hasMoreData);
-        hasMoreRef.current = hasMoreData;
 
         const newLastCreated =
           newExpenses.length > 0
-            ? newExpenses[newExpenses.length - 1].createdAt
+            ? newExpenses[newExpenses.length - 1].date // Use date for reliable pagination if sorted by date
             : null;
         setLastCreatedAt(newLastCreated);
         lastCreatedAtRef.current = newLastCreated;
@@ -355,7 +364,7 @@ const ExpensesScreen = () => {
         setInitialLoad(false);
       }
     },
-    [selectedMonth, selectedCategory, debouncedSearch, expenses.length],
+    [selectedMonth, selectedCategory, debouncedSearch],
   );
 
   const loadMoreExpenses = useCallback(() => {
@@ -364,10 +373,9 @@ const ExpensesScreen = () => {
     const currentlyLoadingMore = loadingMoreRef.current;
 
     if (!currentlyLoadingMore && currentHasMore && !loading) {
-      const lastCreated = lastCreatedAtRef.current;
       fetchExpenses(
         selectedMonth,
-        lastCreated,
+        lastCreatedAtRef.current,
         true,
         selectedCategory,
         debouncedSearch,
@@ -504,34 +512,54 @@ const ExpensesScreen = () => {
     }
   }, [selectedMonth, selectedCategory, debouncedSearch, fetchExpenses]);
 
-  useEffect(() => {
-    if (!token) return;
+  useFocusEffect(
+    useCallback(() => {
+      if (!token) return;
 
-    const loadData = async () => {
-      setLastCreatedAt(null);
-      setHasMore(true);
-      lastCreatedAtRef.current = null;
-      hasMoreRef.current = true;
-      await fetchExpenses(
-        selectedMonth,
-        null,
-        false,
-        selectedCategory,
-        debouncedSearch,
-      );
-    };
+      const refreshAll = async () => {
+        // Run background sync only if online
+        syncManager.sync().catch(console.error);
 
-    loadData();
-  }, [token, selectedMonth, selectedCategory, debouncedSearch]);
+        // Fetch months and data
+        if (initialLoad) {
+          await fetchMonthsAndData();
+        } else {
+          // If already loaded once, just refresh the current view
+          setLastCreatedAt(null);
+          setHasMore(true);
+          lastCreatedAtRef.current = null;
+          hasMoreRef.current = true;
+          await fetchExpenses(
+            selectedMonth,
+            null,
+            false,
+            selectedCategory,
+            debouncedSearch,
+            0,
+          );
+        }
+      };
+
+      refreshAll();
+    }, [
+      token,
+      initialLoad,
+      selectedMonth,
+      selectedCategory,
+      debouncedSearch,
+      fetchExpenses,
+      fetchMonthsAndData,
+    ]),
+  );
 
   const filteredExpenses = useMemo(() => expenses, [expenses]);
 
   const renderItem = useCallback(
     ({ item, index }) => {
       const skipAnimation = index >= 20;
-      const currentDate = formatItemDate(item.createdAt);
+      const currentDate = formatItemDate(item.date);
       const prevDate =
-        index > 0 ? formatItemDate(expenses[index - 1].createdAt) : null;
+        index > 0 ? formatItemDate(expenses[index - 1].date) : null;
       const showDateHeader = currentDate && currentDate !== prevDate;
 
       return (
@@ -813,7 +841,7 @@ const ExpensesScreen = () => {
             ? 'Showing all expenses'
             : `Showing data for ${transformMonthLabel(selectedMonth)}`}
         </Text> */}
-        {loading || initialLoad ? (
+        {initialLoad && expenses.length === 0 ? (
           <ScrollView contentContainerStyle={expenseStyles.skeletonContainer}>
             <Card style={expenseStyles.summaryCard}>
               <Card.Content>
@@ -863,16 +891,13 @@ const ExpensesScreen = () => {
             ))}
           </ScrollView>
         ) : (
-          <FlatList
+          <FlashList
             contentContainerStyle={expenseStyles.listContent}
             data={filteredExpenses}
             keyExtractor={item => item.id || item._id}
             onEndReached={loadMoreExpenses}
             onEndReachedThreshold={0.5}
-            initialNumToRender={10}
-            maxToRenderPerBatch={10}
-            windowSize={5}
-            removeClippedSubviews={Platform.OS === 'android'}
+            estimatedItemSize={100}
             onScrollBeginDrag={() => hideBottomBar()}
             onScrollEndDrag={e => {
               const { contentOffset } = e.nativeEvent;

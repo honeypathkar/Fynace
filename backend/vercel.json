@@ -1,15 +1,24 @@
 {
-    "version": 2,
-    "builds": [
-      {
-        "src": "src/server.js",
-        "use": "@vercel/node"
-      }
-    ],
-    "routes": [
-      {
-        "src": "/(.*)",
-        "dest": "src/server.js"
-      }
-    ]
-  }
+  "crons": [
+    {
+      "path": "/api/cron/daily-reminders",
+      "schedule": "30 15 * * *"
+    },
+    {
+      "path": "/api/cron/monthly-summaries",
+      "schedule": "30 4 27 * *"
+    },
+    {
+      "path": "/api/cron/budget-alerts",
+      "schedule": "30 4 * * 1"
+    },
+    {
+      "path": "/api/cron/smart-insights",
+      "schedule": "30 4 * * 3"
+    },
+    {
+      "path": "/api/cron/inactivity-nudges",
+      "schedule": "30 12 * * 0"
+    }
+  ]
+}

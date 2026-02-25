@@ -18,9 +18,9 @@ const ExpenseCard = React.memo(
             item.category
               ? `${item.category} • ${transformMonthLabel(
                   item.month,
-                )}\n${formatItemTime(item.createdAt)}`
+                )}\n${formatItemTime(item.date)}`
               : `${transformMonthLabel(item.month)}\n${formatItemTime(
-                  item.createdAt,
+                  item.date,
                 )}`
           }
           titleStyle={styles.expenseTitle}

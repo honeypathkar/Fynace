@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
-  FlatList,
   TouchableOpacity,
   Platform,
   ToastAndroid,
   ActivityIndicator,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { StatusBar } from 'react-native';
 import { Text, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -58,39 +58,56 @@ const MoneyInScreen = ({ navigation }) => {
           loadingMoreRef.current = true;
         }
 
-        // Query local database for MoneyIn history
+        const offset = append ? currentCount : 0;
         const query = database
           .get('money_in')
-          .query(Q.where('is_deleted', false), Q.sortBy('date', Q.desc));
+          .query(
+            Q.where('is_deleted', false),
+            Q.sortBy('date', Q.desc),
+            Q.skip(offset),
+            Q.take(20),
+          );
 
-        const localHistory = await query.fetch();
-        const offset = append ? currentCount : 0;
-        const newEntries = localHistory.slice(offset, offset + 20);
+        const [newEntries, totalCount] = await Promise.all([
+          query.fetch(),
+          append
+            ? Promise.resolve(0)
+            : database
+                .get('money_in')
+                .query(Q.where('is_deleted', false))
+                .fetchCount(),
+        ]);
 
         if (append) {
           if (newEntries.length > 0) {
             setMoneyInHistory(prev => [...prev, ...newEntries]);
           }
+          const hasMoreData = newEntries.length === 20;
+          setHasMore(hasMoreData);
+          hasMoreRef.current = hasMoreData;
         } else {
           setMoneyInHistory(newEntries);
+
+          // Only calculate total on initial fetch
+          const allLocal = await database
+            .get('money_in')
+            .query(Q.where('is_deleted', false))
+            .fetch();
+          const totalMoneyIn = allLocal.reduce(
+            (sum, entry) => sum + (entry.amount || 0),
+            0,
+          );
+          setTotal(totalMoneyIn);
+
+          const hasMoreData = totalCount > newEntries.length;
+          setHasMore(hasMoreData);
+          hasMoreRef.current = hasMoreData;
         }
 
-        const totalMoneyIn = localHistory.reduce(
-          (sum, entry) => sum + (entry.amount || 0),
-          0,
-        );
-        setTotal(totalMoneyIn);
-
         const newLastCreatedAt =
-          newEntries.length > 0
-            ? newEntries[newEntries.length - 1].createdAt
-            : null;
+          newEntries.length > 0 ? newEntries[newEntries.length - 1].date : null;
         setLastCreatedAt(newLastCreatedAt);
         lastCreatedAtRef.current = newLastCreatedAt;
-
-        const hasMoreData = localHistory.length > offset + newEntries.length;
-        setHasMore(hasMoreData);
-        hasMoreRef.current = hasMoreData;
       } catch (err) {
         console.error('MoneyIn fetch error:', err);
       } finally {
@@ -211,6 +228,18 @@ const MoneyInScreen = ({ navigation }) => {
     }
   };
 
+  const renderItem = useCallback(
+    ({ item }) => (
+      <MoneyInHistoryCard
+        item={item}
+        onDelete={handleDelete}
+        formatDate={formatDate}
+        formatTime={formatTime}
+      />
+    ),
+    [handleDelete, formatDate, formatTime],
+  );
+
   if (!token) {
     return (
       <SafeAreaView edges={['top']} style={moneyInStyles.container}>
@@ -243,29 +272,19 @@ const MoneyInScreen = ({ navigation }) => {
         }
       />
 
-      {loading && !moneyInHistory.length ? (
+      {loading && moneyInHistory.length === 0 ? (
         <View style={moneyInStyles.loadingContainer}>
           <ActivityIndicator size="large" color="#3A6FF8" />
         </View>
       ) : (
-        <FlatList
+        <FlashList
           data={moneyInHistory}
           keyExtractor={item => item.id || item._id}
+          renderItem={renderItem}
           contentContainerStyle={moneyInStyles.listContent}
           onEndReached={loadMore}
           onEndReachedThreshold={0.5}
-          initialNumToRender={20}
-          maxToRenderPerBatch={20}
-          windowSize={5}
-          removeClippedSubviews={Platform.OS === 'android'}
-          renderItem={({ item }) => (
-            <MoneyInHistoryCard
-              item={item}
-              onDelete={handleDelete}
-              formatDate={formatDate}
-              formatTime={formatTime}
-            />
-          )}
+          estimatedItemSize={80}
           ListEmptyComponent={<EmptyState />}
           ListFooterComponent={
             loadingMore ? (

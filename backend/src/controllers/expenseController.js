@@ -742,7 +742,10 @@ const deleteExpense = async (req, res) => {
       });
     }
 
-    await Expense.findByIdAndDelete(id);
+    await Expense.findByIdAndUpdate(id, {
+      isDeleted: true,
+      updatedAt: Date.now(),
+    });
 
     res.status(200).json({
       success: true,

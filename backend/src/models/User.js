@@ -49,6 +49,20 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  notificationSettings: {
+    dailyReminder: { type: Boolean, default: true },
+    monthlySummary: { type: Boolean, default: true },
+    budgetAlerts: { type: Boolean, default: true },
+    smartInsights: { type: Boolean, default: true },
+  },
+  devices: [
+    {
+      deviceId: { type: String, required: true },
+      deviceName: { type: String },
+      token: { type: String, required: true },
+      updatedAt: { type: Date, default: Date.now },
+    },
+  ],
   createdAt: {
     type: Date,
     default: Date.now,

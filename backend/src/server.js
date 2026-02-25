@@ -14,12 +14,15 @@ const chartRoutes = require("./routes/chartRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
 const moneyInRoutes = require("./routes/moneyInRoutes");
 const landingRoutes = require("./routes/landingRoutes");
+const { initWorkers } = require("./workers/notificationWorker");
 
 // Initialize Express app
 const app = express();
 
 // Connect to MongoDB
-connectDB();
+connectDB().then(() => {
+  initWorkers();
+});
 
 // Middleware
 app.use(compression());
@@ -74,6 +77,7 @@ app.use("/api/money-in", moneyInRoutes);
 app.use("/api/landing", landingRoutes);
 app.use("/api/sync", require("./routes/syncRoutes"));
 app.use("/api/banks", require("./routes/bankRoutes"));
+app.use("/api/cron", require("./routes/cronRoutes"));
 
 // 404 handler
 app.use("*", (req, res) => {
@@ -92,3 +96,5 @@ app.listen(PORT, () => {
   console.log(`🌐 Local: http://localhost:${PORT}/health`);
   console.log(`🌐 Network: http://${networkIP}:${PORT}/health`);
 });
+
+module.exports = app;
