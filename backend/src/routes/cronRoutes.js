@@ -67,4 +67,16 @@ router.get("/monthly-summaries", async (req, res) => {
   }
 });
 
+router.get("/recurring-transactions", async (req, res) => {
+  try {
+    const {
+      processRecurringTransactions,
+    } = require("../workers/notificationWorker");
+    await processRecurringTransactions();
+    res.json({ success: true, message: "Recurring transactions processed" });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;

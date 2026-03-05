@@ -19,6 +19,10 @@
     {
       "path": "/api/cron/inactivity-nudges",
       "schedule": "30 12 * * 0"
+    },
+    {
+      "path": "/api/cron/recurring-transactions",
+      "schedule": "0 1 * * *"
     }
   ]
 }
