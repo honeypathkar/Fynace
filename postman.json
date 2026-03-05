@@ -183,7 +183,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"itemName\": \"Groceries\",\n    \"amount\": 1500,\n    \"category\": \"Food\",\n    \"month\": \"2024-03\",\n    \"date\": \"2024-03-25T10:00:00Z\"\n}",
+              "raw": "{\n    \"itemName\": \"Groceries\",\n    \"amount\": 1500,\n    \"category\": \"Food\",\n    \"month\": \"2024-03\",\n    \"date\": \"2024-03-25T10:00:00Z\",\n    \"isRecurring\": true,\n    \"frequency\": \"weekly\",\n    \"isActive\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -660,6 +660,83 @@
           }
         }
       ]
+    },
+    {
+      "name": "⏰ Cron",
+      "item": [
+        {
+          "name": "Process Recurring Transactions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cronSecret}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cron/recurring-transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cron", "recurring-transactions"]
+            }
+          }
+        },
+        {
+          "name": "Daily Reminders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cronSecret}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cron/daily-reminders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cron", "daily-reminders"]
+            }
+          }
+        },
+        {
+          "name": "Monthly Summaries",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cronSecret}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cron/monthly-summaries",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cron", "monthly-summaries"]
+            }
+          }
+        },
+        {
+          "name": "Budget Alerts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cronSecret}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cron/budget-alerts",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cron", "budget-alerts"]
+            }
+          }
+        }
+      ]
     }
   ],
   "event": [
@@ -687,6 +764,11 @@
     {
       "key": "token",
       "value": "YOUR_JWT_TOKEN_HERE",
+      "type": "string"
+    },
+    {
+      "key": "cronSecret",
+      "value": "YOUR_CRON_SECRET_HERE",
       "type": "string"
     }
   ]
