@@ -285,15 +285,15 @@ const SmsFetchScreen = () => {
     try {
       setAddingIds(prev => new Set(prev).add(transaction.id));
       const payload = {
-        month: transaction.date.substring(0, 7),
-        itemName: transaction.itemName,
-        amount: transaction.amount,
+        type: 'expense',
+        name: transaction.itemName,
+        amount: Math.round(transaction.amount * 100), // convert to paise
         category: transaction.category,
-        notes:
-          transaction.notes || `Auto-fetched from SMS: ${transaction.bank}`,
+        note: transaction.notes || `Auto-fetched from SMS: ${transaction.bank}`,
         date: transaction.date,
+        merchantName: transaction.itemName,
       };
-      await apiClient.post('/expenses', payload);
+      await apiClient.post('/transactions', payload);
       setAddedIds(prev => new Set(prev).add(transaction.id));
     } catch (err) {
       // Error handles silently for bulk

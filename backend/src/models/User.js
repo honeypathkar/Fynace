@@ -50,6 +50,7 @@ const userSchema = new mongoose.Schema({
     default: false,
   },
   notificationSettings: {
+    pushNotificationsEnabled: { type: Boolean, default: false },
     dailyReminder: { type: Boolean, default: true },
     monthlySummary: { type: Boolean, default: true },
     budgetAlerts: { type: Boolean, default: true },

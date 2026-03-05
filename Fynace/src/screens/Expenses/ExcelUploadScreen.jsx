@@ -480,7 +480,7 @@ const ExcelUploadScreen = () => {
         moneyIn: 0,
       }));
 
-      await apiClient.post('/expenses/upload', { expenses });
+      await apiClient.post('transactions/upload-excel', { expenses });
 
       // Show ToastAndroid on Android, Alert on iOS
       if (Platform.OS === 'android') {

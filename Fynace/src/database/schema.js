@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 3,
+  version: 9,
   tables: [
     tableSchema({
       name: 'users',
@@ -26,6 +26,12 @@ export default appSchema({
     tableSchema({
       name: 'categories',
       columns: [
+        {
+          name: 'remote_id',
+          type: 'string',
+          isOptional: true,
+          isIndexed: true,
+        },
         { name: 'name', type: 'string' },
         { name: 'type', type: 'string' }, // 'expense' or 'income'
         { name: 'icon', type: 'string', isOptional: true },
@@ -35,7 +41,7 @@ export default appSchema({
       ],
     }),
     tableSchema({
-      name: 'expenses',
+      name: 'transactions',
       columns: [
         {
           name: 'remote_id',
@@ -43,35 +49,20 @@ export default appSchema({
           isOptional: true,
           isIndexed: true,
         },
-        { name: 'item_name', type: 'string' },
-        { name: 'amount', type: 'number' },
-        { name: 'category', type: 'string' },
-        { name: 'month', type: 'string' }, // 'YYYY-MM'
-        { name: 'date', type: 'string' }, // ISO string
-        { name: 'notes', type: 'string', isOptional: true },
-        { name: 'money_in', type: 'number' },
-        { name: 'money_out', type: 'number' },
-        { name: 'remaining', type: 'number' },
-        { name: 'synced', type: 'boolean' },
-        { name: 'updated_at', type: 'number' },
-        { name: 'is_deleted', type: 'boolean' },
-      ],
-    }),
-    tableSchema({
-      name: 'money_in',
-      columns: [
-        {
-          name: 'remote_id',
-          type: 'string',
-          isOptional: true,
-          isIndexed: true,
-        },
-        { name: 'source', type: 'string' },
-        { name: 'amount', type: 'number' },
-        { name: 'category', type: 'string' },
-        { name: 'month', type: 'string' }, // 'YYYY-MM'
-        { name: 'date', type: 'string' }, // ISO string
-        { name: 'notes', type: 'string', isOptional: true },
+        { name: 'type', type: 'string' }, // 'income' | 'expense'
+        { name: 'name', type: 'string' },
+        { name: 'amount', type: 'number' }, // integer paise (e.g. ₹120.50 → 12050)
+        { name: 'category', type: 'string', isOptional: true }, // Denormalized category name
+        { name: 'category_id', type: 'string', isOptional: true }, // remote Category _id
+        { name: 'note', type: 'string', isOptional: true },
+        { name: 'date', type: 'number' }, // epoch ms
+        { name: 'month', type: 'string' }, // denormalized 'YYYY-MM' for fast dashboard filtering
+        { name: 'merchant_name', type: 'string', isOptional: true },
+        { name: 'upi_id', type: 'string', isOptional: true },
+        { name: 'upi_intent', type: 'boolean' },
+        { name: 'is_recurring', type: 'boolean' },
+        { name: 'frequency', type: 'string', isOptional: true }, // daily, weekly, monthly, yearly
+        { name: 'is_active', type: 'boolean' },
         { name: 'synced', type: 'boolean' },
         { name: 'updated_at', type: 'number' },
         { name: 'is_deleted', type: 'boolean' },

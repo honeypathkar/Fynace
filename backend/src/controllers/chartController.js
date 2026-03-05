@@ -1,29 +1,69 @@
-const Expense = require("../models/Expense");
-const MoneyIn = require("../models/MoneyIn");
-const MonthlySummary = require("../models/MonthlySummary");
 const mongoose = require("mongoose");
+const Transaction = require("../models/Transaction");
+
+const toRupees = (paise) => paise / 100;
+
+function getMonthBounds(monthStr) {
+  const [year, month] = monthStr.split("-").map(Number);
+  return {
+    start: new Date(year, month - 1, 1),
+    end: new Date(year, month, 1),
+  };
+}
 
 // Get monthly totals for chart visualization
 const getMonthlyTotals = async (req, res) => {
   try {
     const userId = req.userId;
-    const { limit = 12 } = req.query; // Default to last 12 months
+    const limit = parseInt(req.query.limit) || 12;
 
-    const summaries = await MonthlySummary.find({ userId })
-      .sort({ month: -1 })
-      .limit(parseInt(limit))
-      .lean();
+    const results = await Transaction.aggregate([
+      {
+        $match: {
+          userId: new mongoose.Types.ObjectId(userId),
+          isDeleted: false,
+        },
+      },
+      {
+        $group: {
+          _id: {
+            month: { $dateToString: { format: "%Y-%m", date: "$date" } },
+            type: "$type",
+          },
+          total: { $sum: "$amount" },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $group: {
+          _id: "$_id.month",
+          totalMoneyIn: {
+            $sum: { $cond: [{ $eq: ["$_id.type", "income"] }, "$total", 0] },
+          },
+          totalMoneyOut: {
+            $sum: { $cond: [{ $eq: ["$_id.type", "expense"] }, "$total", 0] },
+          },
+          totalExpenses: {
+            $sum: { $cond: [{ $eq: ["$_id.type", "expense"] }, "$count", 0] },
+          },
+          totalIncome: {
+            $sum: { $cond: [{ $eq: ["$_id.type", "income"] }, "$count", 0] },
+          },
+        },
+      },
+      { $sort: { _id: -1 } },
+      { $limit: limit },
+      { $sort: { _id: 1 } }, // ascending for charts
+    ]);
 
-    // The frontend expects the array in ascending order for charts
-    const monthlyArray = summaries
-      .map((s) => ({
-        month: s.month,
-        totalMoneyIn: s.totalMoneyIn,
-        totalMoneyOut: s.totalMoneyOut,
-        totalExpenses: s.totalExpenses,
-        remaining: s.remaining,
-      }))
-      .sort((a, b) => a.month.localeCompare(b.month));
+    const monthlyArray = results.map((r) => ({
+      month: r._id,
+      totalMoneyIn: toRupees(r.totalMoneyIn),
+      totalMoneyOut: toRupees(r.totalMoneyOut),
+      remaining: toRupees(r.totalMoneyIn - r.totalMoneyOut),
+      totalExpenses: r.totalExpenses,
+      totalIncome: r.totalIncome,
+    }));
 
     res.status(200).json({
       success: true,
@@ -32,10 +72,12 @@ const getMonthlyTotals = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in getMonthlyTotals:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message || "Failed to get monthly totals",
-    });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: error.message || "Failed to get monthly totals",
+      });
   }
 };
 
@@ -45,163 +87,207 @@ const getCategoryDistribution = async (req, res) => {
     const { month } = req.params;
     const userId = req.userId;
 
-    const matchStage = { userId: new mongoose.Types.ObjectId(userId) };
-    if (month !== "all-time" && month !== "all") {
+    const match = {
+      userId: new mongoose.Types.ObjectId(userId),
+      isDeleted: false,
+      type: "expense",
+    };
+
+    if (month && month !== "all-time" && month !== "all") {
       const monthRegex = /^\d{4}-\d{2}$/;
       if (!monthRegex.test(month)) {
         return res.status(400).json({
           success: false,
-          message:
-            'Invalid month format. Expected format: YYYY-MM or "all-time"',
+          message: 'Invalid month format. Expected YYYY-MM or "all-time"',
         });
       }
-      matchStage.month = month;
+      const { start, end } = getMonthBounds(month);
+      match.date = { $gte: start, $lt: end };
     }
 
-    const categoryStats = await Expense.aggregate([
-      { $match: matchStage },
+    const categoryStats = await Transaction.aggregate([
+      { $match: match },
       {
         $group: {
-          _id: { $ifNull: ["$category", "Uncategorized"] },
+          _id: "$categoryId",
           totalAmount: { $sum: "$amount" },
-          totalMoneyIn: { $sum: "$moneyIn" },
-          totalMoneyOut: {
-            $sum: {
-              $cond: [{ $gt: ["$moneyOut", 0] }, "$moneyOut", "$amount"],
-            },
-          },
           count: { $sum: 1 },
         },
       },
       {
+        $lookup: {
+          from: "categories",
+          localField: "_id",
+          foreignField: "_id",
+          as: "category",
+        },
+      },
+      {
         $project: {
-          category: "$_id",
+          category: {
+            $ifNull: [{ $arrayElemAt: ["$category.name", 0] }, "Uncategorized"],
+          },
+          totalMoneyOut: "$totalAmount",
           totalAmount: 1,
-          totalMoneyIn: 1,
-          totalMoneyOut: 1,
           count: 1,
           _id: 0,
         },
       },
-      { $sort: { totalMoneyOut: -1 } },
+      { $sort: { totalAmount: -1 } },
     ]);
 
     const totalMoneyOut = categoryStats.reduce(
-      (sum, cat) => sum + cat.totalMoneyOut,
+      (sum, c) => sum + c.totalMoneyOut,
       0,
     );
-    const categoryArrayWithPercentages = categoryStats.map((cat) => ({
-      ...cat,
-      percentage:
-        totalMoneyOut > 0 ? (cat.totalMoneyOut / totalMoneyOut) * 100 : 0,
-    }));
 
     res.status(200).json({
       success: true,
       month: month === "all-time" || month === "all" ? "all-time" : month,
       count: categoryStats.length,
-      totalMoneyOut,
-      data: categoryArrayWithPercentages,
+      totalMoneyOut: toRupees(totalMoneyOut),
+      data: categoryStats.map((c) => ({
+        ...c,
+        totalAmount: toRupees(c.totalAmount),
+        totalMoneyOut: toRupees(c.totalMoneyOut),
+        percentage:
+          totalMoneyOut > 0
+            ? parseFloat(((c.totalMoneyOut / totalMoneyOut) * 100).toFixed(2))
+            : 0,
+      })),
     });
   } catch (error) {
     console.error("Error in getCategoryDistribution:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message || "Failed to get category distribution",
-    });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: error.message || "Failed to get category distribution",
+      });
   }
 };
 
-// Get money in/out trends over time
+// Get income/expense trends over time with growth rates
 const getTrends = async (req, res) => {
   try {
     const userId = req.userId;
-    const { limit = 12 } = req.query; // Default to last 12 months
+    const limit = parseInt(req.query.limit) || 12;
 
-    const summaries = await MonthlySummary.find({ userId })
-      .sort({ month: -1 })
-      .limit(parseInt(limit) + 1) // Get one extra to calculate growth for the oldest month in the limit
-      .lean();
+    const results = await Transaction.aggregate([
+      {
+        $match: {
+          userId: new mongoose.Types.ObjectId(userId),
+          isDeleted: false,
+        },
+      },
+      {
+        $group: {
+          _id: {
+            month: { $dateToString: { format: "%Y-%m", date: "$date" } },
+            type: "$type",
+          },
+          total: { $sum: "$amount" },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $group: {
+          _id: "$_id.month",
+          totalMoneyIn: {
+            $sum: { $cond: [{ $eq: ["$_id.type", "income"] }, "$total", 0] },
+          },
+          totalMoneyOut: {
+            $sum: { $cond: [{ $eq: ["$_id.type", "expense"] }, "$total", 0] },
+          },
+          moneyInCount: {
+            $sum: { $cond: [{ $eq: ["$_id.type", "income"] }, "$count", 0] },
+          },
+          expenseCount: {
+            $sum: { $cond: [{ $eq: ["$_id.type", "expense"] }, "$count", 0] },
+          },
+        },
+      },
+      { $sort: { _id: -1 } },
+      { $limit: limit + 1 }, // +1 for growth calculation of oldest visible month
+      { $sort: { _id: 1 } },
+    ]);
 
-    if (summaries.length === 0) {
-      return res.status(200).json({
-        success: true,
-        count: 0,
-        data: [],
-      });
+    if (results.length === 0) {
+      return res.status(200).json({ success: true, count: 0, data: [] });
     }
 
-    // Convert to the format expected by the frontend
-    let trendArray = summaries.map((s) => ({
-      month: s.month,
-      totalMoneyIn: s.totalMoneyIn,
-      totalMoneyOut: s.totalMoneyOut,
-      remaining: s.remaining,
-      averageMoneyIn: s.moneyInCount > 0 ? s.totalMoneyIn / s.moneyInCount : 0,
+    const trendArray = results.map((r) => ({
+      month: r._id,
+      totalMoneyIn: toRupees(r.totalMoneyIn),
+      totalMoneyOut: toRupees(r.totalMoneyOut),
+      remaining: toRupees(r.totalMoneyIn - r.totalMoneyOut),
+      transactionCount: r.moneyInCount + r.expenseCount,
+      averageMoneyIn:
+        r.moneyInCount > 0 ? toRupees(r.totalMoneyIn / r.moneyInCount) : 0,
       averageMoneyOut:
-        s.expenseCount > 0 ? s.totalMoneyOut / s.expenseCount : 0,
-      transactionCount: (s.moneyInCount || 0) + (s.expenseCount || 0),
+        r.expenseCount > 0 ? toRupees(r.totalMoneyOut / r.expenseCount) : 0,
     }));
 
-    // Sort by month (ascending) for growth calculation
-    trendArray.sort((a, b) => a.month.localeCompare(b.month));
-
-    // Calculate growth rates
     const trendsWithGrowth = trendArray.map((data, index) => {
-      if (index === 0) {
+      if (index === 0)
         return {
           ...data,
           moneyInGrowth: 0,
           moneyOutGrowth: 0,
           remainingGrowth: 0,
         };
-      }
-
-      const prevData = trendArray[index - 1];
-      const moneyInGrowth =
-        prevData.totalMoneyIn !== 0
-          ? ((data.totalMoneyIn - prevData.totalMoneyIn) /
-              prevData.totalMoneyIn) *
-            100
-          : 0;
-      const moneyOutGrowth =
-        prevData.totalMoneyOut !== 0
-          ? ((data.totalMoneyOut - prevData.totalMoneyOut) /
-              prevData.totalMoneyOut) *
-            100
-          : 0;
-      const remainingGrowth =
-        prevData.remaining !== 0
-          ? ((data.remaining - prevData.remaining) /
-              Math.abs(prevData.remaining)) *
-            100
-          : 0;
-
+      const prev = trendArray[index - 1];
       return {
         ...data,
-        moneyInGrowth: parseFloat(moneyInGrowth.toFixed(2)),
-        moneyOutGrowth: parseFloat(moneyOutGrowth.toFixed(2)),
-        remainingGrowth: parseFloat(remainingGrowth.toFixed(2)),
+        moneyInGrowth:
+          prev.totalMoneyIn !== 0
+            ? parseFloat(
+                (
+                  ((data.totalMoneyIn - prev.totalMoneyIn) /
+                    prev.totalMoneyIn) *
+                  100
+                ).toFixed(2),
+              )
+            : 0,
+        moneyOutGrowth:
+          prev.totalMoneyOut !== 0
+            ? parseFloat(
+                (
+                  ((data.totalMoneyOut - prev.totalMoneyOut) /
+                    prev.totalMoneyOut) *
+                  100
+                ).toFixed(2),
+              )
+            : 0,
+        remainingGrowth:
+          prev.remaining !== 0
+            ? parseFloat(
+                (
+                  ((data.remaining - prev.remaining) /
+                    Math.abs(prev.remaining)) *
+                  100
+                ).toFixed(2),
+              )
+            : 0,
       };
     });
 
-    // If we fetched an extra month for growth calculation, remove it if it exceeds the limit
     const finalData =
-      trendsWithGrowth.length > parseInt(limit)
+      trendsWithGrowth.length > limit
         ? trendsWithGrowth.slice(1)
         : trendsWithGrowth;
 
-    res.status(200).json({
-      success: true,
-      count: finalData.length,
-      data: finalData,
-    });
+    res
+      .status(200)
+      .json({ success: true, count: finalData.length, data: finalData });
   } catch (error) {
     console.error("Error in getTrends:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message || "Failed to get trends",
-    });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: error.message || "Failed to get trends",
+      });
   }
 };
 

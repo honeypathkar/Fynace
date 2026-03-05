@@ -12,7 +12,6 @@ import ExpensesScreen from '../screens/Expenses/ExpensesScreen';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
 import EditProfileScreen from '../screens/Profile/EditProfileScreen';
 import ToolScreen from '../screens/Profile/ToolScreen';
-import MoneyInScreen from '../screens/MoneyIn/MoneyInScreen';
 import ExcelUploadScreen from '../screens/Expenses/ExcelUploadScreen';
 import AddExpenseScreen from '../screens/Expenses/AddExpenseScreen';
 import QRScannerScreen from '../screens/Expenses/QRScannerScreen';
@@ -20,6 +19,7 @@ import AddQRBasedExpenseScreen from '../screens/Expenses/AddQRBasedExpenseScreen
 import WebViewScreen from '../screens/Profile/WebViewScreen';
 import BankSmsConfigScreen from '../screens/Profile/BankSmsConfigScreen';
 import SmsFetchScreen from '../screens/Expenses/SmsFetchScreen';
+import RecurringTransactionsScreen from '../screens/Profile/RecurringTransactionsScreen';
 import CustomTabBar from './CustomTabBar';
 
 const Tab = createBottomTabNavigator();
@@ -128,11 +128,6 @@ const AppNavigator = () => {
           options={{ animation: 'slide_from_bottom' }}
         />
         <Stack.Screen
-          name="MoneyIn"
-          component={MoneyInScreen}
-          options={{ animation: 'slide_from_bottom' }}
-        />
-        <Stack.Screen
           name="ExcelUpload"
           component={ExcelUploadScreen}
           options={{ animation: 'slide_from_bottom' }}
@@ -165,6 +160,11 @@ const AppNavigator = () => {
         <Stack.Screen
           name="SmsFetch"
           component={SmsFetchScreen}
+          options={{ animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="RecurringTransactions"
+          component={RecurringTransactionsScreen}
           options={{ animation: 'slide_from_bottom' }}
         />
       </Stack.Navigator>

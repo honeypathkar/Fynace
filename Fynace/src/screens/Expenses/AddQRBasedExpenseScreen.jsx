@@ -7,9 +7,9 @@ import {
   Platform,
   ToastAndroid,
   KeyboardAvoidingView,
-  Linking,
   Alert,
 } from 'react-native';
+import IntentLauncher from 'react-native-intent-launcher';
 import { Text, Button, useTheme, Card } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -119,28 +119,31 @@ const AddQRBasedExpenseScreen = () => {
       console.log('📦 Final Params:', baseParams);
 
       try {
-        const supported = await Linking.canOpenURL(upiUrl);
+        // Use Android Intent to show the native UPI app chooser
+        await IntentLauncher.startActivity({
+          action: 'android.intent.action.VIEW',
+          data: upiUrl,
+          // No packageName = Android shows the full UPI app chooser
+        });
 
-        if (supported) {
-          await Linking.openURL(upiUrl);
+        Alert.alert('Payment Initiated', 'Did you complete the payment?', [
+          { text: 'No', style: 'cancel' },
+          { text: 'Yes', onPress: () => saveExpense() },
+        ]);
+      } catch (err) {
+        console.error('UPI Intent Error:', err);
 
-          Alert.alert('Payment Initiated', 'Did you complete the payment?', [
-            { text: 'No', style: 'cancel' },
-            { text: 'Yes', onPress: () => saveExpense() },
-          ]);
+        if (err?.code === 'ACTIVITY_NOT_FOUND') {
+          Alert.alert(
+            'No UPI App Found',
+            'Please install GPay, PhonePe, Paytm, or any UPI app and try again.',
+          );
         } else {
           Alert.alert(
             'UPI Error',
-            'No UPI app found to handle this request. Please install GPay, PhonePe, or Paytm.',
+            'An unexpected error occurred while trying to open the payment app.',
           );
         }
-      } catch (err) {
-        console.error('UPI Open Error:', err);
-
-        Alert.alert(
-          'UPI Error',
-          'An unexpected error occurred while trying to open the UPI app.',
-        );
       }
     } else {
       // Manual entry fallback
@@ -152,14 +155,23 @@ const AddQRBasedExpenseScreen = () => {
     try {
       setSaving(true);
       const payload = {
-        month: formValues.month,
-        itemName: formValues.itemName,
-        category: 'Shopping', // Default category for QR
+        type: 'expense',
+        name: formValues.itemName.trim(),
         amount: Number(formValues.amount),
-        notes: formValues.notes,
+        note: formValues.notes || '',
+        date: new Date().toISOString(),
+        // UPI / QR metadata
+        upiIntent: Boolean(formValues.upiId),
+        merchantName: formValues.itemName.trim(),
+        upiId: formValues.upiId || '',
+        qrData: formValues.allParams
+          ? `upi://pay?${Object.entries(formValues.allParams)
+              .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+              .join('&')}`
+          : '',
       };
 
-      await apiClient.post('/expenses', payload);
+      await apiClient.post('transactions', payload);
 
       if (Platform.OS === 'android') {
         ToastAndroid.show('Expense logged successfully', ToastAndroid.SHORT);

@@ -163,6 +163,8 @@ const verifyOTP = async (req, res) => {
         fullName: user.fullName,
         email: user.email,
         phone: user.phone,
+        currency: user.currency,
+        notificationSettings: user.notificationSettings,
         authMethod: user.authMethod,
       },
     });
@@ -246,6 +248,7 @@ const getProfile = async (req, res) => {
         phone: user.phone,
         authMethod: user.authMethod,
         currency: user.currency,
+        notificationSettings: user.notificationSettings,
         isVerified: user.isVerified,
         createdAt: user.createdAt,
       },
@@ -295,6 +298,7 @@ const updateProfile = async (req, res) => {
         email: user.email,
         phone: user.phone,
         currency: user.currency,
+        notificationSettings: user.notificationSettings,
         authMethod: user.authMethod,
       },
     });
