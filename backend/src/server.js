@@ -9,11 +9,10 @@ const errorHandler = require("./middleware/errorHandler");
 
 // Import routes
 const authRoutes = require("./routes/authRoutes");
-const expenseRoutes = require("./routes/expenseRoutes");
 const chartRoutes = require("./routes/chartRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
-const moneyInRoutes = require("./routes/moneyInRoutes");
 const landingRoutes = require("./routes/landingRoutes");
+const transactionRoutes = require("./routes/transactionRoutes");
 const { initWorkers } = require("./workers/notificationWorker");
 
 // Initialize Express app
@@ -70,10 +69,9 @@ app.get("/health", (req, res) => {
 
 // API Routes
 app.use("/api/auth", authRoutes);
-app.use("/api/expenses", expenseRoutes);
+app.use("/api/transactions", transactionRoutes); // ✅ Unified transactions API
 app.use("/api/chart", chartRoutes);
 app.use("/api/categories", categoryRoutes);
-app.use("/api/money-in", moneyInRoutes);
 app.use("/api/landing", landingRoutes);
 app.use("/api/sync", require("./routes/syncRoutes"));
 app.use("/api/banks", require("./routes/bankRoutes"));

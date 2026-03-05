@@ -4,6 +4,7 @@ import { field, date, readonly } from '@nozbe/watermelondb/decorators';
 export default class Category extends Model {
   static table = 'categories';
 
+  @field('remote_id') remoteId;
   @field('name') name;
   @field('type') type;
   @field('icon') icon;

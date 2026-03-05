@@ -166,8 +166,14 @@ const HomeScreen = () => {
 
         // Fetch local data
         const [localExpenses, localMoneyIn] = await Promise.all([
-          database.get('expenses').query(Q.where('is_deleted', false)).fetch(),
-          database.get('money_in').query(Q.where('is_deleted', false)).fetch(),
+          database
+            .get('transactions')
+            .query(Q.where('type', 'expense'), Q.where('is_deleted', false))
+            .fetch(),
+          database
+            .get('transactions')
+            .query(Q.where('type', 'income'), Q.where('is_deleted', false))
+            .fetch(),
         ]);
 
         console.log(
@@ -176,11 +182,11 @@ const HomeScreen = () => {
 
         // Calculate All-Time Summary
         const allTimeIn = localMoneyIn.reduce(
-          (sum, entry) => sum + (entry.amount || 0),
+          (sum, entry) => sum + (entry.amountRupees || 0),
           0,
         );
         const allTimeOut = localExpenses.reduce(
-          (sum, exp) => sum + (exp.moneyOut || exp.amount || 0),
+          (sum, exp) => sum + (exp.amountRupees || 0),
           0,
         );
         setAllTimeSummary({
@@ -191,10 +197,10 @@ const HomeScreen = () => {
         // Calculate Current Month Summary
         const currentIn = localMoneyIn
           .filter(entry => entry.month === currentMonthStr)
-          .reduce((sum, entry) => sum + (entry.amount || 0), 0);
+          .reduce((sum, entry) => sum + (entry.amountRupees || 0), 0);
         const currentOut = localExpenses
           .filter(exp => exp.month === currentMonthStr)
-          .reduce((sum, exp) => sum + (exp.moneyOut || exp.amount || 0), 0);
+          .reduce((sum, exp) => sum + (exp.amountRupees || 0), 0);
         setCurrentMonthSummary({
           totalMoneyIn: currentIn,
           totalMoneyOut: currentOut,
@@ -203,10 +209,10 @@ const HomeScreen = () => {
         // Calculate Previous Month Summary
         const prevIn = localMoneyIn
           .filter(entry => entry.month === prevMonthStr)
-          .reduce((sum, entry) => sum + (entry.amount || 0), 0);
+          .reduce((sum, entry) => sum + (entry.amountRupees || 0), 0);
         const prevOut = localExpenses
           .filter(exp => exp.month === prevMonthStr)
-          .reduce((sum, exp) => sum + (exp.amount || 0), 0);
+          .reduce((sum, exp) => sum + (exp.amountRupees || 0), 0);
         setPreviousMonthSummary({
           totalMoneyIn: prevIn,
           totalMoneyOut: prevOut,
@@ -220,10 +226,10 @@ const HomeScreen = () => {
 
         // Fetch heavy data from API in background (optional/as fallback)
         Promise.all([
-          apiClient.get('/chart/monthly').catch(() => ({ data: { data: [] } })),
-          apiClient.get('/chart/trend').catch(() => ({ data: { data: [] } })),
+          apiClient.get('chart/monthly').catch(() => ({ data: { data: [] } })),
+          apiClient.get('chart/trend').catch(() => ({ data: { data: [] } })),
           apiClient
-            .get('/chart/category/all-time')
+            .get('chart/category/all-time')
             .catch(() => ({ data: { data: [] } })),
         ]).then(([monthlyResponse, trendResponse, categoryResponse]) => {
           setMonthlyData(monthlyResponse.data?.data || []);
@@ -444,7 +450,6 @@ const HomeScreen = () => {
                   : ''
               }
               type="in"
-              onPress={() => navigation.navigate('MoneyIn')}
             />
             <StatCard
               label="Total Money Out"

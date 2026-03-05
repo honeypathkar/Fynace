@@ -24,7 +24,6 @@ class SyncManager {
   async sync(force = false) {
     if (this.status === 'syncing') return;
 
-    // Skip sync if offline
     const networkState = await NetInfo.fetch();
     if (!networkState.isConnected) {
       console.log('Sync skipped: Device is offline');
@@ -37,16 +36,12 @@ class SyncManager {
 
       if (force) {
         await AsyncStorage.removeItem(LAST_SYNC_KEY);
-        console.log('Force sync: Clear last sync time');
       }
 
-      console.log('Sync starting (push)...');
       await this.pushChanges();
-      console.log('Sync pulling changes...');
       await this.pullChanges();
 
       this.status = 'idle';
-      console.log('Sync completed successfully.');
     } catch (error) {
       this.status = 'error';
       console.error('Sync failed:', error);
@@ -56,94 +51,55 @@ class SyncManager {
   }
 
   async pushChanges() {
-    // 1. Push Expenses
-    const unsyncedExpenses = await database
-      .get('expenses')
+    // Push updated transactions
+    const unsyncedTxns = await database
+      .get('transactions')
       .query(Q.where('synced', false))
       .fetch();
 
-    for (const expense of unsyncedExpenses) {
+    for (const txn of unsyncedTxns) {
       try {
         const payload = {
-          month: expense.month,
-          itemName: expense.itemName,
-          category: expense.category,
-          amount: expense.amount,
-          notes: expense.notes,
-          date: expense.date,
+          type: txn.type,
+          name: txn.name,
+          amount: (txn.amount || 0) / 100, // Send as Rupees (API handles conversion to Paise)
+          categoryId: txn.categoryId,
+          note: txn.note,
+          date: txn.date || Date.now(),
+          merchantName: txn.merchantName,
+          upiId: txn.upiId,
+          upiIntent: txn.upiIntent,
+          watermelonId: txn.id,
+          isRecurring: txn.isRecurring,
+          frequency: txn.frequency,
+          isActive: txn.isActive,
         };
 
-        let remoteId = expense.remoteId;
-        if (expense.isDeleted) {
-          // If deleted locally, delete from remote
-          if (remoteId) {
-            await apiClient.delete(`/expenses/${remoteId}`);
-          }
+        let remoteId = txn.remoteId;
+
+        if (txn.isDeleted) {
+          if (remoteId) await apiClient.delete(`transactions/${remoteId}`);
         } else {
           if (remoteId) {
-            // Update existing record
-            await apiClient.put(`/expenses/${remoteId}`, payload);
+            await apiClient.put(`transactions/${remoteId}`, payload);
           } else {
-            // Create new record
-            const response = await apiClient.post('/expenses', payload);
-            remoteId = response.data.expense?._id;
-          }
-        }
-
-        await database.write(async () => {
-          await expense.update(record => {
-            record.synced = true;
-            if (remoteId) record.remoteId = remoteId;
-          });
-        });
-      } catch (err) {
-        console.error('Failed to push expense:', expense.id, err);
-      }
-    }
-
-    // 2. Push MoneyIn
-    const unsyncedMoneyIn = await database
-      .get('money_in')
-      .query(Q.where('synced', false))
-      .fetch();
-
-    for (const entry of unsyncedMoneyIn) {
-      try {
-        const payload = {
-          amount: entry.amount,
-          date: entry.date,
-          notes: entry.notes,
-        };
-        let remoteId = entry.remoteId;
-
-        if (entry.isDeleted) {
-          if (remoteId) {
-            await apiClient.delete(`/money-in/${remoteId}`);
-          }
-        } else {
-          if (remoteId) {
-            // MoneyIn doesn't seem to have a PUT route yet in common usage,
-            // but for sync we follow the pattern. If it doesn't exist, this might fail,
-            // but let's assume we want to keep it simple for now or check if it exists.
-            await apiClient.post('/money-in', payload); // re-post or update
-          } else {
-            const response = await apiClient.post('/money-in', payload);
+            const response = await apiClient.post('transactions', payload);
             remoteId = response.data.data?._id;
           }
         }
 
         await database.write(async () => {
-          await entry.update(record => {
+          await txn.update(record => {
             record.synced = true;
             if (remoteId) record.remoteId = remoteId;
           });
         });
       } catch (err) {
-        console.error('Failed to push money_in:', entry.id, err);
+        console.error('Failed to push transaction:', txn.id, err);
       }
     }
 
-    // 3. Push Categories
+    // Push new categories
     const unsyncedCategories = await database
       .get('categories')
       .query(Q.where('synced', false))
@@ -151,7 +107,7 @@ class SyncManager {
 
     for (const cat of unsyncedCategories) {
       try {
-        await apiClient.post('/categories', { name: cat.name });
+        await apiClient.post('categories', { name: cat.name });
         await database.write(async () => {
           await cat.update(record => {
             record.synced = true;
@@ -166,148 +122,93 @@ class SyncManager {
   async pullChanges() {
     try {
       const lastSync = await AsyncStorage.getItem(LAST_SYNC_KEY);
-
-      const response = await apiClient.get('/sync', {
+      const response = await apiClient.get('sync', {
         params: { lastSyncTime: lastSync || 0 },
       });
 
-      const {
-        expenses = [],
-        moneyIn = [],
-        categories = [],
-      } = response.data.data || {};
+      const { transactions = [], categories = [] } = response.data.data || {};
       const remoteTimestamp = response.data.timestamp || Date.now();
 
-      console.log(
-        `Sync Pulled: ${expenses.length} expenses, ${moneyIn.length} moneyIn, ${categories.length} categories`,
-      );
-
       await database.write(async () => {
-        // Process Expenses
-        const expenseCollection = database.get('expenses');
-        for (const remote of expenses) {
-          const remoteDate = remote.date || remote.createdAt;
-          if (!remoteDate) continue;
-
-          // 1. Try to find by remote ID first
-          let existing = await expenseCollection
-            .query(Q.where('remote_id', remote._id))
-            .fetch();
-
-          // 2. Fallback: match by attributes ONLY if not found by ID
-          // and only if searching for an unsynced local record
-          if (existing.length === 0) {
-            existing = await expenseCollection
-              .query(
-                Q.and(
-                  Q.where('remote_id', Q.notEq(remote._id)), // Not this remote ID
-                  Q.where('synced', false), // Must be unsynced
-                  Q.where('item_name', remote.itemName || ''),
-                  Q.where('date', remoteDate),
-                  Q.where('amount', remote.amount || 0),
-                ),
-              )
-              .fetch();
-          }
-
-          if (existing.length === 0) {
-            console.log(`Sync: Creating new local expense: ${remote.itemName}`);
-            await expenseCollection.create(record => {
-              record.remoteId = remote._id;
-              record.itemName = remote.itemName || 'Unnamed';
-              record.amount = remote.amount;
-              record.category = remote.category;
-              record.month = remote.month;
-              record.date = remoteDate;
-              record.notes = remote.notes;
-              record.moneyIn = remote.moneyIn || 0;
-              record.moneyOut = remote.moneyOut || 0;
-              record.remaining = remote.remaining || 0;
-              record.synced = true;
-              record.updatedAt = new Date(
-                remote.updatedAt || remote.createdAt,
-              ).getTime();
-              record.isDeleted = !!remote.isDeleted;
-            });
-          } else {
-            // Update existing record with remote ID if it was missing
-            const record = existing[0];
-            await record.update(r => {
-              if (remote._id) r.remoteId = remote._id;
-              r.isDeleted = !!remote.isDeleted;
-              r.synced = true;
-            });
-          }
-        }
-
-        // Process MoneyIn
-        const miCollection = database.get('money_in');
-        for (const remote of moneyIn) {
-          const remoteDate = remote.date || remote.createdAt;
-          if (!remoteDate) continue;
-
-          // 1. Try to find by remote ID first
-          let existing = await miCollection
-            .query(Q.where('remote_id', remote._id))
-            .fetch();
-
-          // 2. Fallback for unsynced local records
-          if (existing.length === 0) {
-            existing = await miCollection
-              .query(
-                Q.and(
-                  Q.where('remote_id', Q.notEq(remote._id)),
-                  Q.where('synced', false),
-                  Q.where('date', remoteDate),
-                  Q.where('amount', remote.amount || 0),
-                ),
-              )
-              .fetch();
-          }
-
-          if (existing.length === 0) {
-            await miCollection.create(record => {
-              record.remoteId = remote._id;
-              record.amount = remote.amount;
-              record.date = remoteDate;
-              record.notes = remote.notes;
-              record.source = remote.source || 'Remote';
-              record.month = remoteDate.substring(0, 7);
-              record.category = remote.category || 'General';
-              record.synced = true;
-              record.updatedAt = new Date(
-                remote.updatedAt || remoteDate,
-              ).getTime();
-              record.isDeleted = !!remote.isDeleted;
-            });
-          } else {
-            const record = existing[0];
-            await record.update(r => {
-              if (remote._id) r.remoteId = remote._id;
-              r.isDeleted = !!remote.isDeleted;
-              r.synced = true;
-            });
-          }
-        }
-
-        // Process Categories
+        // Sync Categories First (so we can map them)
         const catCollection = database.get('categories');
         for (const remote of categories) {
           if (!remote.name) continue;
 
-          const existing = await catCollection
-            .query(Q.where('name', remote.name))
-            .fetch();
+          let existing = [];
+          if (remote._id) {
+            existing = await catCollection
+              .query(Q.where('remote_id', remote._id))
+              .fetch();
+          }
 
           if (existing.length === 0) {
             await catCollection.create(record => {
+              record.remoteId = remote._id; // Store mongo ObjectId
               record.name = remote.name;
-              record.type = 'expense';
+              record.type = remote.type || 'expense';
               record.synced = true;
-              record.updatedAt = new Date(
-                remote.updatedAt || remote.createdAt || Date.now(),
-              ).getTime();
-              record.isDeleted = false;
+              record.updated_at = new Date(remote.updatedAt).getTime();
+              record.isDeleted = !!remote.isDeleted;
+            });
+          }
+        }
+
+        // Sync Transactions
+        const txCollection = database.get('transactions');
+        for (const remote of transactions) {
+          const remoteDate = remote.date || remote.createdAt;
+          if (!remoteDate) continue;
+
+          let existing = await txCollection
+            .query(Q.where('remote_id', remote._id))
+            .fetch();
+
+          // Fallback map by watermelonId directly stored in remote DB
+          if (existing.length === 0 && remote.watermelonId) {
+            existing = await txCollection
+              .query(Q.where('id', remote.watermelonId))
+              .fetch();
+          }
+
+          if (existing.length === 0) {
+            await txCollection.create(record => {
+              record.remoteId = remote._id;
+              record.type = remote.type;
+              record.name = remote.name;
+              record.amount = Math.round((remote.amount || 0) * 100);
+              record.category = remote.categoryName || ''; // Fix for category filter
+              record.categoryId = remote.categoryId;
+              record.note = remote.note;
+              record.date = new Date(remoteDate).getTime();
+
+              const d = new Date(remoteDate);
+              const mm = String(d.getMonth() + 1).padStart(2, '0');
+              record.month = `${d.getFullYear()}-${mm}`;
+
+              record.merchantName = remote.merchantName;
+              record.upiId = remote.upiId;
+              record.upiIntent = remote.upiIntent;
+              record.synced = true;
+              record.updatedAt = new Date(remote.updatedAt).getTime();
+              record.isDeleted = !!remote.isDeleted;
+            });
+          } else {
+            const record = existing[0];
+            await record.update(r => {
+              if (remote._id) r.remoteId = remote._id;
+              r.type = remote.type;
+              r.name = remote.name;
+              r.amount = Math.round((remote.amount || 0) * 100);
+              r.category = remote.categoryName || ''; // Fix for category filter
+              r.categoryId = remote.categoryId;
+              r.note = remote.note;
+              r.date = new Date(remoteDate).getTime();
+              const d = new Date(remoteDate);
+              const mm = String(d.getMonth() + 1).padStart(2, '0');
+              r.month = `${d.getFullYear()}-${mm}`;
+              r.isDeleted = !!remote.isDeleted;
+              r.synced = true;
             });
           }
         }
@@ -316,7 +217,6 @@ class SyncManager {
       await AsyncStorage.setItem(LAST_SYNC_KEY, String(remoteTimestamp));
     } catch (err) {
       console.error('Failed to pull changes:', err);
-      throw err;
     }
   }
 }

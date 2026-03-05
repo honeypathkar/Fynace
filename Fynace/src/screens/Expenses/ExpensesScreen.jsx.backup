@@ -21,11 +21,7 @@ import {
   Pressable,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import {
-  useFocusEffect,
-  useNavigation,
-  useRoute,
-} from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Button, Card, Chip, Text, useTheme } from 'react-native-paper';
 import {
   errorCodes,
@@ -82,7 +78,6 @@ const ExpensesScreen = () => {
   const { token } = useAuth();
   const theme = useTheme();
   const navigation = useNavigation();
-  const route = useRoute();
   const {
     isVisible: isBottomBarVisible,
     hideBottomBar,
@@ -103,9 +98,6 @@ const ExpensesScreen = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [selectedType, setSelectedType] = useState(
-    route.params?.initialType || 'All',
-  ); // New: 'All', 'expense', 'income'
   const [categories, setCategories] = useState({
     default: [],
     custom: [],
@@ -136,7 +128,6 @@ const ExpensesScreen = () => {
   const loadingMoreRef = useRef(false);
 
   const transformMonthLabel = useCallback(month => {
-    if (!month || month === 'All') return 'All Time';
     const [year, monthIndex] = month.split('-');
     const date = new Date(Number(year), Number(monthIndex) - 1);
     return date.toLocaleDateString('en-IN', {
@@ -178,10 +169,8 @@ const ExpensesScreen = () => {
     try {
       setLoadingFilters(true);
       const [monthlyResponse, categoriesResponse] = await Promise.all([
-        apiClient
-          .get('transactions/monthly-totals')
-          .catch(() => ({ data: { data: [] } })),
-        apiClient.get('categories').catch(() => ({
+        apiClient.get('/chart/monthly').catch(() => ({ data: { data: [] } })),
+        apiClient.get('/categories').catch(() => ({
           data: { data: { default: [], custom: [], all: [] } },
         })),
       ]);
@@ -192,14 +181,8 @@ const ExpensesScreen = () => {
       // Always merge with local data
       const [allLocalExpenses, allLocalMoneyIn, allLocalCategories] =
         await Promise.all([
-          database
-            .get('transactions')
-            .query(Q.where('type', 'expense'), Q.where('is_deleted', false))
-            .fetch(),
-          database
-            .get('transactions')
-            .query(Q.where('type', 'income'), Q.where('is_deleted', false))
-            .fetch(),
+          database.get('transactions').query(Q.where('type', 'expense'), Q.where('is_deleted', false)).fetch(),
+          database.get('transactions').query(Q.where('type', 'income'), Q.where('is_deleted', false)).fetch(),
           database
             .get('categories')
             .query(Q.where('is_deleted', false))
@@ -243,7 +226,6 @@ const ExpensesScreen = () => {
       lastCreated = null,
       append = false,
       categorySelection = selectedCategory,
-      typeSelection = selectedType,
       searchSelection = debouncedSearch,
       currentCount = 0,
     ) => {
@@ -270,19 +252,14 @@ const ExpensesScreen = () => {
         if (searchSelection) {
           clauses.push(
             Q.where(
-              'name',
+              'item_name',
               Q.like(`%${Q.sanitizeLikeString(searchSelection)}%`),
             ),
           );
         }
 
         const offset = append ? currentCount : 0;
-        const query = database
-          .get('transactions')
-          .query(
-            ...(typeSelection !== 'All'
-              ? [Q.where('type', typeSelection)]
-              : []),
+        const query = database.get('transactions').query(Q.where('type', 'expense'), 
             ...clauses,
             Q.sortBy('date', Q.desc),
             Q.skip(offset),
@@ -293,14 +270,7 @@ const ExpensesScreen = () => {
           query.fetch(),
           append
             ? Promise.resolve(0)
-            : database
-                .get('transactions')
-                .query(
-                  ...(typeSelection !== 'All'
-                    ? [Q.where('type', typeSelection)]
-                    : []),
-                  ...clauses,
-                )
+            : database.get('transactions').query(Q.where('type', 'expense'), ...clauses)
                 .fetchCount(),
         ]);
 
@@ -315,29 +285,24 @@ const ExpensesScreen = () => {
           }
 
           const [allIn, allOut] = await Promise.all([
-            database
-              .get('transactions')
-              .query(Q.where('type', 'income'), ...summaryClauses)
+            database.get('transactions').query(Q.where('type', 'income'), ...summaryClauses)
               .fetch(),
-            database
-              .get('transactions')
-              .query(Q.where('type', 'expense'), ...summaryClauses)
+            database.get('transactions').query(Q.where('type', 'expense'), ...summaryClauses)
               .fetch(),
           ]);
 
           const totalMoneyOut = allOut.reduce(
-            (sum, exp) => sum + (exp.amountRupees || 0),
+            (sum, exp) => sum + (exp.moneyOut || exp.amount || 0),
             0,
           );
           const totalMoneyIn = allIn.reduce(
-            (sum, entry) => sum + (entry.amountRupees || 0),
+            (sum, entry) => sum + (entry.amount || 0),
             0,
           );
           const remaining = totalMoneyIn - totalMoneyOut;
 
-          // Category breakdown should only be for expenses
           const breakdownObj = allOut.reduce((acc, exp) => {
-            const amt = exp.amountRupees || 0;
+            const amt = exp.moneyOut || exp.amount || 0;
             acc[exp.category] = (acc[exp.category] || 0) + amt;
             return acc;
           }, {});
@@ -395,6 +360,7 @@ const ExpensesScreen = () => {
   );
 
   const loadMoreExpenses = useCallback(() => {
+    // Use refs to get fresh state values
     const currentHasMore = hasMoreRef.current;
     const currentlyLoadingMore = loadingMoreRef.current;
 
@@ -404,7 +370,6 @@ const ExpensesScreen = () => {
         lastCreatedAtRef.current,
         true,
         selectedCategory,
-        selectedType,
         debouncedSearch,
         expenses.length,
       );
@@ -413,7 +378,6 @@ const ExpensesScreen = () => {
     loading,
     selectedMonth,
     selectedCategory,
-    selectedType,
     debouncedSearch,
     fetchExpenses,
     expenses.length,
@@ -429,18 +393,12 @@ const ExpensesScreen = () => {
       setError(null);
 
       const monthlyResponse = await apiClient
-        .get('transactions/monthly-totals')
+        .get('/chart/monthly')
         .catch(() => ({ data: { data: [] } }));
 
       const [allLocalExpenses, allLocalMoneyIn] = await Promise.all([
-        database
-          .get('transactions')
-          .query(Q.where('type', 'expense'), Q.where('is_deleted', false))
-          .fetch(),
-        database
-          .get('transactions')
-          .query(Q.where('type', 'income'), Q.where('is_deleted', false))
-          .fetch(),
+        database.get('transactions').query(Q.where('type', 'expense'), Q.where('is_deleted', false)).fetch(),
+        database.get('transactions').query(Q.where('type', 'income'), Q.where('is_deleted', false)).fetch(),
       ]);
 
       const localMonths = [
@@ -459,25 +417,12 @@ const ExpensesScreen = () => {
       const sortedMonths = combinedMonths.sort((a, b) => b.localeCompare(a));
       setMonths(sortedMonths);
 
-      // By default, show all expenses if it's the initial load
-      if (initialLoad) {
-        setLastCreatedAt(null);
-        setHasMore(true);
-        lastCreatedAtRef.current = null;
-        hasMoreRef.current = true;
-        await fetchExpenses('All', null, false, 'All', 'All', '');
-      } else {
-        // Just refresh for current filters
-        await fetchExpenses(
-          selectedMonth,
-          null,
-          false,
-          selectedCategory,
-          selectedType,
-          debouncedSearch,
-          0,
-        );
-      }
+      // By default, show all expenses
+      setLastCreatedAt(null);
+      setHasMore(true);
+      lastCreatedAtRef.current = null;
+      hasMoreRef.current = true;
+      await fetchExpenses('All', null, false, 'All', '', 0);
     } catch (err) {
       const apiError = parseApiError(err);
       setError(apiError.message);
@@ -495,24 +440,16 @@ const ExpensesScreen = () => {
 
       // Refresh months and categories locally/remotely
       const [monthlyResponse, categoriesResponse] = await Promise.all([
+        apiClient.get('/chart/monthly').catch(() => ({ data: { data: [] } })),
         apiClient
-          .get('transactions/monthly-totals')
-          .catch(() => ({ data: { data: [] } })),
-        apiClient
-          .get('categories')
+          .get('/categories')
           .catch(() => ({ data: { data: { all: [] } } })),
       ]);
 
       const [allLocalExpenses, allLocalMoneyIn, allLocalCategories] =
         await Promise.all([
-          database
-            .get('transactions')
-            .query(Q.where('type', 'expense'), Q.where('is_deleted', false))
-            .fetch(),
-          database
-            .get('transactions')
-            .query(Q.where('type', 'income'), Q.where('is_deleted', false))
-            .fetch(),
+          database.get('transactions').query(Q.where('type', 'expense'), Q.where('is_deleted', false)).fetch(),
+          database.get('transactions').query(Q.where('type', 'income'), Q.where('is_deleted', false)).fetch(),
           database
             .get('categories')
             .query(Q.where('is_deleted', false))
@@ -557,7 +494,6 @@ const ExpensesScreen = () => {
         null,
         false,
         selectedCategory,
-        selectedType,
         debouncedSearch,
         0,
       );
@@ -566,27 +502,21 @@ const ExpensesScreen = () => {
     } finally {
       setIsRefreshing(false);
     }
-  }, [
-    selectedMonth,
-    selectedCategory,
-    selectedType,
-    debouncedSearch,
-    fetchExpenses,
-  ]);
+  }, [selectedMonth, selectedCategory, debouncedSearch, fetchExpenses]);
 
   useFocusEffect(
     useCallback(() => {
       if (!token) return;
 
       const refreshAll = async () => {
+        // Run background sync only if online
         syncManager.sync().catch(console.error);
 
+        // Fetch months and data
         if (initialLoad) {
           await fetchMonthsAndData();
-          await fetchFilters();
         } else {
-          // IMPORTANT: Do NOT reset selectedType/selectedMonth here.
-          // Just fetch the data for the current selection.
+          // If already loaded once, just refresh the current view
           setLastCreatedAt(null);
           setHasMore(true);
           lastCreatedAtRef.current = null;
@@ -596,7 +526,6 @@ const ExpensesScreen = () => {
             null,
             false,
             selectedCategory,
-            selectedType,
             debouncedSearch,
             0,
           );
@@ -607,10 +536,9 @@ const ExpensesScreen = () => {
     }, [
       token,
       initialLoad,
-      // We explicitly leave filters out of this dependency array
-      // if we don't want RE-focus (like returning from another tab)
-      // to reset the user's manual filter choices.
-      // But we DO want it to fetch fresh data for THOSE choices.
+      selectedMonth,
+      selectedCategory,
+      debouncedSearch,
       fetchExpenses,
       fetchMonthsAndData,
     ]),
@@ -712,7 +640,7 @@ const ExpensesScreen = () => {
       const worksheet = workbook.Sheets[firstSheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-      await apiClient.post('transactions/upload-excel', {
+      await apiClient.post('/expenses/upload', {
         expenses: jsonData,
       });
 
@@ -800,29 +728,8 @@ const ExpensesScreen = () => {
         ToastAndroid.show('Deleting expense...', ToastAndroid.SHORT);
       }
 
-      // ⚡ OPTIMISTIC UI: Remove from list immediately for instant feedback
-      const deletedId = expenseToDelete.id || expenseToDelete._id;
-      setExpenses(prev => prev.filter(e => (e.id || e._id) !== deletedId));
-
-      // ⚡ Update local WatermelonDB so it doesn't reappear on reload
-      await database.write(async () => {
-        try {
-          const txn = await database
-            .get('transactions')
-            .find(expenseToDelete.id);
-          await txn.update(record => {
-            record.isDeleted = true;
-            record.synced = false;
-            record.updatedAt = Date.now();
-          });
-        } catch (dbErr) {
-          console.warn('Local DB update failed (already deleted?)', dbErr);
-        }
-      });
-
-      // API delete (remote soft delete)
       await apiClient.delete(
-        `transactions/${expenseToDelete.remoteId || expenseToDelete.id}`,
+        `/expenses/${expenseToDelete.id || expenseToDelete._id}`,
       );
 
       if (Platform.OS === 'android') {
@@ -832,22 +739,16 @@ const ExpensesScreen = () => {
       deleteSheetRef.current?.close();
       setExpenseToDelete(null);
 
-      // Refresh filters (months/categories) and summary without resetting view
-      await fetchFilters();
+      // Refresh expenses
+      setLastCreatedAt(null);
+      setHasMore(true);
+      lastCreatedAtRef.current = null;
+      hasMoreRef.current = true;
+      await fetchExpenses(selectedMonth, null, false);
       await fetchMonthsAndData();
     } catch (err) {
       const apiError = parseApiError(err);
-
-      // If "Not Found", it's effectively deleted anyway, don't show scary error
-      if (apiError.status === 404) {
-        deleteSheetRef.current?.close();
-        setExpenseToDelete(null);
-        return;
-      }
-
       setError(apiError.message);
-      // Re-fetch everything to ensure UI is in sync after failure
-      await fetchExpenses(selectedMonth, null, false);
       if (Platform.OS === 'android') {
         ToastAndroid.show(
           apiError.message || 'Failed to delete expense',
@@ -924,7 +825,14 @@ const ExpensesScreen = () => {
             </View>
           )}
         />
-
+        {/* <Text
+          variant="bodyMedium"
+          style={[expenseStyles.subtitle, { color: '#94A3B8' }]}
+        >
+          {selectedMonth === 'All'
+            ? 'Showing all expenses'
+            : `Showing data for ${transformMonthLabel(selectedMonth)}`}
+        </Text> */}
         {initialLoad && expenses.length === 0 ? (
           <ScrollView contentContainerStyle={expenseStyles.skeletonContainer}>
             <Card style={expenseStyles.summaryCard}>
@@ -1107,11 +1015,6 @@ const ExpensesScreen = () => {
           months={months}
           selectedCategory={selectedCategory}
           categories={['All', ...categories.all]}
-          selectedType={selectedType}
-          onSelectType={type => {
-            setSelectedType(type);
-            fetchExpenses(selectedMonth, null, false, selectedCategory, type);
-          }}
           transformMonthLabel={transformMonthLabel}
           onSelectMonth={handleFilterMonth}
           onSelectCategory={handleFilterCategory}
@@ -1142,8 +1045,9 @@ const ExpensesScreen = () => {
               <Text style={expenseStyles.deleteAmount}>
                 ₹
                 {(
-                  expenseToDelete?.amountRupees ||
-                  (expenseToDelete?.amount || 0) / 100
+                  expenseToDelete?.amount ||
+                  expenseToDelete?.moneyOut ||
+                  0
                 ).toLocaleString()}
               </Text>
               {expenseToDelete?.category && (
@@ -1165,7 +1069,6 @@ const ExpensesScreen = () => {
                 mode="outlined"
                 onPress={() => deleteSheetRef.current?.close()}
                 style={expenseStyles.deleteCancelButton}
-                contentStyle={{ height: 48 }}
                 textColor="#94A3B8"
                 disabled={isDeleting}
               >
@@ -1175,7 +1078,6 @@ const ExpensesScreen = () => {
                 mode="contained"
                 onPress={confirmDeleteExpense}
                 style={expenseStyles.deleteConfirmButton}
-                contentStyle={{ height: 48 }}
                 buttonColor="#EF4444"
                 loading={isDeleting}
                 disabled={isDeleting}

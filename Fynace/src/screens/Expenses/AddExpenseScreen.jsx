@@ -28,8 +28,12 @@ const defaultFormState = {
   month: '',
   itemName: '',
   category: '',
+  categoryId: '',
   amount: '',
   notes: '',
+  type: 'expense',
+  isRecurring: false,
+  frequency: 'monthly',
 };
 
 const AddExpenseScreen = () => {
@@ -61,8 +65,16 @@ const AddExpenseScreen = () => {
         month: editingExpense.month || '',
         itemName: editingExpense.itemName || '',
         category: editingExpense.category || '',
-        amount: editingExpense.amount?.toString() || '',
+        categoryId: editingExpense.categoryId || '',
+        amount: editingExpense.amountRupees
+          ? editingExpense.amountRupees.toString()
+          : editingExpense.amount
+          ? (editingExpense.amount / 100).toString()
+          : '',
         notes: editingExpense.notes || '',
+        type: editingExpense.type || 'expense',
+        isRecurring: editingExpense.isRecurring || false,
+        frequency: editingExpense.frequency || 'monthly',
       });
     } else {
       // Auto-select current month for new expense
@@ -80,7 +92,7 @@ const AddExpenseScreen = () => {
         .query(Q.where('is_deleted', false))
         .fetch();
       setCategories({
-        all: localCategories.map(c => c.name),
+        all: localCategories,
         default: [],
         custom: [],
       });
@@ -184,24 +196,40 @@ const AddExpenseScreen = () => {
 
       await database.write(async () => {
         if (editingExpenseId) {
-          const expense = await database.get('expenses').find(editingExpenseId);
+          const expense = await database
+            .get('transactions')
+            .find(editingExpenseId);
           await expense.update(record => {
             record.month = formValues.month;
-            record.itemName = formValues.itemName;
-            record.category = formValues.category || '';
-            record.amount = Number(formValues.amount) || 0;
-            record.notes = formValues.notes;
+            record.name = formValues.itemName;
+            record.category = formValues.category;
+            record.categoryId = formValues.categoryId;
+            record.amount = (Number(formValues.amount) || 0) * 100;
+            record.note = formValues.notes;
+            record.type = formValues.type;
+            record.isRecurring = formValues.isRecurring;
+            record.frequency = formValues.isRecurring
+              ? formValues.frequency
+              : null;
+            record.isActive = true;
             record.synced = false;
             record.updatedAt = Date.now();
           });
         } else {
-          await database.get('expenses').create(record => {
+          await database.get('transactions').create(record => {
             record.month = formValues.month;
-            record.itemName = formValues.itemName;
-            record.category = formValues.category || '';
-            record.amount = Number(formValues.amount) || 0;
-            record.notes = formValues.notes;
-            record.date = new Date().toISOString();
+            record.name = formValues.itemName;
+            record.category = formValues.category;
+            record.categoryId = formValues.categoryId;
+            record.amount = (Number(formValues.amount) || 0) * 100;
+            record.note = formValues.notes;
+            record.type = formValues.type;
+            record.isRecurring = formValues.isRecurring;
+            record.frequency = formValues.isRecurring
+              ? formValues.frequency
+              : null;
+            record.isActive = true;
+            record.date = new Date().getTime();
             record.synced = false;
             record.updatedAt = Date.now();
             record.isDeleted = false;
@@ -316,6 +344,109 @@ const AddExpenseScreen = () => {
             multiline
             numberOfLines={4}
           />
+
+          <View style={styles.inputWrapper}>
+            <Text style={styles.inputLabel}>Transaction Type</Text>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              {['expense', 'income'].map(t => (
+                <TouchableOpacity
+                  key={t}
+                  style={[
+                    styles.pickerButton,
+                    { flex: 1, justifyContent: 'center' },
+                    formValues.type === t && {
+                      borderColor: '#3A6FF8',
+                      backgroundColor: 'rgba(58, 111, 248, 0.1)',
+                    },
+                  ]}
+                  onPress={() => updateFormValue('type', t)}
+                >
+                  <Text
+                    style={[
+                      styles.pickerText,
+                      { textTransform: 'capitalize' },
+                      formValues.type === t && { color: '#3A6FF8' },
+                    ]}
+                  >
+                    {t}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View
+            style={[
+              styles.inputWrapper,
+              {
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              },
+            ]}
+          >
+            <View>
+              <Text style={styles.inputLabel}>Is Recurring?</Text>
+              <Text style={{ color: '#94A3B8', fontSize: 12 }}>
+                Automatically repeat this transaction
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() =>
+                updateFormValue('isRecurring', !formValues.isRecurring)
+              }
+              style={{
+                width: 50,
+                height: 26,
+                borderRadius: 13,
+                backgroundColor: formValues.isRecurring ? '#3A6FF8' : '#334155',
+                justifyContent: 'center',
+                paddingHorizontal: 2,
+              }}
+            >
+              <View
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: 11,
+                  backgroundColor: '#FFF',
+                  alignSelf: formValues.isRecurring ? 'flex-end' : 'flex-start',
+                }}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {formValues.isRecurring && (
+            <View style={styles.inputWrapper}>
+              <Text style={styles.inputLabel}>Frequency</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {['daily', 'weekly', 'monthly', 'yearly'].map(f => (
+                  <TouchableOpacity
+                    key={f}
+                    style={[
+                      styles.pickerButton,
+                      { paddingVertical: 8, paddingHorizontal: 12 },
+                      formValues.frequency === f && {
+                        borderColor: '#3A6FF8',
+                        backgroundColor: 'rgba(58, 111, 248, 0.1)',
+                      },
+                    ]}
+                    onPress={() => updateFormValue('frequency', f)}
+                  >
+                    <Text
+                      style={[
+                        styles.pickerText,
+                        { fontSize: 14, textTransform: 'capitalize' },
+                        formValues.frequency === f && { color: '#3A6FF8' },
+                      ]}
+                    >
+                      {f}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
         </ScrollView>
 
         <View style={styles.footer}>
@@ -344,7 +475,8 @@ const AddExpenseScreen = () => {
         categories={categories.all}
         selectedCategory={formValues.category}
         onSelectCategory={category => {
-          updateFormValue('category', category);
+          updateFormValue('category', category.name);
+          updateFormValue('categoryId', category.remoteId || '');
           setCategoryPickerVisible(false);
         }}
         onClose={() => setCategoryPickerVisible(false)}

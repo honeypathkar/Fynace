@@ -38,7 +38,7 @@ const CategoryPicker = ({
     >
       <FlatList
         data={categories}
-        keyExtractor={item => item}
+        keyExtractor={item => item.id || item.name}
         ListHeaderComponent={
           showAddCategory ? (
             <View style={styles.addCategoryContainer}>
@@ -87,7 +87,7 @@ const CategoryPicker = ({
           <TouchableOpacity
             style={[
               styles.monthPickerItem,
-              selectedCategory === item && styles.monthPickerItemSelected,
+              selectedCategory === item.name && styles.monthPickerItemSelected,
             ]}
             onPress={() => {
               onSelectCategory(item);
@@ -98,12 +98,13 @@ const CategoryPicker = ({
             <Text
               style={[
                 styles.monthPickerItemText,
-                selectedCategory === item && styles.monthPickerItemTextSelected,
+                selectedCategory === item.name &&
+                  styles.monthPickerItemTextSelected,
               ]}
             >
-              {item}
+              {item.name}
             </Text>
-            {selectedCategory === item && (
+            {selectedCategory === item.name && (
               <View style={styles.monthPickerCheckmark}>
                 <Text style={styles.monthPickerCheckmarkText}>✓</Text>
               </View>

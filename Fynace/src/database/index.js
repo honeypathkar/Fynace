@@ -2,14 +2,15 @@ import { Database } from '@nozbe/watermelondb';
 import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
 
 import schema from './schema';
-import Expense from './models/Expense';
+import migrations from './migrations';
 import Category from './models/Category';
 import User from './models/User';
 import Bank from './models/Bank';
-import MoneyIn from './models/MoneyIn';
+import Transaction from './models/Transaction';
 
 const adapter = new SQLiteAdapter({
   schema,
+  migrations,
   // (Optional) Database name
   dbName: 'fynace_db',
   // (optional, but recommended)
@@ -22,5 +23,5 @@ const adapter = new SQLiteAdapter({
 
 export const database = new Database({
   adapter,
-  modelClasses: [Expense, Category, User, Bank, MoneyIn],
+  modelClasses: [Category, User, Bank, Transaction],
 });

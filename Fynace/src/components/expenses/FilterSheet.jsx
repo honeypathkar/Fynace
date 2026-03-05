@@ -17,6 +17,8 @@ const FilterSheet = ({
   months,
   selectedCategory,
   categories,
+  selectedType,
+  onSelectType,
   transformMonthLabel,
   onSelectMonth,
   onSelectCategory,
@@ -27,7 +29,7 @@ const FilterSheet = ({
       ref={sheetRef}
       title="Filters"
       onClose={onClose}
-      initialHeight={0.7}
+      initialHeight={0.8}
     >
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -55,6 +57,38 @@ const FilterSheet = ({
           </View>
         ) : (
           <>
+            {/* Type Filter Section */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Transaction Type</Text>
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                {['All', 'expense', 'income'].map(type => (
+                  <TouchableOpacity
+                    key={type}
+                    style={[
+                      styles.typeFilterItem,
+                      selectedType === type && styles.filterSheetItemSelected,
+                    ]}
+                    onPress={() => onSelectType(type)}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.filterSheetItemText,
+                        selectedType === type &&
+                          styles.filterSheetItemTextSelected,
+                        { textTransform: 'capitalize' },
+                      ]}
+                    >
+                      {type === 'All'
+                        ? 'All'
+                        : type === 'expense'
+                        ? 'Expenses'
+                        : 'Income'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
             {/* Month Filter Section */}
             <View style={styles.filterSection}>
               <Text style={styles.filterSectionTitle}>Month</Text>

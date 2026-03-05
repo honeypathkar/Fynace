@@ -4,14 +4,14 @@ import {
   View,
   ScrollView,
   Pressable,
-  Platform,
   PermissionsAndroid,
   ToastAndroid,
+  TouchableOpacity,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import messaging from '@react-native-firebase/messaging';
 import { useNavigation } from '@react-navigation/native';
-import { Text, Switch, Divider } from 'react-native-paper';
+import { Text, Divider } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ChevronRight,
@@ -20,6 +20,7 @@ import {
   Fingerprint,
   Bell,
   Search,
+  Clock,
 } from 'lucide-react-native';
 import GlobalHeader from '../../components/GlobalHeader';
 import BottomSheet from '../../components/BottomSheet';
@@ -35,12 +36,36 @@ import {
   openSettings,
 } from 'react-native-permissions';
 
+const CustomToggle = ({ value, onValueChange }) => (
+  <TouchableOpacity
+    onPress={() => onValueChange(!value)}
+    style={{
+      width: 50,
+      height: 26,
+      borderRadius: 13,
+      backgroundColor: value ? '#3A6FF8' : '#334155',
+      justifyContent: 'center',
+      paddingHorizontal: 2,
+    }}
+  >
+    <View
+      style={{
+        width: 22,
+        height: 22,
+        borderRadius: 11,
+        backgroundColor: '#FFF',
+        alignSelf: value ? 'flex-end' : 'flex-start',
+      }}
+    />
+  </TouchableOpacity>
+);
+
 const ToolScreen = () => {
   const navigation = useNavigation();
   const { user, updateProfile } = useAuth();
   const { isPrivacyMode, togglePrivacyMode } = usePrivacy();
   const { isBiometricEnabled, toggleBiometric, isSupported } = useSecurity();
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [hasSystemPermission, setHasSystemPermission] = useState(false);
   const [smsTrackingEnabled, setSmsTrackingEnabled] = useState(false);
   const currencySheetRef = React.useRef(null);
   const alertSheetRef = React.useRef(null);
@@ -91,11 +116,11 @@ const ToolScreen = () => {
           const smsReadGranted = await PermissionsAndroid.check(
             PermissionsAndroid.PERMISSIONS.READ_SMS,
           );
-          setNotificationsEnabled(notifGranted);
+          setHasSystemPermission(notifGranted);
           setSmsTrackingEnabled(smsReadGranted);
         } else {
           const status = await checkPerm(PERMISSIONS.IOS.NOTIFICATIONS);
-          setNotificationsEnabled(status === RESULTS.GRANTED);
+          setHasSystemPermission(status === RESULTS.GRANTED);
         }
       } catch (err) {
         console.warn('Error checking permissions', err);
@@ -130,9 +155,10 @@ const ToolScreen = () => {
           authStatus === messaging.AuthorizationStatus.PROVISIONAL;
 
         if (enabled) {
-          setNotificationsEnabled(true);
+          setHasSystemPermission(true);
+          handleSettingToggle('pushNotificationsEnabled', true);
         } else {
-          setNotificationsEnabled(false);
+          setHasSystemPermission(false);
           showAlert(
             'Permission Denied',
             'Please enable notifications in system settings to receive spending alerts.',
@@ -145,10 +171,9 @@ const ToolScreen = () => {
         }
       } catch (err) {
         console.warn('Notification toggle error:', err);
-        setNotificationsEnabled(false);
       }
     } else {
-      setNotificationsEnabled(false);
+      handleSettingToggle('pushNotificationsEnabled', false);
     }
   };
 
@@ -267,10 +292,9 @@ const ToolScreen = () => {
               label="Biometric Lock"
               onPress={toggleBiometric}
               right={
-                <Switch
+                <CustomToggle
                   value={isBiometricEnabled}
                   onValueChange={toggleBiometric}
-                  color="#3A6FF8"
                 />
               }
             />
@@ -281,10 +305,9 @@ const ToolScreen = () => {
             label="Privacy Mode"
             onPress={togglePrivacyMode}
             right={
-              <Switch
+              <CustomToggle
                 value={isPrivacyMode}
                 onValueChange={togglePrivacyMode}
-                color="#3A6FF8"
               />
             }
           />
@@ -320,12 +343,15 @@ const ToolScreen = () => {
             <MenuItem
               icon={Bell}
               label="Push Notifications"
-              onPress={() => handleNotificationToggle(!notificationsEnabled)}
+              onPress={() =>
+                handleNotificationToggle(
+                  !user?.notificationSettings?.pushNotificationsEnabled,
+                )
+              }
               right={
-                <Switch
-                  value={notificationsEnabled}
+                <CustomToggle
+                  value={!!user?.notificationSettings?.pushNotificationsEnabled}
                   onValueChange={handleNotificationToggle}
-                  color="#3A6FF8"
                 />
               }
             />
@@ -334,19 +360,18 @@ const ToolScreen = () => {
               reminders.
             </Text>
 
-            {notificationsEnabled && (
+            {user?.notificationSettings?.pushNotificationsEnabled && (
               <View style={styles.settingsGroup}>
                 <Divider style={styles.divider} />
                 <MenuItem
                   icon={ChevronRight}
                   label="Daily Reminders"
                   right={
-                    <Switch
+                    <CustomToggle
                       value={user?.notificationSettings?.dailyReminder}
                       onValueChange={v =>
                         handleSettingToggle('dailyReminder', v)
                       }
-                      color="#3A6FF8"
                     />
                   }
                 />
@@ -354,12 +379,11 @@ const ToolScreen = () => {
                   icon={ChevronRight}
                   label="Monthly Summaries"
                   right={
-                    <Switch
+                    <CustomToggle
                       value={user?.notificationSettings?.monthlySummary}
                       onValueChange={v =>
                         handleSettingToggle('monthlySummary', v)
                       }
-                      color="#3A6FF8"
                     />
                   }
                 />
@@ -367,12 +391,11 @@ const ToolScreen = () => {
                   icon={ChevronRight}
                   label="Budget Alerts"
                   right={
-                    <Switch
+                    <CustomToggle
                       value={user?.notificationSettings?.budgetAlerts}
                       onValueChange={v =>
                         handleSettingToggle('budgetAlerts', v)
                       }
-                      color="#3A6FF8"
                     />
                   }
                 />
@@ -380,18 +403,23 @@ const ToolScreen = () => {
                   icon={ChevronRight}
                   label="Smart Insights"
                   right={
-                    <Switch
+                    <CustomToggle
                       value={user?.notificationSettings?.smartInsights}
                       onValueChange={v =>
                         handleSettingToggle('smartInsights', v)
                       }
-                      color="#3A6FF8"
                     />
                   }
                 />
               </View>
             )}
           </View>
+
+          <MenuItem
+            icon={Clock}
+            label="Recurring Transactions"
+            onPress={() => navigation.navigate('RecurringTransactions')}
+          />
 
           {/* {Platform.OS === 'android' && (
             <View style={[styles.explanationCard, { marginTop: 12 }]}>
