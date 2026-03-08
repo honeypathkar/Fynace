@@ -25,6 +25,12 @@ const budgetSchema = new mongoose.Schema(
       required: true,
       min: 1,
     },
+    // Track which percentage thresholds have been notified this month
+    // e.g. [50, 70, 80] means 50%, 70%, 80% alerts have already been sent
+    notifiedThresholds: {
+      type: [Number],
+      default: [],
+    },
   },
   { timestamps: true },
 );

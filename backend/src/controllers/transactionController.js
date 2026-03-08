@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const Transaction = require("../models/Transaction");
 const Category = require("../models/Category");
+const { checkBudgetThresholds } = require("../workers/notificationWorker");
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -94,6 +95,15 @@ const createTransaction = async (req, res) => {
       );
     } else {
       transaction = await Transaction.create(txData);
+    }
+
+    if (transaction.type === "expense" && transaction.categoryId) {
+      // Run budget threshold check in background
+      checkBudgetThresholds(
+        userId,
+        transaction.categoryId,
+        transaction.amount,
+      ).catch((err) => console.error("Budget check error:", err));
     }
 
     return res.status(201).json({
@@ -212,6 +222,12 @@ const updateTransaction = async (req, res) => {
         : null;
 
     await tx.save();
+
+    if (tx.type === "expense" && tx.categoryId) {
+      checkBudgetThresholds(userId, tx.categoryId, tx.amount).catch((err) =>
+        console.error("Budget check error:", err),
+      );
+    }
 
     return res.status(200).json({
       success: true,
@@ -562,6 +578,7 @@ function formatTransaction(tx) {
     isActive: tx.isActive !== false,
     lastRecurringDate: tx.lastRecurringDate,
     isDeleted: tx.isDeleted,
+    watermelonId: tx.watermelonId || "",
     createdAt: tx.createdAt,
     updatedAt: tx.updatedAt,
   };

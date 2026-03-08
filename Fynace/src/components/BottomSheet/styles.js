@@ -36,10 +36,11 @@ export const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: 'transparent', // Make overlay transparent
   },
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)', // Put color here instead
   },
   modalContainer: {
     backgroundColor: palette.surface, // Use theme surface color

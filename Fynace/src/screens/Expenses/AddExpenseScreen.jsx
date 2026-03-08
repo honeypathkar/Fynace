@@ -23,6 +23,7 @@ import Fonts from '../../../assets/fonts';
 import { database } from '../../database';
 import { Q } from '@nozbe/watermelondb';
 import { syncManager } from '../../sync/SyncManager';
+import NetInfo from '@react-native-community/netinfo';
 
 const defaultFormState = {
   month: '',
@@ -194,6 +195,12 @@ const AddExpenseScreen = () => {
         return;
       }
 
+      const networkState = await NetInfo.fetch();
+      const isOnline =
+        networkState.isConnected && networkState.isInternetReachable;
+
+      // ─── Step 1: Save to local WatermelonDB first ───────────────────
+      let localRecord;
       await database.write(async () => {
         if (editingExpenseId) {
           const expense = await database
@@ -212,11 +219,14 @@ const AddExpenseScreen = () => {
               ? formValues.frequency
               : null;
             record.isActive = true;
-            record.synced = false;
+            record.synced = false; // will be marked true after API call if online
             record.updatedAt = Date.now();
           });
+          localRecord = await database
+            .get('transactions')
+            .find(editingExpenseId);
         } else {
-          await database.get('transactions').create(record => {
+          localRecord = await database.get('transactions').create(record => {
             record.month = formValues.month;
             record.name = formValues.itemName;
             record.category = formValues.category;
@@ -237,25 +247,71 @@ const AddExpenseScreen = () => {
         }
       });
 
+      // ─── Step 2: If online, immediately sync with backend ────────────
+      let syncedToBackend = false;
+      if (isOnline && localRecord) {
+        try {
+          const payload = {
+            type: formValues.type,
+            name: formValues.itemName,
+            amount: Number(formValues.amount) || 0, // in Rupees
+            categoryId: formValues.categoryId,
+            note: formValues.notes,
+            date: localRecord.date || Date.now(),
+            isRecurring: formValues.isRecurring,
+            frequency: formValues.isRecurring ? formValues.frequency : null,
+            isActive: true,
+            watermelonId: localRecord.id,
+          };
+
+          let remoteId = localRecord.remoteId;
+
+          if (editingExpenseId && remoteId) {
+            await apiClient.put(`transactions/${remoteId}`, payload);
+          } else {
+            const response = await apiClient.post('transactions', payload);
+            remoteId = response.data?.data?._id;
+          }
+
+          // Mark as synced and store remoteId
+          await database.write(async () => {
+            await localRecord.update(record => {
+              record.synced = true;
+              if (remoteId) record.remoteId = remoteId;
+            });
+          });
+          syncedToBackend = true;
+        } catch (apiErr) {
+          // Network call failed — record is saved locally, sync will retry later
+          console.warn(
+            'Direct API sync failed, will retry via background sync:',
+            apiErr.message,
+          );
+        }
+      }
+
       if (Platform.OS === 'android') {
         ToastAndroid.show(
-          editingExpenseId
-            ? 'Expense updated locally'
-            : 'Expense added locally',
+          syncedToBackend
+            ? editingExpenseId
+              ? 'Expense updated ✓'
+              : 'Expense added ✓'
+            : editingExpenseId
+            ? 'Updated locally, will sync soon'
+            : 'Saved locally, will sync soon',
           ToastAndroid.SHORT,
         );
       }
 
       navigation.goBack();
 
-      // Proactively trigger sync in background
-      syncManager.sync().catch(console.error);
+      // If not synced yet, trigger background sync
+      if (!syncedToBackend) {
+        syncManager.sync(true).catch(console.error);
+      }
     } catch (err) {
       if (Platform.OS === 'android') {
-        ToastAndroid.show(
-          err.message || 'Failed to save locally',
-          ToastAndroid.LONG,
-        );
+        ToastAndroid.show(err.message || 'Failed to save', ToastAndroid.LONG);
       }
     } finally {
       setSavingExpense(false);

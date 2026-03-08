@@ -7,6 +7,8 @@ import {
   PermissionsAndroid,
   ToastAndroid,
   TouchableOpacity,
+  ActivityIndicator,
+  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import messaging from '@react-native-firebase/messaging';
@@ -21,10 +23,12 @@ import {
   Bell,
   Search,
   Clock,
+  AlertTriangle,
 } from 'lucide-react-native';
 import GlobalHeader from '../../components/GlobalHeader';
 import BottomSheet from '../../components/BottomSheet';
 import { useAuth } from '../../hooks/useAuth';
+import { parseApiError } from '../../api/client';
 import { usePrivacy } from '../../context/PrivacyContext';
 import { useSecurity } from '../../context/SecurityContext';
 import Fonts from '../../../assets/fonts';
@@ -67,6 +71,7 @@ const ToolScreen = () => {
   const { isBiometricEnabled, toggleBiometric, isSupported } = useSecurity();
   const [hasSystemPermission, setHasSystemPermission] = useState(false);
   const [smsTrackingEnabled, setSmsTrackingEnabled] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const currencySheetRef = React.useRef(null);
   const alertSheetRef = React.useRef(null);
   const [alertConfig, setAlertConfig] = useState({
@@ -92,20 +97,6 @@ const ToolScreen = () => {
     alertSheetRef.current?.open();
   };
 
-  const CURRENCIES = [
-    { label: 'Indian Rupee (₹)', value: 'INR' },
-    { label: 'US Dollar ($)', value: 'USD' },
-    { label: 'Euro (€)', value: 'EUR' },
-    { label: 'British Pound (£)', value: 'GBP' },
-    { label: 'Japanese Yen (¥)', value: 'JPY' },
-    { label: 'Australian Dollar ($)', value: 'AUD' },
-    { label: 'Canadian Dollar ($)', value: 'CAD' },
-    { label: 'Swiss Franc (CHF)', value: 'CHF' },
-    { label: 'Chinese Yuan (¥)', value: 'CNY' },
-    { label: 'UAE Dirham (د.إ)', value: 'AED' },
-    { label: 'Singapore Dollar ($)', value: 'SGD' },
-  ];
-
   React.useEffect(() => {
     const checkPermissions = async () => {
       try {
@@ -130,50 +121,76 @@ const ToolScreen = () => {
   }, []);
 
   const handleNotificationToggle = async value => {
-    if (value) {
-      try {
-        let authStatus;
-        if (Platform.OS === 'android' && Platform.Version >= 33) {
-          const granted = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
-            {
-              title: 'Notification Access',
-              message: 'Get spending alerts and budget reminders.',
-              buttonPositive: 'Allow',
-            },
-          );
-          authStatus =
-            granted === PermissionsAndroid.RESULTS.GRANTED
-              ? messaging.AuthorizationStatus.AUTHORIZED
-              : messaging.AuthorizationStatus.DENIED;
-        } else {
-          authStatus = await messaging().requestPermission();
-        }
+    try {
+      if (value) {
+        showAlert(
+          'Enable Notifications',
+          'Fynace needs notification access to send you spending alerts, budget summaries, and transaction updates.',
+          {
+            confirmText: 'Continue',
+            showCancel: true,
+            onConfirm: async () => {
+              let authStatus;
+              if (Platform.OS === 'android' && Platform.Version >= 33) {
+                const granted = await PermissionsAndroid.request(
+                  PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+                );
+                authStatus =
+                  granted === PermissionsAndroid.RESULTS.GRANTED
+                    ? messaging.AuthorizationStatus.AUTHORIZED
+                    : messaging.AuthorizationStatus.DENIED;
+              } else {
+                authStatus = await messaging().requestPermission();
+              }
 
-        const enabled =
-          authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-          authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+              const enabled =
+                authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+                authStatus === messaging.AuthorizationStatus.PROVISIONAL;
 
-        if (enabled) {
-          setHasSystemPermission(true);
-          handleSettingToggle('pushNotificationsEnabled', true);
-        } else {
-          setHasSystemPermission(false);
-          showAlert(
-            'Permission Denied',
-            'Please enable notifications in system settings to receive spending alerts.',
-            {
-              confirmText: 'Open Settings',
-              showCancel: true,
-              onConfirm: () => openSettings(),
+              if (enabled) {
+                setHasSystemPermission(true);
+                setIsUpdating(true);
+                await updateProfile({
+                  notificationSettings: {
+                    ...user?.notificationSettings,
+                    pushNotificationsEnabled: true,
+                    mainNotificationsEnabled: true,
+                  },
+                });
+              } else {
+                setHasSystemPermission(false);
+                showAlert(
+                  'Permission Denied',
+                  'Please enable notifications in system settings to receive spending alerts.',
+                  {
+                    confirmText: 'Open Settings',
+                    showCancel: true,
+                    onConfirm: () => openSettings(),
+                  },
+                );
+              }
             },
-          );
-        }
-      } catch (err) {
-        console.warn('Notification toggle error:', err);
+          },
+        );
+      } else {
+        setIsUpdating(true);
+        await updateProfile({
+          notificationSettings: {
+            ...user?.notificationSettings,
+            pushNotificationsEnabled: false,
+            mainNotificationsEnabled: false,
+          },
+        });
       }
-    } else {
-      handleSettingToggle('pushNotificationsEnabled', false);
+    } catch (err) {
+      console.warn('Notification toggle error:', err);
+      const apiError = parseApiError(err);
+      ToastAndroid.show(
+        apiError.message || 'Failed to update notifications',
+        ToastAndroid.SHORT,
+      );
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -224,20 +241,9 @@ const ToolScreen = () => {
     }
   };
 
-  const handleCurrencyChange = async currency => {
-    try {
-      await updateProfile({ currency });
-    } catch (err) {
-      console.error('Failed to update currency', err);
-      ToastAndroid.show(
-        'Failed to update currency preference',
-        ToastAndroid.SHORT,
-      );
-    }
-  };
-
   const handleSettingToggle = async (key, value) => {
     try {
+      setIsUpdating(true);
       await updateProfile({
         notificationSettings: {
           ...user?.notificationSettings,
@@ -246,7 +252,13 @@ const ToolScreen = () => {
       });
     } catch (err) {
       console.error('Failed to update setting', err);
-      ToastAndroid.show('Failed to update setting', ToastAndroid.SHORT);
+      const apiError = parseApiError(err);
+      ToastAndroid.show(
+        apiError.message || 'Failed to update setting',
+        ToastAndroid.SHORT,
+      );
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -280,6 +292,9 @@ const ToolScreen = () => {
         leftIconName="arrow-left"
         leftIconColor="#F8FAFC"
         onLeftIconPress={() => navigation.goBack()}
+        rightIconComponent={
+          isUpdating ? <ActivityIndicator size="small" color="#F8FAFC" /> : null
+        }
       />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -310,31 +325,6 @@ const ToolScreen = () => {
                 onValueChange={togglePrivacyMode}
               />
             }
-          />
-
-          <Text style={styles.sectionLabel}>Regional Preferences</Text>
-
-          <MenuItem
-            icon={Globe}
-            label="Currency"
-            onPress={() => currencySheetRef.current?.open()}
-            right={
-              <View style={styles.currencyBadge}>
-                <Text style={styles.currencyBadgeText}>
-                  {user?.currency || 'INR'}
-                </Text>
-                <ChevronRight size={16} color="#94A3B8" />
-              </View>
-            }
-          />
-
-          <BottomSheet
-            ref={currencySheetRef}
-            title="Select Currency"
-            options={CURRENCIES}
-            selectedValue={user?.currency || 'INR'}
-            onSelect={handleCurrencyChange}
-            initialHeight={0.6}
           />
 
           <Text style={styles.sectionLabel}>Notifications & Automation</Text>
@@ -411,15 +401,24 @@ const ToolScreen = () => {
                     />
                   }
                 />
+                <Divider style={styles.divider} />
+                <MenuItem
+                  icon={ChevronRight}
+                  label="Recurring Transactions"
+                  right={
+                    <CustomToggle
+                      value={
+                        user?.notificationSettings?.recurringTransactionsEnabled
+                      }
+                      onValueChange={v =>
+                        handleSettingToggle('recurringTransactionsEnabled', v)
+                      }
+                    />
+                  }
+                />
               </View>
             )}
           </View>
-
-          <MenuItem
-            icon={Clock}
-            label="Recurring Transactions"
-            onPress={() => navigation.navigate('RecurringTransactions')}
-          />
 
           {/* {Platform.OS === 'android' && (
             <View style={[styles.explanationCard, { marginTop: 12 }]}>
@@ -451,10 +450,33 @@ const ToolScreen = () => {
           <BottomSheet
             ref={alertSheetRef}
             title={alertConfig.title}
-            initialHeight={0.35}
+            initialHeight={0.4}
           >
             <View style={styles.alertContent}>
+              <View style={styles.alertHeader}>
+                <View
+                  style={[
+                    styles.alertIconContainer,
+                    {
+                      backgroundColor:
+                        alertConfig.type === 'danger'
+                          ? 'rgba(239, 68, 68, 0.1)'
+                          : 'rgba(58, 111, 248, 0.1)',
+                    },
+                  ]}
+                >
+                  <AlertTriangle
+                    size={24}
+                    color={
+                      alertConfig.type === 'danger' ? '#EF4444' : '#3A6FF8'
+                    }
+                  />
+                </View>
+                <Text style={styles.alertTitle}>{alertConfig.title}</Text>
+              </View>
+
               <Text style={styles.alertMessage}>{alertConfig.message}</Text>
+
               <View style={styles.alertActions}>
                 {alertConfig.showCancel && (
                   <Pressable
@@ -586,15 +608,32 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.medium,
   },
   alertContent: {
-    padding: 16,
+    padding: 0,
+    paddingBottom: 40,
     gap: 20,
+  },
+  alertHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  alertIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  alertTitle: {
+    fontSize: 20,
+    fontFamily: Fonts.bold,
+    color: '#F8FAFC',
   },
   alertMessage: {
     color: '#94A3B8',
     fontSize: 16,
     lineHeight: 24,
     fontFamily: Fonts.medium,
-    textAlign: 'center',
   },
   alertActions: {
     flexDirection: 'row',
@@ -619,7 +658,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   alertButtonTextSecondary: {
-    color: '#94A3B8',
+    color: '#64748B',
     fontFamily: Fonts.bold,
     fontSize: 16,
   },

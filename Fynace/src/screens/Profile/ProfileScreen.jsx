@@ -19,6 +19,8 @@ import {
   Shield,
   LogOut,
   ChevronRight,
+  Target,
+  Clock,
 } from 'lucide-react-native';
 import Fonts from '../../../assets/fonts';
 import { FRONTEND_URL } from '../../utils/BASE_URL';
@@ -129,6 +131,18 @@ const ProfileScreen = () => {
               icon={Wrench}
               label="Tools & Privacy"
               onPress={() => navigation.navigate('Tools')}
+            />
+
+            <MenuItem
+              icon={Target}
+              label="Budgets"
+              onPress={() => navigation.navigate('Budgets')}
+            />
+
+            <MenuItem
+              icon={Clock}
+              label="Recurring Transactions"
+              onPress={() => navigation.navigate('RecurringTransactions')}
             />
 
             <Text style={styles.sectionLabel}>More</Text>

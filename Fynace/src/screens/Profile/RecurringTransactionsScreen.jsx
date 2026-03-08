@@ -24,6 +24,35 @@ import Fonts from '../../../assets/fonts';
 import { usePrivacy } from '../../context/PrivacyContext';
 import { useAuth } from '../../hooks/useAuth';
 
+const calculateNextDate = (lastDate, frequency) => {
+  if (!lastDate || !frequency) return null;
+  const date = new Date(lastDate);
+  const now = new Date();
+
+  while (date <= now) {
+    const prevDate = new Date(date);
+    switch (frequency.toLowerCase()) {
+      case 'daily':
+        date.setDate(date.getDate() + 1);
+        break;
+      case 'weekly':
+        date.setDate(date.getDate() + 7);
+        break;
+      case 'monthly':
+        date.setMonth(date.getMonth() + 1);
+        break;
+      case 'yearly':
+        date.setFullYear(date.getFullYear() + 1);
+        break;
+      default:
+        return null;
+    }
+    // Safety break: if date doesn't advance (e.g. invalid frequency), stop loop.
+    if (date <= prevDate) break;
+  }
+  return date;
+};
+
 const RecurringTransactionsScreen = () => {
   const navigation = useNavigation();
   const { user } = useAuth();
@@ -90,10 +119,10 @@ const RecurringTransactionsScreen = () => {
             style={[
               styles.iconBox,
               {
-                backgroundColor:
+                borderColor:
                   item.type === 'expense'
-                    ? 'rgba(239, 68, 68, 0.1)'
-                    : 'rgba(34, 197, 94, 0.1)',
+                    ? 'rgba(239, 68, 68, 0.2)'
+                    : 'rgba(34, 197, 94, 0.2)',
               },
             ]}
           >
@@ -104,7 +133,7 @@ const RecurringTransactionsScreen = () => {
           </View>
           <View>
             <Text style={styles.title}>{item.name}</Text>
-            <Text style={styles.subtitle}>
+            <Text style={styles.categorySub}>
               {item.category || 'Uncategorized'}
             </Text>
           </View>
@@ -123,36 +152,58 @@ const RecurringTransactionsScreen = () => {
       <View style={styles.divider} />
 
       <View style={styles.cardBody}>
-        <View style={styles.infoRow}>
-          <Calendar size={14} color="#94A3B8" />
-          <Text style={styles.infoText}>Frequency: </Text>
-          <Chip style={styles.frequencyChip} textStyle={styles.frequencyText}>
-            {item.frequency || 'Monthly'}
-          </Chip>
-        </View>
+        <View style={styles.detailsGrid}>
+          <View style={styles.detailItem}>
+            <Calendar size={14} color="#94A3B8" />
+            <Text style={styles.detailLabel}>Next</Text>
+            <Text style={styles.detailValue}>
+              {(() => {
+                const next = calculateNextDate(item.date, item.frequency);
+                return next
+                  ? next.toLocaleDateString('en-IN', {
+                      day: '2-digit',
+                      month: 'short',
+                    })
+                  : 'N/A';
+              })()}
+            </Text>
+          </View>
 
-        <View style={styles.actions}>
-          <View style={styles.activeToggle}>
+          <View style={styles.detailSeparator} />
+
+          <View style={styles.detailItem}>
+            <Clock size={14} color="#94A3B8" />
+            <Text style={styles.detailLabel}>Freq</Text>
+            <Text style={[styles.detailValue, { textTransform: 'capitalize' }]}>
+              {item.frequency || 'Monthly'}
+            </Text>
+          </View>
+
+          <View style={styles.detailSeparator} />
+
+          <View style={styles.detailItem}>
             <Text
               style={[
-                styles.statusText,
+                styles.statusBadge,
                 { color: item.isActive ? '#22C55E' : '#94A3B8' },
               ]}
             >
-              {item.isActive ? 'Active' : 'Paused'}
+              {item.isActive ? 'ACTIVE' : 'PAUSED'}
             </Text>
             <Switch
               value={item.isActive}
               onValueChange={val => toggleActive(item, val)}
               color="#3A6FF8"
+              style={{ transform: [{ scale: 0.7 }], marginLeft: -4 }}
             />
           </View>
-
-          <IconButton
-            icon={() => <Trash2 size={20} color="#EF4444" />}
-            onPress={() => deleteRecurring(item)}
-          />
         </View>
+        {/* 
+        <IconButton
+          icon={() => <Trash2 size={18} color="#EF4444" />}
+          onPress={() => deleteRecurring(item)}
+          style={styles.deleteBtn}
+        /> */}
       </View>
     </Card>
   );
@@ -204,7 +255,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0F172A',
   },
   listContent: {
-    padding: 24,
+    padding: 15,
   },
   center: {
     flex: 1,
@@ -212,92 +263,98 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   card: {
-    backgroundColor: 'rgba(30, 41, 59, 0.5)',
-    borderRadius: 20,
+    backgroundColor: '#1E293B',
+    borderRadius: 24,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.05)',
-    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    padding: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 16,
   },
   iconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 48,
+    height: 48,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1.5,
+    backgroundColor: 'transparent',
   },
   title: {
-    fontSize: 16,
+    fontSize: 17,
     fontFamily: Fonts.bold,
     color: '#F8FAFC',
+    marginBottom: 2,
   },
-  subtitle: {
-    fontSize: 12,
+  categorySub: {
+    fontSize: 13,
     color: '#94A3B8',
     fontFamily: Fonts.medium,
   },
   amount: {
-    fontSize: 16,
+    fontSize: 18,
     fontFamily: Fonts.bold,
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
   },
   cardBody: {
-    padding: 12,
-    paddingHorizontal: 16,
+    padding: 16,
+    paddingHorizontal: 20,
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
   },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  infoText: {
-    fontSize: 12,
-    color: '#94A3B8',
-    fontFamily: Fonts.medium,
-  },
-  frequencyChip: {
-    backgroundColor: 'rgba(58, 111, 248, 0.1)',
-    height: 28,
-    justifyContent: 'center',
-  },
-  frequencyText: {
-    fontSize: 11,
-    color: '#3A6FF8',
-    textTransform: 'capitalize',
-    fontFamily: Fonts.bold,
-    lineHeight: 14,
-  },
-  actions: {
+  detailsGrid: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    flex: 1,
   },
-  activeToggle: {
+  detailItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  statusText: {
+  detailLabel: {
+    fontSize: 12,
+    color: '#64748B',
+    fontFamily: Fonts.medium,
+  },
+  detailValue: {
+    fontSize: 12,
+    color: '#3A6FF8',
+    fontFamily: Fonts.bold,
+  },
+  detailSeparator: {
+    width: 1,
+    height: 16,
+    backgroundColor: '#334155',
+  },
+  statusBadge: {
     fontSize: 10,
     fontFamily: Fonts.bold,
-    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  deleteBtn: {
+    margin: 0,
+    backgroundColor: 'rgba(239, 68, 68, 0.05)',
   },
   emptyContainer: {
     alignItems: 'center',

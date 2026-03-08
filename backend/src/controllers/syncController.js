@@ -27,10 +27,6 @@ const syncData = async (req, res) => {
       categoryId: t.categoryId ? t.categoryId._id : null,
     }));
 
-    console.log(
-      `Sync for User ${userId}: ${transactions.length} transactions, ${categories.length} categories since ${since.toISOString()}`,
-    );
-
     const allUpdatedAt = [
       ...transactions.map((t) => t.updatedAt),
       ...categories.map((c) => c.updatedAt),

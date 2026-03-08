@@ -30,6 +30,15 @@ class SyncManager {
       return;
     }
 
+    // Time-based check (once every 5 mins unless forced)
+    const LAST_SYNC_ATTEMPT = '@fynace/last-sync-attempt';
+    const lastSyncTime = await AsyncStorage.getItem(LAST_SYNC_ATTEMPT);
+    const now = Date.now();
+    if (!force && lastSyncTime && now - Number(lastSyncTime) < 300000) {
+      console.log('Sync skipped: Recently synced');
+      return;
+    }
+
     try {
       this.status = 'syncing';
       this.notify();
@@ -41,6 +50,7 @@ class SyncManager {
       await this.pushChanges();
       await this.pullChanges();
 
+      await AsyncStorage.setItem(LAST_SYNC_ATTEMPT, String(now));
       this.status = 'idle';
     } catch (error) {
       this.status = 'error';
@@ -189,8 +199,12 @@ class SyncManager {
               record.merchantName = remote.merchantName;
               record.upiId = remote.upiId;
               record.upiIntent = remote.upiIntent;
+              record.isRecurring = !!remote.isRecurring;
+              record.frequency = remote.frequency;
+              record.isActive =
+                remote.isActive !== undefined ? remote.isActive : true;
               record.synced = true;
-              record.updatedAt = new Date(remote.updatedAt).getTime();
+              record.updated_at = new Date(remote.updatedAt).getTime();
               record.isDeleted = !!remote.isDeleted;
             });
           } else {
@@ -208,6 +222,10 @@ class SyncManager {
               const mm = String(d.getMonth() + 1).padStart(2, '0');
               r.month = `${d.getFullYear()}-${mm}`;
               r.isDeleted = !!remote.isDeleted;
+              r.isRecurring = !!remote.isRecurring;
+              r.frequency = remote.frequency;
+              r.isActive =
+                remote.isActive !== undefined ? remote.isActive : true;
               r.synced = true;
             });
           }

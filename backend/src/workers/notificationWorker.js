@@ -3,11 +3,23 @@ const mongoose = require("mongoose");
 const User = require("../models/User");
 const Transaction = require("../models/Transaction");
 const { sendToUser } = require("../services/notificationService");
+const Budget = require("../models/Budget");
+const Category = require("../models/Category");
 
 const getMonthString = (date) => {
   const d = new Date(date);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 };
+
+// Categories that represent asset building or positive spending
+const ASSET_CATEGORIES = [
+  "Investment",
+  "Investments",
+  "Saving",
+  "Savings",
+  "Mutual Fund",
+  "Stocks",
+];
 
 /**
  * Logic for Daily Reminders
@@ -47,8 +59,6 @@ const runBudgetAlerts = async () => {
         },
       },
       { $group: { _id: "$categoryId", total: { $sum: "$amount" } } },
-      { $sort: { total: -1 } },
-      { $limit: 1 },
       {
         $lookup: {
           from: "categories",
@@ -57,18 +67,26 @@ const runBudgetAlerts = async () => {
           as: "cat",
         },
       },
+      { $unwind: "$cat" },
+      {
+        $match: {
+          "cat.name": { $nin: ASSET_CATEGORIES },
+        },
+      },
       {
         $project: {
-          name: {
-            $ifNull: [{ $arrayElemAt: ["$cat.name", 0] }, "Uncategorized"],
-          },
+          name: "$cat.name",
           total: 1,
         },
       },
     ]);
 
-    if (breakdown.length > 0 && breakdown[0].total > 0) {
-      const top = breakdown[0];
+    const top =
+      breakdown.length > 0
+        ? breakdown.sort((a, b) => b.total - a.total)[0]
+        : null;
+
+    if (top && top.total > 0) {
       await sendToUser(user, {
         title: "Budget Alert ⚠️",
         body: `You've spent the most on "${top.name}" this month. Keep an eye on your limits!`,
@@ -209,6 +227,91 @@ const processRecurringTransactions = async () => {
 };
 
 /**
+ * Check and notify if spending crosses budget thresholds (50%, 70%, 80%, 90%, 100%)
+ * Each threshold fires AT MOST ONCE per budget/month via notifiedThresholds tracking.
+ */
+const checkBudgetThresholds = async (userId, categoryId, amountJustAdded) => {
+  try {
+    const now = new Date();
+    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+    const budget = await Budget.findOne({ userId, categoryId, month });
+    if (!budget || !budget.monthlyLimit) return;
+
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const result = await Transaction.aggregate([
+      {
+        $match: {
+          userId: new mongoose.Types.ObjectId(userId),
+          categoryId: new mongoose.Types.ObjectId(categoryId),
+          type: "expense",
+          isDeleted: false,
+          date: { $gte: monthStart },
+        },
+      },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+
+    const totalSpent = result.length > 0 ? result[0].total : 0;
+    const limit = budget.monthlyLimit;
+    const progress = totalSpent / limit;
+
+    const thresholds = [1.0, 0.9, 0.8, 0.7, 0.5];
+    // Find the highest threshold crossed that hasn't already been notified this month
+    let crossedThreshold = null;
+
+    for (const t of thresholds) {
+      const thresholdPct = Math.round(t * 100);
+      const alreadyNotified = (budget.notifiedThresholds || []).includes(
+        thresholdPct,
+      );
+
+      if (progress >= t && !alreadyNotified) {
+        crossedThreshold = t;
+        break; // Only send for the single highest new threshold
+      }
+    }
+
+    if (crossedThreshold !== null) {
+      const user = await User.findById(userId);
+      if (!user || user.notificationSettings?.budgetAlerts === false) return;
+
+      const category = await Category.findById(categoryId);
+      const catName = category ? category.name : "this category";
+      const isAsset = ASSET_CATEGORIES.includes(catName);
+
+      let title = isAsset ? "Investment Milestone! 📈" : "Budget Update 📊";
+      let body = "";
+
+      if (crossedThreshold === 1.0) {
+        title = isAsset ? "Budget Goal Reached! 🎯" : "Budget Exceeded! ⚠️";
+        body = isAsset
+          ? `Amazing! You've met your ${catName} goal of 100% for this month.`
+          : `You've used 100% of your budget for ${catName}.`;
+      } else {
+        body = isAsset
+          ? `Great progress! You've completed ${crossedThreshold * 100}% of your ${catName} goal.`
+          : `You've used ${crossedThreshold * 100}% of your budget for ${catName}.`;
+      }
+
+      await sendToUser(user, { title, body, data: { screen: "Budgets" } });
+
+      // ✅ Mark threshold as notified so it NEVER re-fires this month
+      const thresholdPct = Math.round(crossedThreshold * 100);
+      await Budget.updateOne(
+        { _id: budget._id },
+        { $addToSet: { notifiedThresholds: thresholdPct } },
+      );
+      console.log(
+        `🔔 Budget alert sent: ${catName} at ${thresholdPct}% for user ${userId}`,
+      );
+    }
+  } catch (err) {
+    console.error("Error in checkBudgetThresholds:", err);
+  }
+};
+
+/**
  * Logic for Monthly Summaries
  */
 const runMonthlySummaries = async () => {
@@ -249,4 +352,5 @@ module.exports = {
   runSmartInsights,
   runMonthlySummaries,
   processRecurringTransactions,
+  checkBudgetThresholds,
 };

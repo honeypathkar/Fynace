@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
+import { View, Dimensions, ScrollView } from 'react-native';
 import { Text } from 'react-native-paper';
 import { LineChart } from 'react-native-chart-kit';
 import LinearGradient from 'react-native-linear-gradient';
@@ -12,11 +12,19 @@ const LineChartCard = ({
   netBalance,
   netBalanceLabel,
   lineChartData,
-  screenWidth,
   chartConfig,
+  rightAction,
 }) => {
   const { user } = useAuth();
   const { formatAmount, isPrivacyMode } = usePrivacy();
+  const screenWidth = Dimensions.get('window').width - 32; // Account for padding
+
+  const chartWidth = React.useMemo(() => {
+    if (!lineChartData?.labels?.length) return screenWidth;
+    // Base width on number of labels, min is screenWidth
+    return Math.max(screenWidth, lineChartData.labels.length * 60);
+  }, [lineChartData, screenWidth]);
+
   return (
     <LinearGradient
       colors={['#1E293B', '#0F172A', '#1E293B']}
@@ -24,9 +32,20 @@ const LineChartCard = ({
       end={{ x: 1, y: 1 }}
       style={styles.chartCard}
     >
-      <Text variant="titleMedium" style={styles.sectionTitle}>
-        {title}
-      </Text>
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 12,
+        }}
+      >
+        <Text variant="titleMedium" style={styles.sectionTitle}>
+          {title}
+        </Text>
+        {rightAction}
+      </View>
+
       <Text
         variant="displaySmall"
         style={[styles.netBalance, { textAlign: 'left' }]}
@@ -39,31 +58,33 @@ const LineChartCard = ({
       </Text>
 
       {lineChartData && lineChartData.labels.length > 0 ? (
-        <View style={styles.chartWrapper}>
-          <LineChart
-            data={lineChartData}
-            width={screenWidth - 48}
-            height={220}
-            chartConfig={chartConfig}
-            bezier
-            style={styles.chart}
-            withDots={true}
-            withInnerLines={true}
-            withOuterLines={false}
-            withVerticalLabels={true}
-            withHorizontalLabels={true}
-            segments={4}
-            fromZero={true}
-            yAxisInterval={1}
-            formatYLabel={value => {
-              if (isPrivacyMode) return '***';
-              const num = parseInt(value);
-              if (num >= 100000) return `${(num / 100000).toFixed(1)}L`;
-              if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-              return num.toString();
-            }}
-          />
-        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={styles.chartWrapper}>
+            <LineChart
+              data={lineChartData}
+              width={chartWidth}
+              height={220}
+              chartConfig={chartConfig}
+              bezier
+              style={[styles.chart, { marginLeft: -16 }]}
+              withDots={true}
+              withInnerLines={true}
+              withOuterLines={false}
+              withVerticalLabels={true}
+              withHorizontalLabels={true}
+              segments={4}
+              fromZero={true}
+              yAxisInterval={1}
+              formatYLabel={value => {
+                if (isPrivacyMode) return '***';
+                const num = parseInt(value);
+                if (num >= 100000) return `${(num / 100000).toFixed(1)}L`;
+                if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+                return num.toString();
+              }}
+            />
+          </View>
+        </ScrollView>
       ) : (
         <View style={styles.chartPlaceholder}>
           <Text style={styles.placeholderText}>No trend data available</Text>
