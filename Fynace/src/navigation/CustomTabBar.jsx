@@ -6,117 +6,127 @@ import {
   Text,
   Platform,
 } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { CommonActions } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useBottomBar } from '../context/BottomBarContext';
 import { themeAssets } from '../theme';
 import Fonts from '../../assets/fonts';
+import { QrCode, Plus } from 'lucide-react-native';
+import { useBottomBar } from '../context/BottomBarContext';
 
 const Tab = createBottomTabNavigator();
 
 const CustomTabBar = ({ state, descriptors, navigation }) => {
   const insets = useSafeAreaInsets();
-  const { isVisible } = useBottomBar();
+  const { setActionMenuOpen } = useBottomBar();
 
   const activeIconColor = themeAssets.palette.primary;
   const inactiveColor = themeAssets.palette.subtext;
 
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        {
-          translateY: withSpring(isVisible ? 0 : 150, {
-            damping: 20,
-            stiffness: 90,
-          }),
-        },
-      ],
-      opacity: withTiming(isVisible ? 1 : 0, { duration: 200 }),
+  const currentRouteName = state.routes[state.index].name;
+
+  const renderTab = (route, index) => {
+    const { options } = descriptors[route.key];
+    const isFocused = state.index === index;
+
+    const label =
+      options.tabBarLabel !== undefined
+        ? options.tabBarLabel
+        : options.title !== undefined
+        ? options.title
+        : route.name;
+
+    const onPress = () => {
+      const event = navigation.emit({
+        type: 'tabPress',
+        target: route.key,
+        canPreventDefault: true,
+      });
+
+      if (!isFocused && !event.defaultPrevented) {
+        navigation.dispatch({
+          ...CommonActions.navigate(route.name, route.params),
+          target: state.key,
+        });
+      }
     };
-  });
+
+    const iconColor = isFocused ? activeIconColor : inactiveColor;
+    const IconComponent = options.tabBarIcon;
+
+    return (
+      <TouchableOpacity
+        key={route.key}
+        accessibilityRole="button"
+        accessibilityState={isFocused ? { selected: true } : {}}
+        accessibilityLabel={options.tabBarAccessibilityLabel}
+        testID={options.tabBarTestID}
+        onPress={onPress}
+        style={styles.tabItem}
+        activeOpacity={0.7}
+      >
+        <View style={styles.tabContent}>
+          {isFocused && <View style={styles.activeIndicator} />}
+          <View style={styles.iconContainer}>
+            {IconComponent && (
+              <IconComponent focused={isFocused} color={iconColor} size={24} />
+            )}
+          </View>
+          {label && (
+            <Text
+              style={[
+                styles.tabLabel,
+                isFocused && styles.tabLabelActive,
+                { color: iconColor },
+              ]}
+            >
+              {label}
+            </Text>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderMiddleButton = () => {
+    if (currentRouteName === 'Home') {
+      return (
+        <TouchableOpacity
+          onPress={() => navigation.navigate('QRScanner')}
+          style={styles.middleButtonContainer}
+          activeOpacity={0.8}
+        >
+          <View style={styles.middleButton}>
+            <QrCode color="#F8FAFC" size={24} />
+          </View>
+        </TouchableOpacity>
+      );
+    }
+
+    // Default middle button (Plus) for all other screens (Expenses, Profile, etc.)
+    return (
+      <TouchableOpacity
+        onPress={() => setActionMenuOpen(true)}
+        style={styles.middleButtonContainer}
+        activeOpacity={0.8}
+      >
+        <View style={styles.middleButton}>
+          <Plus color="#F8FAFC" size={24} />
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
-    <Animated.View style={[styles.floatingContainer, animatedStyle]}>
+    <View style={styles.floatingContainer}>
       <View
-        style={[
-          styles.barStyle,
-          { paddingBottom: Math.max(insets.bottom, 16) },
-        ]}
+        style={[styles.barStyle, { paddingBottom: Math.max(insets.bottom, 8) }]}
       >
-        {state.routes.map((route, index) => {
-          const { options } = descriptors[route.key];
-          const isFocused = state.index === index;
-
-          const label =
-            options.tabBarLabel !== undefined
-              ? options.tabBarLabel
-              : options.title !== undefined
-              ? options.title
-              : route.name;
-
-          const onPress = () => {
-            const event = navigation.emit({
-              type: 'tabPress',
-              target: route.key,
-              canPreventDefault: true,
-            });
-
-            if (!isFocused && !event.defaultPrevented) {
-              navigation.dispatch({
-                ...CommonActions.navigate(route.name, route.params),
-                target: state.key,
-              });
-            }
-          };
-
-          const iconColor = isFocused ? activeIconColor : inactiveColor;
-          const IconComponent = options.tabBarIcon;
-
-          return (
-            <TouchableOpacity
-              key={route.key}
-              accessibilityRole="button"
-              accessibilityState={isFocused ? { selected: true } : {}}
-              accessibilityLabel={options.tabBarAccessibilityLabel}
-              testID={options.tabBarTestID}
-              onPress={onPress}
-              style={styles.tabItem}
-              activeOpacity={0.7}
-            >
-              <View style={styles.tabContent}>
-                {isFocused && <View style={styles.activeIndicator} />}
-                <View style={styles.iconContainer}>
-                  {IconComponent && (
-                    <IconComponent
-                      focused={isFocused}
-                      color={iconColor}
-                      size={24}
-                    />
-                  )}
-                </View>
-                {label && (
-                  <Text
-                    style={[
-                      styles.tabLabel,
-                      isFocused && styles.tabLabelActive,
-                      { color: iconColor },
-                    ]}
-                  >
-                    {label}
-                  </Text>
-                )}
-              </View>
-            </TouchableOpacity>
-          );
-        })}
+        {renderTab(state.routes[0], 0)}
+        {renderMiddleButton()}
+        {renderTab(state.routes[1], 1)}
       </View>
-    </Animated.View>
+    </View>
   );
 };
 
@@ -139,7 +149,6 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    overflow: 'hidden',
   },
   tabItem: {
     flex: 1,
@@ -177,6 +186,25 @@ const styles = StyleSheet.create({
   },
   tabLabelActive: {
     fontFamily: Fonts.semibold,
+  },
+  middleButtonContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    top: 0,
+  },
+  middleButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: themeAssets.palette.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
+    shadowColor: themeAssets.palette.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
   },
 });
 

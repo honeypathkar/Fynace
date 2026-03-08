@@ -13,6 +13,7 @@ const chartRoutes = require("./routes/chartRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
 const landingRoutes = require("./routes/landingRoutes");
 const transactionRoutes = require("./routes/transactionRoutes");
+const budgetRoutes = require("./routes/budgetRoutes");
 const { initWorkers } = require("./workers/notificationWorker");
 
 // Initialize Express app
@@ -69,6 +70,7 @@ app.get("/health", (req, res) => {
 
 // API Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/budgets", budgetRoutes);
 app.use("/api/transactions", transactionRoutes); // ✅ Unified transactions API
 app.use("/api/chart", chartRoutes);
 app.use("/api/categories", categoryRoutes);

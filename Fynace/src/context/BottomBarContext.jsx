@@ -4,6 +4,7 @@ const BottomBarContext = createContext(undefined);
 
 export const BottomBarProvider = ({ children }) => {
   const [isVisible, setIsVisible] = useState(true);
+  const [actionMenuOpen, setActionMenuOpen] = useState(false);
 
   const showBottomBar = useCallback(() => {
     setIsVisible(true);
@@ -14,7 +15,15 @@ export const BottomBarProvider = ({ children }) => {
   }, []);
 
   return (
-    <BottomBarContext.Provider value={{ isVisible, showBottomBar, hideBottomBar }}>
+    <BottomBarContext.Provider
+      value={{
+        isVisible,
+        showBottomBar,
+        hideBottomBar,
+        actionMenuOpen,
+        setActionMenuOpen,
+      }}
+    >
       {children}
     </BottomBarContext.Provider>
   );
@@ -27,4 +36,3 @@ export const useBottomBar = () => {
   }
   return context;
 };
-

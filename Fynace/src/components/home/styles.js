@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1E293B',
   },
   chart: {
-    marginLeft: -20,
+    // marginLeft: -20,
     borderRadius: 16,
     fontFamily: Fonts.regular,
   },

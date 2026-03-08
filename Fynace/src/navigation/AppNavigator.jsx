@@ -20,6 +20,7 @@ import WebViewScreen from '../screens/Profile/WebViewScreen';
 import BankSmsConfigScreen from '../screens/Profile/BankSmsConfigScreen';
 import SmsFetchScreen from '../screens/Expenses/SmsFetchScreen';
 import RecurringTransactionsScreen from '../screens/Profile/RecurringTransactionsScreen';
+import BudgetScreen from '../screens/Profile/BudgetScreen';
 import CustomTabBar from './CustomTabBar';
 
 const Tab = createBottomTabNavigator();
@@ -165,6 +166,11 @@ const AppNavigator = () => {
         <Stack.Screen
           name="RecurringTransactions"
           component={RecurringTransactionsScreen}
+          options={{ animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="Budgets"
+          component={BudgetScreen}
           options={{ animation: 'slide_from_bottom' }}
         />
       </Stack.Navigator>

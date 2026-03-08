@@ -87,6 +87,8 @@ const ExpensesScreen = () => {
     isVisible: isBottomBarVisible,
     hideBottomBar,
     showBottomBar,
+    actionMenuOpen,
+    setActionMenuOpen,
   } = useBottomBar();
   const { isPrivacyMode, togglePrivacyMode } = usePrivacy();
 
@@ -112,7 +114,6 @@ const ExpensesScreen = () => {
     all: [],
   });
   const [initialLoad, setInitialLoad] = useState(true);
-  const [fabOpen, setFabOpen] = useState(false);
   const [lastCreatedAt, setLastCreatedAt] = useState(null);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -126,6 +127,14 @@ const ExpensesScreen = () => {
     }, 500);
     return () => clearTimeout(handler);
   }, [searchQuery]);
+
+  useEffect(() => {
+    if (actionMenuOpen) {
+      fabMenuSheetRef.current?.open();
+    } else {
+      fabMenuSheetRef.current?.close();
+    }
+  }, [actionMenuOpen]);
 
   const [loadingFilters, setLoadingFilters] = useState(false);
   const fabMenuSheetRef = useRef(null);
@@ -420,18 +429,13 @@ const ExpensesScreen = () => {
   ]);
 
   const fetchMonthsAndData = useCallback(async () => {
-    if (!token) {
-      return;
-    }
+    if (!token) return;
 
     try {
       setLoading(true);
       setError(null);
 
-      const monthlyResponse = await apiClient
-        .get('transactions/monthly-totals')
-        .catch(() => ({ data: { data: [] } }));
-
+      // ─── Step 1: Load from local DB immediately (no network wait) ───
       const [allLocalExpenses, allLocalMoneyIn] = await Promise.all([
         database
           .get('transactions')
@@ -450,34 +454,25 @@ const ExpensesScreen = () => {
         ]),
       ].filter(Boolean);
 
-      const combinedMonths = [
-        ...new Set([
-          ...(monthlyResponse.data?.data?.map(item => item.month) || []),
-          ...localMonths,
-        ]),
-      ];
-      const sortedMonths = combinedMonths.sort((a, b) => b.localeCompare(a));
-      setMonths(sortedMonths);
+      const sortedLocalMonths = [...localMonths].sort((a, b) =>
+        b.localeCompare(a),
+      );
+      setMonths(sortedLocalMonths);
 
-      // By default, show all expenses if it's the initial load
-      if (initialLoad) {
-        setLastCreatedAt(null);
-        setHasMore(true);
-        lastCreatedAtRef.current = null;
-        hasMoreRef.current = true;
-        await fetchExpenses('All', null, false, 'All', 'All', '');
-      } else {
-        // Just refresh for current filters
-        await fetchExpenses(
-          selectedMonth,
-          null,
-          false,
-          selectedCategory,
-          selectedType,
-          debouncedSearch,
-          0,
-        );
-      }
+      // Show local data right away
+      setLastCreatedAt(null);
+      setHasMore(true);
+      lastCreatedAtRef.current = null;
+      hasMoreRef.current = true;
+      await fetchExpenses(
+        initialLoad ? 'All' : selectedMonth,
+        null,
+        false,
+        initialLoad ? 'All' : selectedCategory,
+        initialLoad ? 'All' : selectedType,
+        initialLoad ? '' : debouncedSearch,
+        0,
+      );
     } catch (err) {
       const apiError = parseApiError(err);
       setError(apiError.message);
@@ -579,14 +574,15 @@ const ExpensesScreen = () => {
       if (!token) return;
 
       const refreshAll = async () => {
-        syncManager.sync().catch(console.error);
-
+        // ─── Load local data immediately, sync in the background ───
         if (initialLoad) {
+          // First paint: show cached data immediately
           await fetchMonthsAndData();
-          await fetchFilters();
+          fetchFilters(); // non-blocking
+          // Background sync after UI is visible
+          syncManager.sync().catch(console.error);
         } else {
-          // IMPORTANT: Do NOT reset selectedType/selectedMonth here.
-          // Just fetch the data for the current selection.
+          // Already loaded before: show current local data, then sync quietly
           setLastCreatedAt(null);
           setHasMore(true);
           lastCreatedAtRef.current = null;
@@ -600,20 +596,12 @@ const ExpensesScreen = () => {
             debouncedSearch,
             0,
           );
+          syncManager.sync().catch(console.error);
         }
       };
 
       refreshAll();
-    }, [
-      token,
-      initialLoad,
-      // We explicitly leave filters out of this dependency array
-      // if we don't want RE-focus (like returning from another tab)
-      // to reset the user's manual filter choices.
-      // But we DO want it to fetch fresh data for THOSE choices.
-      fetchExpenses,
-      fetchMonthsAndData,
-    ]),
+    }, [token, initialLoad, fetchExpenses, fetchMonthsAndData]),
   );
 
   const filteredExpenses = useMemo(() => expenses, [expenses]);
@@ -737,8 +725,7 @@ const ExpensesScreen = () => {
   };
 
   const toggleFab = () => {
-    setFabOpen(true);
-    fabMenuSheetRef.current?.open();
+    setActionMenuOpen(true);
   };
 
   const handleOpenFilters = () => {
@@ -749,7 +736,7 @@ const ExpensesScreen = () => {
   const handleAddManually = () => {
     fabMenuSheetRef.current?.close();
     setTimeout(() => {
-      setFabOpen(false);
+      setActionMenuOpen(false);
       openForm();
     }, 200);
   };
@@ -757,7 +744,7 @@ const ExpensesScreen = () => {
   const handleImportExcel = () => {
     fabMenuSheetRef.current?.close();
     setTimeout(() => {
-      setFabOpen(false);
+      setActionMenuOpen(false);
       navigation.navigate('ExcelUpload');
     }, 200);
   };
@@ -765,7 +752,7 @@ const ExpensesScreen = () => {
   const handleSmsFetch = () => {
     fabMenuSheetRef.current?.close();
     setTimeout(() => {
-      setFabOpen(false);
+      setActionMenuOpen(false);
       navigation.navigate('SmsFetch');
     }, 200);
   };
@@ -862,10 +849,12 @@ const ExpensesScreen = () => {
   if (!token) {
     return (
       <View style={expenseStyles.container}>
-        <GlobalHeader
-          title="Track expenses effortlessly"
-          subtitle="Log in from the Profile tab to manage your spending"
-        />
+        <SafeAreaView edges={['top']}>
+          <GlobalHeader
+            title="Track expenses effortlessly"
+            subtitle="Log in from the Profile tab to manage your spending"
+          />
+        </SafeAreaView>
       </View>
     );
   }
@@ -982,19 +971,6 @@ const ExpensesScreen = () => {
             onEndReached={loadMoreExpenses}
             onEndReachedThreshold={0.5}
             estimatedItemSize={100}
-            onScrollBeginDrag={() => hideBottomBar()}
-            onScrollEndDrag={e => {
-              const { contentOffset } = e.nativeEvent;
-              if (contentOffset.y <= 0) {
-                showBottomBar();
-              }
-            }}
-            onMomentumScrollEnd={e => {
-              const { contentOffset } = e.nativeEvent;
-              if (contentOffset.y <= 0) {
-                showBottomBar();
-              }
-            }}
             scrollEventThrottle={16}
             ListFooterComponent={
               loadingMore ? (
@@ -1078,22 +1054,10 @@ const ExpensesScreen = () => {
           />
         )}
 
-        {/* FAB Button */}
-        <TouchableOpacity
-          style={[
-            expenseStyles.fabButton,
-            { bottom: isBottomBarVisible ? 100 : 20 },
-          ]}
-          onPress={toggleFab}
-          activeOpacity={0.8}
-        >
-          <Plus size={28} color="#F8FAFC" />
-        </TouchableOpacity>
-
         {/* Action Menu Bottom Sheet */}
         <FABMenu
           sheetRef={fabMenuSheetRef}
-          onClose={() => setFabOpen(false)}
+          onClose={() => setActionMenuOpen(false)}
           onAddManually={handleAddManually}
           onImportExcel={handleImportExcel}
           onSmsFetch={handleSmsFetch}

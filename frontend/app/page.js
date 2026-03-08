@@ -138,14 +138,7 @@ export default function Home() {
         delay: 0.5,
       });
 
-      // Floating Logo Effect
-      gsap.to(".hero-main-img", {
-        y: -15,
-        duration: 2.5,
-        repeat: -1,
-        yoyo: true,
-        ease: "power1.inOut",
-      });
+      // Floating Logo Effect removed per user request to keep it fixed
 
       // Staggered Sections
       gsap.utils.toArray(".feature-card").forEach((card, i) => {
@@ -316,7 +309,7 @@ export default function Home() {
                 width={700}
                 height={800}
                 className="hero-main-img"
-                style={{ objectFit: "contain" }}
+                style={{ objectFit: "cover" }}
                 priority
               />
             </div>

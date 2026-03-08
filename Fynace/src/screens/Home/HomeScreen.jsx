@@ -7,7 +7,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { ActivityIndicator, Text, useTheme } from 'react-native-paper';
+import { ActivityIndicator, Text, useTheme, Divider } from 'react-native-paper';
 import GlobalHeader from '../../components/GlobalHeader';
 import { useAuth } from '../../hooks/useAuth';
 import { apiClient, parseApiError } from '../../api/client';
@@ -24,11 +24,19 @@ import {
   homeStyles,
 } from '../../components/home';
 import { SkeletonPulse } from '../../components/expenses';
-import { QrCode, Plus } from 'lucide-react-native';
+import {
+  QrCode,
+  Plus,
+  Filter,
+  Calendar,
+  TrendingUp,
+} from 'lucide-react-native';
 import { TouchableOpacity } from 'react-native';
 import { database } from '../../database';
 import { Q } from '@nozbe/watermelondb';
 import { syncManager } from '../../sync/SyncManager';
+import BottomSheet from '../../components/BottomSheet';
+import { usePrivacy } from '../../context/PrivacyContext';
 
 const HomeSkeleton = () => (
   <ScrollView
@@ -81,20 +89,19 @@ const formatMonth = month => {
 const HomeScreen = () => {
   const { user, token } = useAuth();
   const theme = useTheme();
-  const { colors } = theme;
+  const { formatAmount } = usePrivacy();
   const navigation = useNavigation();
-  const { hideBottomBar, showBottomBar } = useBottomBar();
   const screenWidth = Dimensions.get('window').width;
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [monthlyData, setMonthlyData] = useState([]);
-  const [trendData, setTrendData] = useState([]);
-  const [categoryData, setCategoryData] = useState([]);
-  const [selectedMonth, setSelectedMonth] = useState();
-  const [allTimeSummary, setAllTimeSummary] = useState();
-  const [currentMonthSummary, setCurrentMonthSummary] = useState(null);
-  const [previousMonthSummary, setPreviousMonthSummary] = useState(null);
+  const [rawExpenses, setRawExpenses] = useState([]);
+  const [rawMoneyIn, setRawMoneyIn] = useState([]);
   const [syncStatus, setSyncStatus] = useState(syncManager.status);
+
+  const [filterType, setFilterType] = useState('all_time');
+  const [filterValue, setFilterValue] = useState(null);
+  const bottomSheetRef = React.useRef(null);
 
   useEffect(() => {
     return syncManager.subscribe(status => {
@@ -115,292 +122,318 @@ const HomeScreen = () => {
       useShadowColorFromDataset: false,
       fillShadowGradient: '#3A6FF8',
       fillShadowGradientOpacity: 0.3,
-      style: {
-        borderRadius: 16,
-      },
-      propsForDots: {
-        r: '5',
-        strokeWidth: '3',
-        stroke: '#3A6FF8',
-      },
+      style: { borderRadius: 16 },
+      propsForDots: { r: '4', strokeWidth: '2', stroke: '#3A6FF8' },
       propsForBackgroundLines: {
-        strokeDasharray: '',
+        strokeDasharray: '5,5',
         stroke: '#334155',
         strokeWidth: 1,
       },
-      propsForVerticalLabels: {
-        fontSize: 11,
-        fontFamily: Fonts.medium,
-      },
-      propsForHorizontalLabels: {
-        fontSize: 11,
-        fontFamily: Fonts.medium,
-      },
-      propsForLabels: {
-        fontSize: 12,
-        fontFamily: Fonts.medium,
-      },
+      propsForVerticalLabels: { fontSize: 10, fontFamily: Fonts.medium },
+      propsForHorizontalLabels: { fontSize: 10, fontFamily: Fonts.medium },
+      propsForLabels: { fontSize: 11, fontFamily: Fonts.medium },
     };
   }, []);
 
-  const fetchDashboardData = useCallback(
-    async (isSilent = false) => {
-      try {
-        if (!isSilent) {
-          setLoading(true);
-        }
-        setError(null);
+  const fetchDashboardData = useCallback(async (isSilent = false) => {
+    try {
+      if (!isSilent) setLoading(true);
+      setError(null);
 
-        // Trigger background sync
-        syncManager.sync().catch(console.error);
+      // Fetch local data (everything un-deleted)
+      const [localExpenses, localMoneyIn] = await Promise.all([
+        database
+          .get('transactions')
+          .query(Q.where('type', 'expense'), Q.where('is_deleted', false))
+          .fetch(),
+        database
+          .get('transactions')
+          .query(Q.where('type', 'income'), Q.where('is_deleted', false))
+          .fetch(),
+      ]);
 
-        const now = new Date();
-        const currentYear = now.getFullYear();
-        const currentMonth = String(now.getMonth() + 1).padStart(2, '0');
-        const currentMonthStr = `${currentYear}-${currentMonth}`;
+      setRawExpenses(localExpenses);
+      setRawMoneyIn(localMoneyIn);
+      setLoading(false);
 
-        const prevMonthDate = new Date(currentYear, now.getMonth() - 1, 1);
-        const prevYear = prevMonthDate.getFullYear();
-        const prevMonth = String(prevMonthDate.getMonth() + 1).padStart(2, '0');
-        const prevMonthStr = `${prevYear}-${prevMonth}`;
-
-        // Fetch local data
-        const [localExpenses, localMoneyIn] = await Promise.all([
-          database
-            .get('transactions')
-            .query(Q.where('type', 'expense'), Q.where('is_deleted', false))
-            .fetch(),
-          database
-            .get('transactions')
-            .query(Q.where('type', 'income'), Q.where('is_deleted', false))
-            .fetch(),
-        ]);
-
-        console.log(
-          `HomeScreen: Fetched ${localExpenses.length} expenses, ${localMoneyIn.length} moneyIn`,
-        );
-
-        // Calculate All-Time Summary
-        const allTimeIn = localMoneyIn.reduce(
-          (sum, entry) => sum + (entry.amountRupees || 0),
-          0,
-        );
-        const allTimeOut = localExpenses.reduce(
-          (sum, exp) => sum + (exp.amountRupees || 0),
-          0,
-        );
-        setAllTimeSummary({
-          totalMoneyIn: allTimeIn,
-          totalMoneyOut: allTimeOut,
-        });
-
-        // Calculate Current Month Summary
-        const currentIn = localMoneyIn
-          .filter(entry => entry.month === currentMonthStr)
-          .reduce((sum, entry) => sum + (entry.amountRupees || 0), 0);
-        const currentOut = localExpenses
-          .filter(exp => exp.month === currentMonthStr)
-          .reduce((sum, exp) => sum + (exp.amountRupees || 0), 0);
-        setCurrentMonthSummary({
-          totalMoneyIn: currentIn,
-          totalMoneyOut: currentOut,
-        });
-
-        // Calculate Previous Month Summary
-        const prevIn = localMoneyIn
-          .filter(entry => entry.month === prevMonthStr)
-          .reduce((sum, entry) => sum + (entry.amountRupees || 0), 0);
-        const prevOut = localExpenses
-          .filter(exp => exp.month === prevMonthStr)
-          .reduce((sum, exp) => sum + (exp.amountRupees || 0), 0);
-        setPreviousMonthSummary({
-          totalMoneyIn: prevIn,
-          totalMoneyOut: prevOut,
-        });
-
-        // For charts, we'll still try to fetch from API if online,
-        // but for now let's just use local data for trend if possible
-        // (Simplified for this phase: summaries are local, charts might stay skeleton if offline)
-
-        setLoading(false);
-
-        // Fetch heavy data from API in background (optional/as fallback)
-        Promise.all([
-          apiClient.get('chart/monthly').catch(() => ({ data: { data: [] } })),
-          apiClient.get('chart/trend').catch(() => ({ data: { data: [] } })),
-          apiClient
-            .get('chart/category/all-time')
-            .catch(() => ({ data: { data: [] } })),
-        ]).then(([monthlyResponse, trendResponse, categoryResponse]) => {
-          setMonthlyData(monthlyResponse.data?.data || []);
-          setTrendData(trendResponse.data?.data || []);
-          setCategoryData(categoryResponse.data?.data || []);
-        });
-      } catch (err) {
-        setError(err.message || 'Failed to load local dashboard data');
-        setLoading(false);
-      }
-    },
-    [token],
-  );
+      // Background sync (debounced via syncManager)
+      syncManager.sync().catch(console.error);
+    } catch (err) {
+      setError(err.message || 'Failed to load local dashboard data');
+      setLoading(false);
+    }
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      // If we already have summaries, do a silent background refresh
-      // instead of showing a full loader.
-      const isSilent = allTimeSummary !== undefined && allTimeSummary !== null;
-      fetchDashboardData(isSilent);
+      fetchDashboardData(rawExpenses.length > 0);
     }, [fetchDashboardData]),
   );
 
-  const pieColors = useMemo(
-    () => [
-      '#3A6FF8', // Blue
-      '#F97316', // Orange
-      '#22C55E', // Green
-      '#EF4444', // Red
-      '#A855F7', // Purple
-      '#14B8A6', // Teal
-    ],
-    [],
-  );
+  // --- Filtering Logic ---
+  const filteredData = useMemo(() => {
+    const now = new Date();
+    let expenses = [...rawExpenses];
+    let moneyIn = [...rawMoneyIn];
 
-  const lineChartData = useMemo(() => {
-    if (!trendData || !Array.isArray(trendData) || trendData.length === 0) {
-      return null;
+    if (filterType === 'yearly' && filterValue) {
+      const year = parseInt(filterValue);
+      expenses = expenses.filter(e => new Date(e.date).getFullYear() === year);
+      moneyIn = moneyIn.filter(m => new Date(m.date).getFullYear() === year);
+    } else if (filterType === 'monthly' && filterValue) {
+      expenses = expenses.filter(e => e.month === filterValue);
+      moneyIn = moneyIn.filter(m => m.month === filterValue);
+    } else if (filterType === 'weekly') {
+      const weekAgo = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() - 7,
+      ).getTime();
+      expenses = expenses.filter(e => e.date >= weekAgo);
+      moneyIn = moneyIn.filter(m => m.date >= weekAgo);
     }
 
-    // Take last 6 months for better visibility
-    const recentTrends = trendData.slice(-6);
+    // Sort by date for proper chart order
+    expenses.sort((a, b) => a.date - b.date);
+    moneyIn.sort((a, b) => a.date - b.date);
 
-    const labels = recentTrends
-      .map(item => {
-        if (!item || !item.month) return '';
-        const monthLabel = formatMonth(item.month);
-        return monthLabel.split(' ')[0]; // Just Month name
-      })
-      .filter(Boolean);
+    return { expenses, moneyIn };
+  }, [rawExpenses, rawMoneyIn, filterType, filterValue]);
 
-    const expenseData = recentTrends.map(item => item?.totalMoneyOut || 0);
-    const incomeData = recentTrends.map(item => item?.totalMoneyIn || 0);
+  const summary = useMemo(() => {
+    const totalIn = filteredData.moneyIn.reduce(
+      (sum, e) => sum + (e.amountRupees || 0),
+      0,
+    );
+    const totalOut = filteredData.expenses.reduce(
+      (sum, e) => sum + (e.amountRupees || 0),
+      0,
+    );
+    return { totalIn, totalOut };
+  }, [filteredData]);
 
-    // Check if we have valid data
-    if (
-      labels.length === 0 ||
-      (expenseData.every(v => v === 0) && incomeData.every(v => v === 0))
-    ) {
-      return null;
+  const comparisonPercent = useMemo(() => {
+    let prevExpenses = [];
+    let prevMoneyIn = [];
+    const now = new Date();
+
+    if (filterType === 'weekly') {
+      const start = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() - 14,
+      ).getTime();
+      const end = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() - 7,
+      ).getTime();
+      prevExpenses = rawExpenses.filter(e => e.date >= start && e.date < end);
+      prevMoneyIn = rawMoneyIn.filter(m => m.date >= start && m.date < end);
+    } else if (filterType === 'monthly' && filterValue) {
+      const [year, month] = filterValue.split('-').map(Number);
+      const prevMonthDate = new Date(year, month - 2, 1);
+      const prevMonthStr = `${prevMonthDate.getFullYear()}-${String(
+        prevMonthDate.getMonth() + 1,
+      ).padStart(2, '0')}`;
+      prevExpenses = rawExpenses.filter(e => e.month === prevMonthStr);
+      prevMoneyIn = rawMoneyIn.filter(m => m.month === prevMonthStr);
+    } else if (filterType === 'yearly' && filterValue) {
+      const prevYear = (parseInt(filterValue) - 1).toString();
+      prevExpenses = rawExpenses.filter(
+        e => new Date(e.date).getFullYear().toString() === prevYear,
+      );
+      prevMoneyIn = rawMoneyIn.filter(
+        m => new Date(m.date).getFullYear().toString() === prevYear,
+      );
+    } else {
+      return { moneyInPercent: null, moneyOutPercent: null };
+    }
+
+    const prevIn = prevMoneyIn.reduce(
+      (sum, e) => sum + (e.amountRupees || 0),
+      0,
+    );
+    const prevOut = prevExpenses.reduce(
+      (sum, e) => sum + (e.amountRupees || 0),
+      0,
+    );
+    const currIn = summary.totalIn;
+    const currOut = summary.totalOut;
+
+    const calcTrend = (curr, prev) => {
+      if (prev === 0) return curr > 0 ? 100 : null;
+      return parseFloat((((curr - prev) / prev) * 100).toFixed(1));
+    };
+
+    return {
+      moneyInPercent: calcTrend(currIn, prevIn),
+      moneyOutPercent: calcTrend(currOut, prevOut),
+    };
+  }, [filterType, filterValue, rawExpenses, rawMoneyIn, summary]);
+
+  const chartTitle = useMemo(() => {
+    if (filterType === 'all_time') return 'All Time Snapshot';
+    if (filterType === 'weekly') return 'Weekly Snapshot';
+    if (filterType === 'yearly') return `Snapshot: ${filterValue}`;
+    if (filterType === 'monthly')
+      return `Snapshot: ${formatMonth(filterValue)}`;
+    return 'Snapshot';
+  }, [filterType, filterValue]);
+
+  const lineChartData = useMemo(() => {
+    const { expenses, moneyIn } = filteredData;
+    if (expenses.length === 0 && moneyIn.length === 0) return null;
+
+    let labels = [];
+    let expensePoints = [];
+    let incomePoints = [];
+
+    if (filterType === 'all_time' || filterType === 'yearly') {
+      // Group by month
+      const groups = {};
+      const allTxns = [...expenses, ...moneyIn].sort((a, b) => a.date - b.date);
+
+      allTxns.forEach(t => {
+        if (!groups[t.month])
+          groups[t.month] = {
+            in: 0,
+            out: 0,
+            label: formatMonth(t.month).split(' ')[0],
+          };
+        if (t.type === 'expense') groups[t.month].out += t.amountRupees || 0;
+        else groups[t.month].in += t.amountRupees || 0;
+      });
+
+      const sortedMonths = Object.keys(groups).sort();
+      labels = sortedMonths.map(m => groups[m].label);
+      expensePoints = sortedMonths.map(m => groups[m].out);
+      incomePoints = sortedMonths.map(m => groups[m].in);
+    } else {
+      // Group by date
+      const groups = {};
+      const allTxns = [...expenses, ...moneyIn].sort((a, b) => a.date - b.date);
+      allTxns.forEach(t => {
+        const d = new Date(t.date).toLocaleDateString('default', {
+          day: 'numeric',
+          month: 'short',
+        });
+        if (!groups[d]) groups[d] = { in: 0, out: 0 };
+        if (t.type === 'expense') groups[d].out += t.amountRupees || 0;
+        else groups[d].in += t.amountRupees || 0;
+      });
+      labels = Object.keys(groups);
+      expensePoints = Object.values(groups).map(v => v.out);
+      incomePoints = Object.values(groups).map(v => v.in);
+    }
+
+    if (labels.length > 7) {
+      // Truncate labels for better UI but keep data points
+      labels = labels.map((l, i) =>
+        i % Math.ceil(labels.length / 5) === 0 ? l : '',
+      );
     }
 
     return {
       labels,
       datasets: [
         {
-          data: expenseData,
-          color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`, // Red for expenses
+          data: expensePoints,
+          color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
           strokeWidth: 3,
-          withDots: true,
-          withShadow: true,
         },
         {
-          data: incomeData,
-          color: (opacity = 1) => `rgba(34, 197, 94, ${opacity})`, // Green for income
+          data: incomePoints,
+          color: (opacity = 1) => `rgba(34, 197, 94, ${opacity})`,
           strokeWidth: 3,
-          withDots: true,
-          withShadow: true,
         },
       ],
       legend: ['Expense', 'Income'],
     };
-  }, [trendData]);
+  }, [filteredData, filterType]);
 
   const pieChartData = useMemo(() => {
-    // Always return an array, never undefined
-    if (
-      !categoryData ||
-      !Array.isArray(categoryData) ||
-      categoryData.length === 0
-    ) {
-      return [];
-    }
+    const expenses = filteredData.expenses;
+    const cats = {};
+    expenses.forEach(e => {
+      const name = e.category || 'Other';
+      cats[name] = (cats[name] || 0) + (e.amountRupees || 0);
+    });
 
-    try {
-      const result = [];
-      categoryData.forEach((item, index) => {
-        if (!item || typeof item !== 'object') return;
-        if (!item.category) return;
+    const entries = Object.entries(cats).sort((a, b) => b[1] - a[1]);
+    const pieColors = [
+      '#3A6FF8',
+      '#F97316',
+      '#22C55E',
+      '#EF4444',
+      '#A855F7',
+      '#14B8A6',
+    ];
 
-        const amount = Number(item.totalMoneyOut || item.totalAmount || 0);
-        if (amount <= 0) return;
+    return entries.map(([name, amount], index) => ({
+      name,
+      population: amount,
+      color: pieColors[index % pieColors.length],
+      legendFontColor: '#94A3B8',
+      legendFontSize: 12,
+      legendFontFamily: Fonts.medium,
+    }));
+  }, [filteredData]);
 
-        result.push({
-          name: String(item.category),
-          population: amount,
-          color: pieColors[index % pieColors.length] || '#3A6FF8',
-          legendFontColor: '#94A3B8',
-          legendFontSize: 12,
-          legendFontFamily: Fonts.medium,
-        });
-      });
+  const categoryStats = useMemo(() => {
+    const expenses = filteredData.expenses;
+    const cats = {};
+    expenses.forEach(e => {
+      const name = e.category || 'Other';
+      cats[name] = (cats[name] || 0) + (e.amountRupees || 0);
+    });
 
-      return result;
-    } catch (error) {
-      console.error('Error generating pie chart data:', error);
-      return [];
-    }
-  }, [categoryData, pieColors]);
+    return Object.entries(cats)
+      .map(([category, totalMoneyOut]) => ({ category, totalMoneyOut }))
+      .sort((a, b) => b.totalMoneyOut - a.totalMoneyOut);
+  }, [filteredData]);
 
-  // Use all-time summary instead of current month data
-  const allTimeData = useMemo(() => {
+  // --- Helper to get distinct years/months for filter ---
+  const filterOptions = useMemo(() => {
+    const years = new Set();
+    const months = new Set();
+    rawExpenses.forEach(e => {
+      const d = new Date(e.date);
+      years.add(d.getFullYear());
+      months.add(e.month);
+    });
+    rawMoneyIn.forEach(m => {
+      const d = new Date(m.date);
+      years.add(d.getFullYear());
+      months.add(m.month);
+    });
     return {
-      moneyIn: allTimeSummary?.totalMoneyIn || 0,
-      moneyOut: allTimeSummary?.totalMoneyOut || 0,
+      years: Array.from(years).sort((a, b) => b - a),
+      months: Array.from(months).sort((a, b) => b.localeCompare(a)),
     };
-  }, [allTimeSummary]);
-
-  // Calculate real percentages based on month-over-month comparison
-  const trendPercentages = useMemo(() => {
-    if (!currentMonthSummary || !previousMonthSummary) {
-      return { moneyInPercent: null, moneyOutPercent: null };
-    }
-
-    const currentMoneyIn = currentMonthSummary?.totalMoneyIn || 0;
-    const currentMoneyOut = currentMonthSummary?.totalMoneyOut || 0;
-    const prevMoneyIn = previousMonthSummary?.totalMoneyIn || 0;
-    const prevMoneyOut = previousMonthSummary?.totalMoneyOut || 0;
-
-    let moneyInPercent = null;
-    let moneyOutPercent = null;
-
-    if (prevMoneyIn > 0) {
-      moneyInPercent = ((currentMoneyIn - prevMoneyIn) / prevMoneyIn) * 100;
-    } else if (currentMoneyIn > 0) {
-      moneyInPercent = 100; // 100% increase from 0
-    }
-
-    if (prevMoneyOut > 0) {
-      moneyOutPercent = ((currentMoneyOut - prevMoneyOut) / prevMoneyOut) * 100;
-    } else if (currentMoneyOut > 0) {
-      moneyOutPercent = 100; // 100% increase from 0
-    }
-
-    return {
-      moneyInPercent:
-        moneyInPercent !== null ? parseFloat(moneyInPercent.toFixed(1)) : null,
-      moneyOutPercent:
-        moneyOutPercent !== null
-          ? parseFloat(moneyOutPercent.toFixed(1))
-          : null,
-    };
-  }, [currentMonthSummary, previousMonthSummary]);
+  }, [rawExpenses, rawMoneyIn]);
+  const FilterChip = ({ label, active, onPress }) => (
+    <TouchableOpacity
+      style={[styles.filterChip, active && styles.filterChipActive]}
+      onPress={onPress}
+    >
+      <Text
+        style={[styles.filterChipText, active && styles.filterChipTextActive]}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
 
   if (!token) {
     return (
       <View style={homeStyles.container}>
-        <GlobalHeader
-          title="Spendo"
-          subtitle="Sign in to see your financial overview"
-        />
+        <SafeAreaView>
+          <GlobalHeader
+            title="Fynace"
+            subtitle="Sign in to see your financial overview"
+          />
+        </SafeAreaView>
         <View style={homeStyles.centered}>
           <Text variant="titleMedium" style={homeStyles.centeredTitle}>
             You're almost there!
@@ -413,7 +446,6 @@ const HomeScreen = () => {
       </View>
     );
   }
-
   return (
     <SafeAreaView edges={['top']} style={homeStyles.container}>
       <StatusBar backgroundColor="#0F172A" barStyle="light-content" />
@@ -422,14 +454,71 @@ const HomeScreen = () => {
         onProfilePress={() => navigation.navigate('Profile')}
       />
 
-      {syncStatus === 'syncing' && (
-        <View style={styles.syncIndicator}>
-          <ActivityIndicator size={12} color="#3A6FF8" />
-          <Text style={styles.syncText}>Syncing changes...</Text>
-        </View>
-      )}
+      <BottomSheet ref={bottomSheetRef} title="Filter Data" initialHeight={0.6}>
+        <ScrollView
+          style={styles.filterOptionsScroll}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 40 }}
+        >
+          <Text style={styles.filterLabel}>Preset Ranges</Text>
+          <View style={styles.presetGroup}>
+            <FilterChip
+              label="All Time"
+              active={filterType === 'all_time'}
+              onPress={() => {
+                setFilterType('all_time');
+                setFilterValue(null);
+                bottomSheetRef.current?.close();
+              }}
+            />
+            <FilterChip
+              label="Last 7 Days"
+              active={filterType === 'weekly'}
+              onPress={() => {
+                setFilterType('weekly');
+                setFilterValue(null);
+                bottomSheetRef.current?.close();
+              }}
+            />
+          </View>
 
-      {loading && !monthlyData.length ? (
+          <Divider style={styles.modalDivider} />
+          <Text style={styles.filterLabel}>By Year</Text>
+          <View style={styles.presetGroup}>
+            {filterOptions.years.map(y => (
+              <FilterChip
+                key={y}
+                label={y.toString()}
+                active={filterType === 'yearly' && filterValue === y.toString()}
+                onPress={() => {
+                  setFilterType('yearly');
+                  setFilterValue(y.toString());
+                  bottomSheetRef.current?.close();
+                }}
+              />
+            ))}
+          </View>
+
+          <Divider style={styles.modalDivider} />
+          <Text style={styles.filterLabel}>By Month</Text>
+          <View style={styles.presetGroup}>
+            {filterOptions.months.map(m => (
+              <FilterChip
+                key={m}
+                label={formatMonth(m)}
+                active={filterType === 'monthly' && filterValue === m}
+                onPress={() => {
+                  setFilterType('monthly');
+                  setFilterValue(m);
+                  bottomSheetRef.current?.close();
+                }}
+              />
+            ))}
+          </View>
+        </ScrollView>
+      </BottomSheet>
+
+      {loading && !rawExpenses.length ? (
         <HomeSkeleton />
       ) : (
         <ScrollView
@@ -439,26 +528,26 @@ const HomeScreen = () => {
         >
           <View style={homeStyles.statsRow}>
             <StatCard
-              label="Total Money In"
-              value={allTimeData.moneyIn || 0}
-              trend={trendPercentages.moneyInPercent !== null}
+              label="Money In"
+              value={summary.totalIn || 0}
+              trend={comparisonPercent.moneyInPercent !== null}
               trendValue={
-                trendPercentages.moneyInPercent !== null
-                  ? `${trendPercentages.moneyInPercent >= 0 ? '+' : ''}${
-                      trendPercentages.moneyInPercent
+                comparisonPercent.moneyInPercent !== null
+                  ? `${comparisonPercent.moneyInPercent >= 0 ? '+' : ''}${
+                      comparisonPercent.moneyInPercent
                     }%`
                   : ''
               }
               type="in"
             />
             <StatCard
-              label="Total Money Out"
-              value={allTimeData.moneyOut || 0}
-              trend={trendPercentages.moneyOutPercent !== null}
+              label="Money Out"
+              value={summary.totalOut || 0}
+              trend={comparisonPercent.moneyOutPercent !== null}
               trendValue={
-                trendPercentages.moneyOutPercent !== null
-                  ? `${trendPercentages.moneyOutPercent >= 0 ? '+' : ''}${
-                      trendPercentages.moneyOutPercent
+                comparisonPercent.moneyOutPercent !== null
+                  ? `${comparisonPercent.moneyOutPercent >= 0 ? '+' : ''}${
+                      comparisonPercent.moneyOutPercent
                     }%`
                   : ''
               }
@@ -467,35 +556,40 @@ const HomeScreen = () => {
           </View>
 
           <LineChartCard
-            title="Monthly Snapshot"
-            netBalance={
-              (allTimeData.moneyIn || 0) - (allTimeData.moneyOut || 0)
-            }
+            title={chartTitle}
+            netBalance={summary.totalIn - summary.totalOut}
             netBalanceLabel="Net Balance"
             lineChartData={lineChartData}
             screenWidth={screenWidth}
             chartConfig={chartConfig}
+            rightAction={
+              <TouchableOpacity
+                style={styles.filterButton}
+                onPress={() => bottomSheetRef.current?.open()}
+              >
+                <Filter size={16} color="#F8FAFC" />
+                <Text style={styles.filterButtonText}>Filter</Text>
+              </TouchableOpacity>
+            }
           />
 
           <PieChartCard
             title="Spending Categories"
             pieChartData={pieChartData}
-            categoryData={categoryData}
-            pieColors={pieColors}
+            categoryData={categoryStats}
+            pieColors={[
+              '#3A6FF8',
+              '#F97316',
+              '#22C55E',
+              '#EF4444',
+              '#A855F7',
+              '#14B8A6',
+            ]}
             screenWidth={screenWidth}
             chartConfig={chartConfig}
           />
         </ScrollView>
       )}
-
-      {/* QR Scanner FAB */}
-      <TouchableOpacity
-        style={styles.qrFab}
-        onPress={() => navigation.navigate('QRScanner')}
-        activeOpacity={0.8}
-      >
-        <QrCode size={28} color="#F8FAFC" />
-      </TouchableOpacity>
     </SafeAreaView>
   );
 };
@@ -503,22 +597,6 @@ const HomeScreen = () => {
 export default HomeScreen;
 
 const styles = StyleSheet.create({
-  qrFab: {
-    position: 'absolute',
-    right: 24,
-    bottom: 100, // Adjusted for bottom bar
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#3A6FF8',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 8,
-    shadowColor: '#3A6FF8',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
   syncIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -531,5 +609,68 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#3A6FF8',
     fontFamily: Fonts.medium,
+  },
+  headerWrapper: {
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  filterButtonText: {
+    color: '#F8FAFC',
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+  },
+  filterOptionsScroll: {
+    marginBottom: 20,
+  },
+  filterLabel: {
+    color: '#94A3B8',
+    fontSize: 14,
+    fontFamily: Fonts.semibold,
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  presetGroup: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 16,
+  },
+  filterChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: '#1E293B',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  filterChipActive: {
+    backgroundColor: '#3A6FF8',
+    borderColor: '#3A6FF8',
+  },
+  filterChipText: {
+    color: '#94A3B8',
+    fontSize: 13,
+    fontFamily: Fonts.medium,
+  },
+  filterChipTextActive: {
+    color: '#FFFFFF',
+  },
+  modalDivider: {
+    backgroundColor: '#334155',
+    marginVertical: 12,
   },
 });

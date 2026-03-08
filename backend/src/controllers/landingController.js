@@ -1,7 +1,10 @@
 const nodemailer = require("nodemailer");
 
 /**
- * Handles early access application requests
+ * Handles early access application requests.
+ * Sends:
+ *   1. Admin notification email (to honeypatkar70@gmail.com)
+ *   2. User confirmation email with app download link
  */
 exports.handleEarlyAccess = async (req, res) => {
   try {
@@ -14,7 +17,10 @@ exports.handleEarlyAccess = async (req, res) => {
       });
     }
 
-    // Email configuration using existing backend SMTP settings
+    const downloadUrl =
+      process.env.APP_DOWNLOAD_URL || "https://fynace.in/download";
+    const senderEmail = process.env.EMAIL_FROM || "support@fynace.in";
+
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || "smtp.gmail.com",
       port: process.env.SMTP_PORT || 587,
@@ -25,18 +31,12 @@ exports.handleEarlyAccess = async (req, res) => {
       },
     });
 
-    const mailOptions = {
-      from: process.env.EMAIL_FROM || email,
+    // ─── Email 1: Admin notification (Original Template Restored) ──────────
+    const adminMail = {
+      from: `"Fynace Landing" <${senderEmail}>`,
       to: "honeypatkar70@gmail.com",
       replyTo: email,
       subject: `Fynace Early Access Application: ${name}`,
-      text: `
-        New application received from landing page:
-        
-        Name: ${name}
-        Email: ${email}
-        Message: ${message || "No message provided."}
-      `,
       html: `
         <div style="background-color: #030712; padding: 40px 20px; font-family: 'Bricolage Grotesque', Arial, sans-serif; color: #f8fafc; text-align: center;">
           <div style="max-width: 500px; margin: 0 auto; background-color: #0f172a; padding: 40px; border-radius: 24px; border: 1px solid rgba(255, 255, 255, 0.08); text-align: left;">
@@ -73,11 +73,76 @@ exports.handleEarlyAccess = async (req, res) => {
       `,
     };
 
-    await transporter.sendMail(mailOptions);
+    // ─── Email 2: User confirmation matching Admin template aesthetics ───
+    const userMail = {
+      from: `"Fynace" <${senderEmail}>`,
+      to: email,
+      subject: `Welcome to Fynace, ${name.split(" ")[0]}! 🎉 Here's your download link`,
+      html: `
+        <div style="background-color: #f8fafc; padding: 0px; font-family: Arial, sans-serif; color: #1e293b; text-align: center;">
+          <div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; padding: 10px; border-radius: 12px; border: 1px solid #e2e8f0; text-align: left;">
+            <div style="margin-bottom: 24px; text-align: center;">
+               <h2 style="color: #6366f1; margin: 0; font-size: 24px; font-weight: bold;">Fynace</h2>
+            </div>
+            
+            <div style="margin-bottom: 24px;">
+              <h1 style="font-size: 20px; margin: 0 0 12px; color: #0f172a;">You're in, ${name.split(" ")[0]}! 🎉</h1>
+              <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0;">
+                Thank you for joining the Fynace early access program. Your journey to smarter finances starts right now.
+              </p>
+            </div>
+            
+            <div style="padding: 24px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center; margin-bottom: 24px;">
+              <h2 style="font-size: 18px; color: #0f172a; margin: 0 0 16px;">Fynace for Android</h2>
+              
+              <a href="${downloadUrl}" 
+                 style="display: inline-block; background-color: #6366f1; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 15px; padding: 12px 28px; border-radius: 8px;">
+                Download App Now
+              </a>
+            </div>
+
+            <div style="margin-bottom: 24px; font-size: 15px; color: #475569; line-height: 1.6;">
+              <p style="margin: 0;"><strong>Please use the app, and give us your feedback.</strong> Your feedback matters to us immensely and will shape the future of Fynace.</p>
+            </div>
+
+            <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+              <p style="font-size: 13px; color: #64748b; margin: 0 0 8px;">Questions? We're here to help at <a href="mailto:support@fynace.in" style="color: #6366f1; text-decoration: none;">support@fynace.in</a></p>
+            </div>
+          </div>
+          
+          <div style="margin-top: 20px; font-size: 12px; color: #94a3b8; line-height: 1.5;">
+            &copy; 2026 Fynace. All rights reserved.<br>
+            You received this because you requested early access at fynace.in.
+          </div>
+        </div>
+      `,
+    };
+
+    // Send emails sequentially and handle failures individually
+    let adminSent = false;
+    let userSent = false;
+
+    try {
+      await transporter.sendMail(adminMail);
+      adminSent = true;
+    } catch (e) {
+      console.error("Admin mail sending failed:", e);
+    }
+
+    try {
+      await transporter.sendMail(userMail);
+      userSent = true;
+    } catch (e) {
+      console.error("User mail sending failed:", e);
+    }
+
+    if (!adminSent && !userSent) {
+      throw new Error("Both emails failed to send due to SMTP rejection.");
+    }
 
     return res.status(200).json({
       success: true,
-      message: "Application submitted successfully!",
+      message: "Application submitted! Check your email for the download link.",
     });
   } catch (error) {
     console.error("Early Access Error:", error);

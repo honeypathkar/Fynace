@@ -282,9 +282,12 @@ const updateProfile = async (req, res) => {
     if (currency) user.currency = currency;
     if (notificationSettings) {
       user.notificationSettings = {
-        ...user.notificationSettings,
+        ...(user.notificationSettings
+          ? JSON.parse(JSON.stringify(user.notificationSettings))
+          : {}),
         ...notificationSettings,
       };
+      user.markModified("notificationSettings");
     }
 
     await user.save();
@@ -337,24 +340,23 @@ const updateFCMToken = async (req, res) => {
       user.devices = [];
     }
 
-    // Find if device already exists
-    const deviceIndex = user.devices.findIndex((d) => d.deviceId === deviceId);
+    // Remove any entries that share the same FCM token (stale deviceId from reinstalls, etc.)
+    // AND remove any other entries for this deviceId — we'll re-add below cleanly.
+    user.devices = user.devices.filter(
+      (d) => d.token !== token && d.deviceId !== deviceId,
+    );
 
-    if (deviceIndex > -1) {
-      // Update existing device token
-      user.devices[deviceIndex].token = token;
-      user.devices[deviceIndex].deviceName =
-        deviceName || user.devices[deviceIndex].deviceName;
-      user.devices[deviceIndex].updatedAt = Date.now();
-    } else {
-      // Add new device
-      user.devices.push({
-        deviceId,
-        deviceName,
-        token,
-        updatedAt: Date.now(),
-      });
-    }
+    // Add the device with a fresh, clean entry (upsert by filtering out old + pushing new)
+    user.devices.push({
+      deviceId,
+      deviceName: deviceName || "Unknown Device",
+      token,
+      updatedAt: Date.now(),
+    });
+
+    console.log(
+      `✅ Device registered: ${deviceId} | Total devices: ${user.devices.length}`,
+    );
 
     await user.save();
 

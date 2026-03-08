@@ -101,8 +101,21 @@ export const useNotifications = () => {
     if (!authToken) return;
 
     const setupNotifications = async () => {
-      const hasPermission = await requestUserPermission();
-      if (!hasPermission) return;
+      // Check if we already have permission without prompting
+      let enabled = false;
+      if (Platform.OS === 'android') {
+        const granted = await PermissionsAndroid.check(
+          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+        );
+        enabled = granted;
+      } else {
+        const authStatus = await messaging().hasPermission();
+        enabled =
+          authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+          authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+      }
+
+      if (!enabled) return;
 
       const fcmToken = await messaging().getToken();
       await registerDeviceToken(fcmToken);
@@ -118,7 +131,7 @@ export const useNotifications = () => {
         },
       );
 
-      // 1. Handle background events from Notifee (Interaction)
+      // Handle background events from Notifee (Interaction)
       const unsubscribeNotifeeBackground = notifee.onBackgroundEvent(
         async ({ type, detail }) => {
           if (type === EventType.PRESS) {
@@ -128,7 +141,7 @@ export const useNotifications = () => {
         },
       );
 
-      // 2. Handle foreground events from Notifee (Interaction)
+      // Handle foreground events from Notifee (Interaction)
       const unsubscribeNotifeeForeground = notifee.onForegroundEvent(
         async ({ type, detail }) => {
           if (type === EventType.PRESS) {
@@ -138,7 +151,7 @@ export const useNotifications = () => {
         },
       );
 
-      // 3. Handle when app is opened from a quit state (FCM)
+      // Handle when app is opened from a quit state (FCM)
       messaging()
         .getInitialNotification()
         .then(remoteMessage => {
@@ -148,7 +161,7 @@ export const useNotifications = () => {
           }
         });
 
-      // 4. Handle when app is in background but still running (FCM)
+      // Handle when app is in background but still running (FCM)
       const unsubscribeMessagingOpened = messaging().onNotificationOpenedApp(
         remoteMessage => {
           console.log('App opened from background state:', remoteMessage);
