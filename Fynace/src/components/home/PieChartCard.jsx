@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, ScrollView } from 'react-native';
-import { Text } from 'react-native-paper';
+import { Text, useTheme } from 'react-native-paper';
 import { PieChart } from 'react-native-chart-kit';
 import LinearGradient from 'react-native-linear-gradient';
 import styles from './styles';
@@ -15,6 +15,7 @@ const PieChartCard = ({
   screenWidth,
   chartConfig,
 }) => {
+  const theme = useTheme();
   const { user } = useAuth();
   const { formatAmount } = usePrivacy();
   const hasValidPieData =
@@ -61,10 +62,10 @@ const PieChartCard = ({
 
   return (
     <LinearGradient
-      colors={['#1E293B', '#0F172A', '#1E293B']}
+      colors={[theme.colors.surfaceVariant, theme.colors.background]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
-      style={styles.chartCard}
+      style={[styles.chartCard, { borderColor: theme.colors.outline }]}
     >
       <Text variant="titleMedium" style={styles.sectionTitle}>
         {title}

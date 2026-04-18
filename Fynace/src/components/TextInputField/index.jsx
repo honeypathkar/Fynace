@@ -5,8 +5,8 @@ import styles from './styles';
 
 const theme = {
   colors: {
-    textSubtle: '#A7B3CC',
-    textMuted: '#94A3B8',
+    textSubtle: '#808080',
+    textMuted: '#808080',
   },
 };
 

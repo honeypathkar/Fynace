@@ -9,6 +9,7 @@ const {
   getProfile,
   updateProfile,
   updateFCMToken,
+  refreshToken,
 } = require("../controllers/authController");
 const { authenticate } = require("../middleware/auth");
 
@@ -41,6 +42,9 @@ router.post(
 
 // Google Sign-In/Register
 router.post("/google", [body("idToken").notEmpty()], googleLoginRegister);
+
+// Refresh Token
+router.post("/refresh", refreshToken);
 
 // Get profile (protected)
 router.get("/profile", authenticate, getProfile);

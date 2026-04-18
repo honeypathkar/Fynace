@@ -5,7 +5,7 @@ import Fonts from '../../../assets/fonts';
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000000',
   },
   keyboardView: {
     flex: 1,
@@ -29,7 +29,7 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     fontFamily: Fonts.bold,
-    color: '#F8FAFC',
+    color: '#FFFFFF',
   },
   formCard: {
     width: '100%',
@@ -55,11 +55,11 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#334155',
+    backgroundColor: '#1A1A1A',
   },
   dividerText: {
     marginHorizontal: themeAssets.spacing[2],
-    color: '#94A3B8',
+    color: '#808080',
     fontSize: 14,
     fontFamily: Fonts.medium,
   },
@@ -74,14 +74,14 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#334155',
-    backgroundColor: '#1E293B',
-    color: '#F8FAFC',
+    borderColor: '#1A1A1A',
+    backgroundColor: '#121212',
+    color: '#FFFFFF',
     fontSize: 24,
     fontFamily: Fonts.bold,
   },
   otpInstructions: {
-    color: '#94A3B8',
+    color: '#808080',
     textAlign: 'center',
     marginBottom: themeAssets.spacing[2],
     fontFamily: Fonts.regular,
@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
     marginTop: themeAssets.spacing[4],
   },
   footerText: {
-    color: '#94A3B8',
+    color: '#808080',
     fontFamily: Fonts.regular,
   },
   // Signup styles
@@ -116,18 +116,18 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: themeAssets.spacing[2],
   },
   title: {
     fontFamily: Fonts.bold,
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     textAlign: 'center',
   },
   subtitle: {
-    color: '#94A3B8',
+    color: '#808080',
     textAlign: 'center',
     fontFamily: Fonts.regular,
   },
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   loginLink: {
-    color: '#3A6FF8',
+    color: '#d3d3ff',
     fontFamily: Fonts.semibold,
   },
 });

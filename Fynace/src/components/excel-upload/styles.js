@@ -5,7 +5,7 @@ import Fonts from '../../../assets/fonts';
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000000',
   },
   keyboardView: {
     flex: 1,
@@ -21,7 +21,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   headerTitle: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontSize: 20,
     fontFamily: Fonts.semibold,
   },
@@ -48,21 +48,21 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   centeredTitle: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   centeredSubtitle: {
-    color: '#94A3B8',
+    color: '#808080',
     textAlign: 'center',
   },
   uploadSection: {
     marginTop: themeAssets.spacing[4],
   },
   uploadCard: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1A1A1A',
   },
   uploadCardContent: {
     alignItems: 'center',
@@ -70,16 +70,16 @@ const styles = StyleSheet.create({
     gap: themeAssets.spacing[3],
   },
   uploadTitle: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontFamily: Fonts.bold,
     marginTop: themeAssets.spacing[2],
   },
   uploadSubtitle: {
-    color: '#94A3B8',
+    color: '#808080',
     textAlign: 'center',
   },
   uploadNote: {
-    color: '#64748B',
+    color: '#808080',
     textAlign: 'center',
     fontStyle: 'italic',
   },
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
     gap: themeAssets.spacing[3],
   },
   pageTitle: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontFamily: Fonts.bold,
     fontSize: 24,
     marginBottom: themeAssets.spacing[3],
@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
     marginBottom: themeAssets.spacing[2],
   },
   dataTitle: {
-    color: '#94A3B8',
+    color: '#808080',
     fontFamily: Fonts.medium,
   },
   changeFileButton: {
@@ -112,12 +112,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   changeFileText: {
-    color: '#3A6FF8',
+    color: '#d3d3ff',
     fontSize: 14,
     fontFamily: Fonts.semibold,
   },
   errorCard: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#EF4444',
@@ -126,10 +126,10 @@ const styles = StyleSheet.create({
     color: '#EF4444',
   },
   dataRow: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1A1A1A',
     marginBottom: themeAssets.spacing[2],
   },
   rowContent: {
@@ -142,14 +142,14 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   rowItemName: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontFamily: Fonts.semibold,
   },
   rowDetails: {
-    color: '#94A3B8',
+    color: '#808080',
   },
   rowNotes: {
-    color: '#64748B',
+    color: '#808080',
     fontStyle: 'italic',
   },
   rowAmount: {
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000000',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -187,9 +187,9 @@ const styles = StyleSheet.create({
     gap: themeAssets.spacing[2],
     paddingHorizontal: themeAssets.spacing[5],
     paddingVertical: themeAssets.spacing[4],
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000000',
     borderTopWidth: 1,
-    borderTopColor: '#334155',
+    borderTopColor: '#1A1A1A',
   },
   cancelButton: {
     flex: 1,

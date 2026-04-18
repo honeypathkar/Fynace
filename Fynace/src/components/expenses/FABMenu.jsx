@@ -32,7 +32,7 @@ const FABMenu = ({
           activeOpacity={0.7}
         >
           <View style={styles.actionMenuIconContainer}>
-            <FileText size={24} color="#3A6FF8" />
+            <FileText size={24} color="#d3d3ff" />
           </View>
           <View style={styles.actionMenuTextContainer}>
             <Text style={styles.actionMenuTitle}>Add Manually</Text>
@@ -42,7 +42,7 @@ const FABMenu = ({
           </View>
           <ChevronDown
             size={20}
-            color="#94A3B8"
+            color="#808080"
             style={{ transform: [{ rotate: '-90deg' }] }}
           />
         </TouchableOpacity>
@@ -64,7 +64,7 @@ const FABMenu = ({
           </View>
           <ChevronDown
             size={20}
-            color="#94A3B8"
+            color="#808080"
             style={{ transform: [{ rotate: '-90deg' }] }}
           />
         </TouchableOpacity>
@@ -75,7 +75,7 @@ const FABMenu = ({
           activeOpacity={0.7}
         >
           <View style={styles.actionMenuIconContainer}>
-            <MessageSquare size={24} color="#F97316" />
+            <MessageSquare size={24} color="#d3d3ff" />
           </View>
           <View style={styles.actionMenuTextContainer}>
             <Text style={styles.actionMenuTitle}>SMS Fetch</Text>
@@ -85,7 +85,7 @@ const FABMenu = ({
           </View>
           <ChevronDown
             size={20}
-            color="#94A3B8"
+            color="#808080"
             style={{ transform: [{ rotate: '-90deg' }] }}
           />
         </TouchableOpacity> */}

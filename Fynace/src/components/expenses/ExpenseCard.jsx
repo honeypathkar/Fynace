@@ -59,7 +59,7 @@ const ExpenseCard = React.memo(
                 style={styles.editButton}
                 activeOpacity={0.7}
               >
-                <Pencil size={18} color="#94A3B8" />
+                <Pencil size={18} color="#808080" />
               </TouchableOpacity>
               {onDelete && (
                 <TouchableOpacity

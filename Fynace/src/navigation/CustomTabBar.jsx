@@ -20,7 +20,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
   const insets = useSafeAreaInsets();
   const { setActionMenuOpen } = useBottomBar();
 
-  const activeIconColor = themeAssets.palette.primary;
+  const activeIconColor = themeAssets.palette.secondary;
   const inactiveColor = themeAssets.palette.subtext;
 
   const currentRouteName = state.routes[state.index].name;
@@ -97,7 +97,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
           activeOpacity={0.8}
         >
           <View style={styles.middleButton}>
-            <QrCode color="#F8FAFC" size={24} />
+            <QrCode color="#000000" size={24} />
           </View>
         </TouchableOpacity>
       );
@@ -111,7 +111,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
         activeOpacity={0.8}
       >
         <View style={styles.middleButton}>
-          <Plus color="#F8FAFC" size={24} />
+          <Plus color="#000000" size={24} />
         </View>
       </TouchableOpacity>
     );
@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
     marginLeft: -30,
     width: 60,
     height: 3,
-    backgroundColor: themeAssets.palette.primary,
+    backgroundColor: themeAssets.palette.secondary,
     borderRadius: 1.5,
   },
   iconContainer: {
@@ -197,11 +197,11 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 16,
-    backgroundColor: themeAssets.palette.primary,
+    backgroundColor: themeAssets.palette.secondary,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 8,
-    shadowColor: themeAssets.palette.primary,
+    shadowColor: themeAssets.palette.secondary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.5,
     shadowRadius: 10,

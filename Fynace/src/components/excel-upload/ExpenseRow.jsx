@@ -74,7 +74,7 @@ const ExpenseRow = ({
               <Button
                 mode="outlined"
                 onPress={onCancel}
-                textColor="#94A3B8"
+                textColor="#808080"
                 style={styles.editButton}
               >
                 Cancel
@@ -113,7 +113,7 @@ const ExpenseRow = ({
                 onPress={() => onEdit(index)}
                 style={styles.actionButton}
               >
-                <Edit2 size={18} color="#3A6FF8" />
+                <Edit2 size={18} color="#d3d3ff" />
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => onDelete(index)}

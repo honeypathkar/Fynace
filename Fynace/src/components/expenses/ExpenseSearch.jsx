@@ -6,10 +6,10 @@ import styles from './styles';
 const ExpenseSearch = ({ searchQuery, onSearchChange }) => {
   return (
     <View style={styles.searchContainer}>
-      <Search size={20} color="#94A3B8" style={styles.searchIcon} />
+      <Search size={20} color="#808080" style={styles.searchIcon} />
       <TextInput
         placeholder="Search by item name, category"
-        placeholderTextColor="#94A3B8"
+        placeholderTextColor="#808080"
         value={searchQuery}
         onChangeText={onSearchChange}
         style={styles.searchInput}

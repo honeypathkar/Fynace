@@ -3,7 +3,6 @@ import React, {
   useMemo,
   useRef,
   useState,
-  useCallback,
 } from 'react';
 import {
   Animated,
@@ -14,19 +13,20 @@ import {
   Easing,
   StyleSheet,
   Image,
+  StatusBar,
+  TouchableOpacity,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
-import { Button, Text, ActivityIndicator } from 'react-native-paper';
-import { StatusBar } from 'react-native';
+import { Text, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import TextInputField from '../../components/TextInputField';
-import GlobalHeader from '../../components/GlobalHeader';
 import PrimaryButton from '../../components/PrimaryButton';
 import { useAuth } from '../../hooks/useAuth';
-import { OTPInput, HeroSection, authStyles } from '../../components/auth';
-import { GOOGLE_CLIENT_ID } from '../../utils/BASE_URL';
+import { OTPInput } from '../../components/auth';
+import { GOOGLE_CLIENT_ID, FRONTEND_URL } from '../../utils/BASE_URL';
+import Fonts from '../../../assets/fonts';
 
 const GOOGLE_ICON = require('../../../assets/images/google.png');
 
@@ -44,40 +44,28 @@ const LoginScreen = () => {
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState('');
   const otpInputRefs = useRef([]);
-  const heroPulse = useRef(new Animated.Value(0)).current;
+  
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
 
   useEffect(() => {
     GoogleSignin.configure({
       webClientId: GOOGLE_CLIENT_ID,
     });
+
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }, []);
-
-  useEffect(() => {
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(heroPulse, {
-          toValue: 1,
-          duration: 2200,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(heroPulse, {
-          toValue: 0,
-          duration: 2200,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-
-    animation.start();
-    return () => animation.stop();
-  }, [heroPulse]);
-
-  const heroTranslate = heroPulse.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -8],
-  });
 
   const isValidEmail = email => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -100,33 +88,28 @@ const LoginScreen = () => {
 
       setCheckingUser(true);
 
-      // Step 1: Check if user exists if we don't know yet
       let exists = userExists;
       if (exists === null) {
         exists = await checkUser(email);
         setUserExists(exists);
-
-        // If they don't exist, we show the name field first and stop here
         if (exists === false) {
           setCheckingUser(false);
           return;
         }
       }
 
-      // Step 2: Validate name if it's a new user
       if (userExists === false && !fullName.trim()) {
         setError('Please enter your full name.');
         setCheckingUser(false);
         return;
       }
 
-      // Step 3: Request OTP
+      setSendingOtp(true);
       await requestOtp({
         email,
         fullName: userExists === false ? fullName : undefined,
       });
       setOtpSent(true);
-      // Focus first OTP input after a short delay
       setTimeout(() => {
         otpInputRefs.current[0]?.focus();
       }, 100);
@@ -142,7 +125,7 @@ const LoginScreen = () => {
     try {
       setError(null);
       if (otp.length !== 4) {
-        setError('Please enter the complete 4-digit code.');
+        setError('Please enter the 4-digit code.');
         return;
       }
       setVerifyingOtp(true);
@@ -159,14 +142,7 @@ const LoginScreen = () => {
     try {
       setError(null);
       await GoogleSignin.hasPlayServices();
-
-      // Clear previous sign-in to ensure account picker shows
-      try {
-        await GoogleSignin.signOut();
-      } catch (e) {
-        // Ignore if not already signed in
-      }
-
+      await GoogleSignin.signOut().catch(() => {});
       const userInfo = await GoogleSignin.signIn();
       const idToken = userInfo.data?.idToken;
       if (idToken) {
@@ -176,185 +152,250 @@ const LoginScreen = () => {
       }
     } catch (err) {
       console.error('Google Sign In Error:', err);
-      setError('Google Sign In failed. Please try again.');
+      setError('Google Sign In failed.');
     } finally {
       setGoogleSigningIn(false);
     }
   };
 
   return (
-    <SafeAreaView edges={['top']} style={authStyles.container}>
-      <KeyboardAvoidingView
-        style={authStyles.keyboardView}
-        behavior={Platform.select({ ios: 'padding', android: undefined })}
-      >
-        <LinearGradient
-          colors={['#0b0f1a', '#0a0f1e', '#070c16']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={authStyles.gradient}
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#000000" translucent />
+      <LinearGradient
+        colors={['#000000', '#050505', '#000000']}
+        style={StyleSheet.absoluteFill}
+      />
+      
+      <SafeAreaView style={{ flex: 1 }}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <GlobalHeader
-            backgroundColor="transparent"
-            renderRightComponent={() => null}
-          />
           <ScrollView
-            contentContainerStyle={authStyles.content}
+            contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
           >
-            <StatusBar
-              barStyle="light-content"
-              backgroundColor="transparent"
-              translucent
-            />
-            <View style={authStyles.heroContainer}>
-              <Animated.View
-                style={[
-                  authStyles.heroCard,
-                  { transform: [{ translateY: heroTranslate }] },
-                ]}
-              >
-                {!otpSent && (
-                  <View style={styles.logoContainer}>
-                    <Image
-                      source={require('../../../assets/images/logo.png')}
-                      style={styles.logo}
-                    />
-                  </View>
-                )}
-                <Text variant="headlineMedium" style={authStyles.heroTitle}>
-                  {otpSent ? 'Verification' : 'Welcome to Fynace'}
-                </Text>
-              </Animated.View>
-            </View>
+            <TouchableOpacity 
+              style={styles.headerBackBtn}
+              onPress={() => navigation.goBack()}
+            >
+              <Text style={styles.backBtnText}>←</Text>
+            </TouchableOpacity>
 
-            <View style={authStyles.formCard}>
+            <Animated.View style={[styles.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+              <Text style={styles.title}>Welcome</Text>
+              <Text style={styles.subtitle}>
+                {otpSent 
+                  ? `Enter the code sent to\n${email}` 
+                  : 'Enter your details to continue your journey.'}
+              </Text>
+            </Animated.View>
+
+            <View style={styles.formContainer}>
               {!otpSent ? (
                 <>
                   <TextInputField
-                    label="Email"
+                    label="Email Address"
                     value={email}
                     onChangeText={handleEmailChange}
                     keyboardType="email-address"
                     autoCapitalize="none"
-                    placeholder="Enter your email"
+                    placeholder="name@example.com"
                     editable={!loading}
-                    accessory={
-                      checkingUser ? (
-                        <ActivityIndicator size="small" color="#3A6FF8" />
-                      ) : null
-                    }
                   />
 
                   {userExists === false && isValidEmail(email) && (
-                    <TextInputField
-                      label="Full Name"
-                      value={fullName}
-                      onChangeText={setFullName}
-                      placeholder="Enter your full name"
-                      editable={!loading}
-                    />
+                    <Animated.View entering={fadeAnim}>
+                      <TextInputField
+                        label="Full Name"
+                        value={fullName}
+                        onChangeText={setFullName}
+                        placeholder="John Doe"
+                        editable={!loading}
+                      />
+                    </Animated.View>
                   )}
 
-                  {error ? (
-                    <Text variant="bodyMedium" style={authStyles.error}>
-                      {error}
-                    </Text>
-                  ) : null}
+                  {error && <Text style={styles.errorText}>{error}</Text>}
 
-                  <PrimaryButton
-                    title={
-                      userExists === false && !fullName
-                        ? 'Continue'
-                        : 'Send OTP'
-                    }
-                    onPress={handleSendOtp}
-                    loading={sendingOtp || checkingUser}
-                    style={authStyles.primaryButton}
-                    buttonColor="#3A6FF8"
-                    disabled={!isValidEmail(email)}
-                  />
+                  <View style={styles.actionWrapper}>
+                    <PrimaryButton
+                      title={userExists === false && !fullName ? 'Continue' : 'Send Code'}
+                      onPress={handleSendOtp}
+                      loading={sendingOtp || checkingUser}
+                      buttonColor="#FFFFFF"
+                      textColor="#000000"
+                      disabled={!isValidEmail(email)}
+                    />
+                  </View>
 
-                  <View style={authStyles.dividerContainer}>
-                    <View style={authStyles.dividerLine} />
-                    <Text style={authStyles.dividerText}>or</Text>
-                    <View style={authStyles.dividerLine} />
+                  <View style={styles.divider}>
+                    <View style={styles.dividerLine} />
+                    <Text style={styles.dividerText}>OR</Text>
+                    <View style={styles.dividerLine} />
                   </View>
 
                   <PrimaryButton
                     title="Continue with Google"
                     onPress={handleGoogleSignIn}
                     loading={googleSigningIn}
-                    style={authStyles.otpButton}
-                    buttonColor="#1E293B"
+                    buttonColor="#121212"
                     leftIcon={
-                      <Image
-                        source={GOOGLE_ICON}
-                        style={{ width: 20, height: 20, marginRight: 8 }}
-                        resizeMode="contain"
-                      />
+                      <Image source={GOOGLE_ICON} style={styles.googleIcon} resizeMode="contain" />
                     }
                   />
+                  
+                  <View style={styles.footerNoteContainer}>
+                    <Text style={styles.footerNote}>By signing in, you agree to our </Text>
+                    <TouchableOpacity onPress={() => 
+                      navigation.navigate('WebView', {
+                        url: `${FRONTEND_URL}/terms-and-conditions`,
+                        title: 'Terms & Conditions',
+                      })
+                    }>
+                      <Text style={styles.footerLink}>Terms of Service</Text>
+                    </TouchableOpacity>
+                  </View>
                 </>
               ) : (
                 <>
-                  <Text variant="bodyMedium" style={authStyles.otpInstructions}>
-                    Enter the 4-digit code sent to {email}
-                  </Text>
-
                   <OTPInput
                     otp={otp}
                     setOtp={setOtp}
                     otpInputRefs={otpInputRefs}
                   />
 
-                  {error ? (
-                    <Text variant="bodyMedium" style={authStyles.error}>
-                      {error}
-                    </Text>
-                  ) : null}
+                  {error && <Text style={styles.errorText}>{error}</Text>}
 
-                  <PrimaryButton
-                    title="Verify OTP"
-                    onPress={handleVerifyOtp}
-                    loading={verifyingOtp}
-                    style={authStyles.primaryButton}
-                    buttonColor="#3A6FF8"
-                    disabled={otp.length !== 4}
-                  />
+                  <View style={styles.actionWrapper}>
+                    <PrimaryButton
+                      title="Verify Code"
+                      onPress={handleVerifyOtp}
+                      loading={verifyingOtp}
+                      buttonColor="#FFFFFF"
+                      textColor="#000000"
+                      disabled={otp.length !== 4}
+                    />
+                  </View>
 
-                  <Button
-                    mode="text"
-                    onPress={() => {
-                      setOtpSent(false);
-                      setOtp('');
-                    }}
-                    textColor="#3A6FF8"
-                    style={authStyles.backButton}
+                  <TouchableOpacity 
+                    onPress={() => { setOtpSent(false); setOtp(''); }}
+                    style={styles.backLink}
                   >
-                    Change Email
-                  </Button>
+                    <Text style={styles.backLinkText}>Change email address</Text>
+                  </TouchableOpacity>
                 </>
               )}
             </View>
           </ScrollView>
-        </LinearGradient>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 };
 
+export default LoginScreen;
+
 const styles = StyleSheet.create({
-  logoContainer: {
-    alignItems: 'center',
-    marginBottom: 16,
+  container: {
+    flex: 1,
+    backgroundColor: '#000000',
   },
-  logo: {
-    width: 100,
-    height: 100,
-    resizeMode: 'contain',
-    borderRadius: 50,
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 30,
+    paddingTop: 40,
+    paddingBottom: 40,
+  },
+  headerBackBtn: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  backBtnText: {
+    color: '#FFFFFF',
+    fontSize: 28,
+    fontFamily: Fonts.bold,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 60,
+  },
+  title: {
+    fontSize: 40,
+    fontFamily: Fonts.bold,
+    color: '#FFFFFF',
+    marginBottom: 12,
+  },
+  subtitle: {
+    fontSize: 18,
+    fontFamily: Fonts.medium,
+    color: '#808080',
+    textAlign: 'center',
+    lineHeight: 28,
+  },
+  formContainer: {
+    width: '100%',
+  },
+  footerNoteContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 32,
+  },
+  footerNote: {
+    fontSize: 13,
+    color: '#404040',
+    fontFamily: Fonts.medium,
+  },
+  footerLink: {
+    fontSize: 13,
+    color: '#808080',
+    fontFamily: Fonts.bold,
+    textDecorationLine: 'underline',
+  },
+  errorText: {
+    color: '#EF4444',
+    fontSize: 14,
+    fontFamily: Fonts.medium,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  actionWrapper: {
+    marginTop: 30,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 40,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  dividerText: {
+    color: '#333333',
+    fontFamily: Fonts.bold,
+    fontSize: 12,
+    marginHorizontal: 20,
+    letterSpacing: 2,
+  },
+  googleIcon: {
+    width: 22,
+    height: 22,
+    marginRight: 12,
+  },
+  backLink: {
+    marginTop: 24,
+    alignItems: 'center',
+  },
+  backLinkText: {
+    color: '#d3d3ff',
+    fontFamily: Fonts.medium,
+    fontSize: 14,
   },
 });
-
-export default LoginScreen;

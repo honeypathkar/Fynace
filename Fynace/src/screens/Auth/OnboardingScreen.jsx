@@ -6,60 +6,52 @@ import {
   Image,
   Animated,
   StatusBar,
-  Platform,
   Text,
   TouchableOpacity,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import LinearGradient from 'react-native-linear-gradient';
 import Fonts from '../../../assets/fonts';
+import { FRONTEND_URL } from '../../utils/BASE_URL';
 
 const { width, height } = Dimensions.get('window');
-const ONBOARDING_KEY = '@spendo/onboarding-completed';
 
 const OnboardingScreen = () => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(50)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
   const navigation = useNavigation();
 
   useEffect(() => {
-    // Fade in animation
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 1000,
+        duration: 1200,
         useNativeDriver: true,
       }),
-      Animated.timing(slideAnim, {
+      Animated.spring(slideAnim, {
         toValue: 0,
-        duration: 800,
+        tension: 20,
+        friction: 7,
         useNativeDriver: true,
       }),
     ]).start();
   }, [fadeAnim, slideAnim]);
 
-  const handleGetStarted = async () => {
-    try {
-      await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
-      navigation.replace('Login');
-    } catch (error) {
-      console.warn('Failed to save onboarding status', error);
-      navigation.replace('Login');
-    }
+  const handleGetStarted = () => {
+    navigation.navigate('Login');
   };
 
   return (
-    <LinearGradient
-      colors={['#0F172A', '#1E293B', '#0F172A']}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.container}
-    >
+    <View style={styles.container}>
       <StatusBar
         barStyle="light-content"
-        backgroundColor="#0F172A"
-        translucent={false}
+        backgroundColor="#000000"
+        translucent
+      />
+      
+      <LinearGradient
+        colors={['#000000', '#050505', '#0A0A0A']}
+        style={StyleSheet.absoluteFill}
       />
 
       <Animated.View
@@ -71,33 +63,36 @@ const OnboardingScreen = () => {
           },
         ]}
       >
-        <View style={styles.imageContainer}>
-          <View style={styles.imageWrapper}>
-            <Image
-              source={require('../../../assets/images/logo.png')}
-              style={styles.logo}
-            />
-          </View>
-        </View>
-
         <View style={styles.textContainer}>
           <Text style={styles.appName}>Fynace</Text>
-          <Text style={styles.tagline}>Track Your Expenses</Text>
+          <Text style={styles.tagline}>Financial intelligence,{"\n"}redefined.</Text>
           <Text style={styles.description}>
-            Manage your finances effortlessly. Track expenses, monitor spending,
-            and stay in control of your money.
+            Experience a new era of money management. Clean, dark, and designed for clarity.
           </Text>
         </View>
 
-        <TouchableOpacity
-          style={styles.button}
-          onPress={handleGetStarted}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.buttonText}>Get Started</Text>
-        </TouchableOpacity>
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleGetStarted}
+            activeOpacity={0.9}
+          >
+            <Text style={styles.buttonText}>Get Started</Text>
+          </TouchableOpacity>
+          <View style={styles.footerNoteContainer}>
+            <Text style={styles.footerNote}>By continuing, you agree to our </Text>
+            <TouchableOpacity onPress={() => 
+              navigation.navigate('WebView', {
+                url: `${FRONTEND_URL}/terms-and-conditions`,
+                title: 'Terms & Conditions',
+              })
+            }>
+              <Text style={styles.footerLink}>Terms of Service</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Animated.View>
-    </LinearGradient>
+    </View>
   );
 };
 
@@ -106,71 +101,83 @@ export default OnboardingScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
+    backgroundColor: '#000000',
   },
   content: {
-    alignItems: 'center',
-    width: '100%',
-  },
-  imageContainer: {
-    marginBottom: 48,
-    alignItems: 'center',
-  },
-  imageWrapper: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(58, 111, 248, 0.2)',
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(58, 111, 248, 0.3)',
-  },
-  logo: {
-    width: 140,
-    height: 140,
-    resizeMode: 'contain',
-    borderRadius: 70,
+    paddingHorizontal: 40,
+    paddingTop: 80,
   },
   textContainer: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 80,
   },
   appName: {
-    fontSize: 48,
+    fontSize: 28,
     fontFamily: Fonts.bold,
-    color: '#F8FAFC',
-    marginBottom: 12,
+    color: '#FFFFFF', // Switched from Lavender to White
+    letterSpacing: 6,
+    textTransform: 'uppercase',
+    marginBottom: 60,
     textAlign: 'center',
   },
   tagline: {
-    fontSize: 24,
-    fontFamily: Fonts.semibold,
-    color: '#94A3B8',
-    marginBottom: 16,
+    fontSize: 36,
+    fontFamily: Fonts.bold,
+    color: '#FFFFFF',
+    marginBottom: 24,
     textAlign: 'center',
+    lineHeight: 44,
   },
   description: {
     fontSize: 16,
     fontFamily: Fonts.regular,
-    color: '#64748B',
+    color: '#808080',
     textAlign: 'center',
-    lineHeight: 24,
-    paddingHorizontal: 16,
+    lineHeight: 26,
+    paddingHorizontal: 10,
+  },
+  footer: {
+    width: '100%',
+    marginTop: 80,
+    alignItems: 'center',
+    paddingBottom: 60,
   },
   button: {
-    backgroundColor: '#3A6FF8',
-    paddingVertical: 16,
-    paddingHorizontal: 48,
-    borderRadius: 12,
-    minWidth: 200,
+    backgroundColor: '#FFFFFF', // Switched from Lavender to White
+    height: 64,
+    borderRadius: 20,
+    width: '100%',
+    justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 5,
   },
   buttonText: {
-    color: '#FFFFFF',
+    color: '#000000',
     fontSize: 18,
-    fontFamily: Fonts.semibold,
+    fontFamily: Fonts.bold,
+    letterSpacing: 0.5,
+  },
+  footerNoteContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 24,
+  },
+  footerNote: {
+    fontSize: 13,
+    color: '#404040',
+    fontFamily: Fonts.medium,
+  },
+  footerLink: {
+    fontSize: 13,
+    color: '#808080',
+    fontFamily: Fonts.bold,
+    textDecorationLine: 'underline',
   },
 });

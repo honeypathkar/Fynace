@@ -24,7 +24,7 @@ const WebViewScreen = () => {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <ChevronLeft size={28} color="#F8FAFC" />
+          <ChevronLeft size={28} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{title}</Text>
         <View style={{ width: 40 }} />
@@ -36,10 +36,10 @@ const WebViewScreen = () => {
         startInLoadingState={true}
         renderLoading={() => (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator color="#3A6FF8" size="large" />
+            <ActivityIndicator color="#d3d3ff" size="large" />
           </View>
         )}
-        backgroundColor="#0F172A"
+        backgroundColor="#000000"
       />
     </SafeAreaView>
   );
@@ -48,7 +48,7 @@ const WebViewScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000000',
   },
   header: {
     flexDirection: 'row',
@@ -56,10 +56,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000000',
   },
   headerTitle: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontSize: 18,
     fontFamily: Fonts.semibold,
   },
@@ -73,11 +73,11 @@ const styles = StyleSheet.create({
   },
   webview: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000000',
   },
   loadingContainer: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000000',
     justifyContent: 'center',
     alignItems: 'center',
   },

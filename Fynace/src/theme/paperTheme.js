@@ -1,8 +1,9 @@
 import { MD3DarkTheme, MD3LightTheme } from 'react-native-paper';
 import themeConfig, { palette, spacing, typography } from './theme.js';
 
-const buildTheme = (scheme = 'light') => {
-  const baseTheme = scheme === 'dark' ? MD3DarkTheme : MD3LightTheme;
+const buildTheme = (scheme = 'dark') => {
+  // Always use DarkTheme base for the "True Black" experience requested by user
+  const baseTheme = MD3DarkTheme;
 
   return {
     ...baseTheme,
@@ -18,16 +19,22 @@ const buildTheme = (scheme = 'light') => {
       background: palette.background,
       surface: palette.surface,
       surfaceVariant: palette.surfaceVariant,
+      onSurface: palette.text, // Map standard onSurface to our text color
+      onSurfaceVariant: palette.subtext,
       outline: palette.outline,
       error: palette.error,
       success: palette.success,
       warning: palette.warning,
       info: palette.primary,
-      outlineVariant: '#CBD5F5',
+      text: palette.text,
+      subtext: palette.subtext,
+      chartActive: palette.chartActive || palette.secondary,
+      chartInactive: palette.chartInactive || 'rgba(255,255,255,0.15)',
+      outlineVariant: palette.outline,
       elevation: {
         ...baseTheme.colors.elevation,
-        level1: '#FFFFFF',
-        level2: '#F8FAFF',
+        level1: palette.surfaceVariant,
+        level2: palette.border,
       },
     },
     fonts: {
@@ -56,4 +63,3 @@ export const themeAssets = {
   typography,
   config: themeConfig,
 };
-

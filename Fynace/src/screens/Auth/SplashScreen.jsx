@@ -16,7 +16,7 @@ import { useSecurity } from '../../context/SecurityContext';
 const { width, height } = Dimensions.get('window');
 const CIRCLE_SIZE = Math.sqrt(width ** 2 + height ** 2);
 const STORAGE_KEY = '@spendo/access-token';
-const PRIMARY_COLOR = '#1E293B';
+const PRIMARY_COLOR = '#121212';
 
 const SplashScreen = () => {
   const scale = useRef(new Animated.Value(0)).current;
@@ -95,10 +95,8 @@ const SplashScreen = () => {
           } else {
             navigation.replace('AppTabs');
           }
-        } else if (!hasSeenOnboarding) {
-          navigation.replace('Onboarding');
         } else {
-          navigation.replace('Login');
+          navigation.replace('Onboarding');
         }
       }
     };

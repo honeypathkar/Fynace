@@ -54,7 +54,13 @@ class SyncManager {
       this.status = 'idle';
     } catch (error) {
       this.status = 'error';
-      console.error('Sync failed:', error);
+      const status = error.response?.status;
+      console.error(`Sync failed (Status: ${status}):`, error.message);
+      
+      // If it's a 401, don't retry immediately as it will just trigger another logout
+      if (status === 401) {
+        await AsyncStorage.setItem(LAST_SYNC_ATTEMPT, String(now + 3600000)); // Sleep sync for 1 hour
+      }
     } finally {
       this.notify();
     }

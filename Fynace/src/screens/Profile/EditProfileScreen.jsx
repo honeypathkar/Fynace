@@ -97,11 +97,11 @@ const EditProfileScreen = () => {
       >
         <GlobalHeader
           title="Edit Profile"
-          titleColor="#F8FAFC"
+          titleColor="#FFFFFF"
           backgroundColor="transparent"
           showLeftIcon
           leftIconName="arrow-left"
-          leftIconColor="#F8FAFC"
+          leftIconColor="#FFFFFF"
           onLeftIconPress={() => navigation.goBack()}
         />
 
@@ -144,7 +144,7 @@ const EditProfileScreen = () => {
                 title="Save Changes"
                 onPress={handleSave}
                 loading={loading}
-                buttonColor="#3A6FF8"
+                buttonColor="#d3d3ff"
                 style={styles.saveButton}
               />
             </View>
@@ -160,7 +160,7 @@ export default EditProfileScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000000',
   },
   keyboardView: {
     flex: 1,
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontFamily: Fonts.bold,
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     marginBottom: 24,
   },
   inputSection: {
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   disabledHintText: {
-    color: '#94A3B8',
+    color: '#808080',
     fontSize: 12,
     marginTop: 4,
     marginLeft: 4,

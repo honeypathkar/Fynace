@@ -154,7 +154,7 @@ const RecurringTransactionsScreen = () => {
       <View style={styles.cardBody}>
         <View style={styles.detailsGrid}>
           <View style={styles.detailItem}>
-            <Calendar size={14} color="#94A3B8" />
+            <Calendar size={14} color="#808080" />
             <Text style={styles.detailLabel}>Next</Text>
             <Text style={styles.detailValue}>
               {(() => {
@@ -172,7 +172,7 @@ const RecurringTransactionsScreen = () => {
           <View style={styles.detailSeparator} />
 
           <View style={styles.detailItem}>
-            <Clock size={14} color="#94A3B8" />
+            <Clock size={14} color="#808080" />
             <Text style={styles.detailLabel}>Freq</Text>
             <Text style={[styles.detailValue, { textTransform: 'capitalize' }]}>
               {item.frequency || 'Monthly'}
@@ -185,7 +185,7 @@ const RecurringTransactionsScreen = () => {
             <Text
               style={[
                 styles.statusBadge,
-                { color: item.isActive ? '#22C55E' : '#94A3B8' },
+                { color: item.isActive ? '#22C55E' : '#808080' },
               ]}
             >
               {item.isActive ? 'ACTIVE' : 'PAUSED'}
@@ -193,7 +193,7 @@ const RecurringTransactionsScreen = () => {
             <Switch
               value={item.isActive}
               onValueChange={val => toggleActive(item, val)}
-              color="#3A6FF8"
+              color="#d3d3ff"
               style={{ transform: [{ scale: 0.7 }], marginLeft: -4 }}
             />
           </View>
@@ -216,12 +216,12 @@ const RecurringTransactionsScreen = () => {
         leftIconName="arrow-left"
         onLeftIconPress={() => navigation.goBack()}
         backgroundColor="transparent"
-        titleColor="#F8FAFC"
+        titleColor="#FFFFFF"
       />
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator color="#3A6FF8" size="large" />
+          <ActivityIndicator color="#d3d3ff" size="large" />
         </View>
       ) : (
         <FlatList
@@ -232,7 +232,7 @@ const RecurringTransactionsScreen = () => {
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIconBox}>
-                <Clock size={48} color="#334155" />
+                <Clock size={48} color="#1A1A1A" />
               </View>
               <Text style={styles.emptyTitle}>No recurring transactions</Text>
               <Text style={styles.emptySubtitle}>
@@ -252,7 +252,7 @@ export default RecurringTransactionsScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000000',
   },
   listContent: {
     padding: 15,
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   card: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     borderRadius: 24,
     marginBottom: 16,
     borderWidth: 1,
@@ -298,12 +298,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 17,
     fontFamily: Fonts.bold,
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     marginBottom: 2,
   },
   categorySub: {
     fontSize: 13,
-    color: '#94A3B8',
+    color: '#808080',
     fontFamily: Fonts.medium,
   },
   amount: {
@@ -334,18 +334,18 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 12,
-    color: '#64748B',
+    color: '#808080',
     fontFamily: Fonts.medium,
   },
   detailValue: {
     fontSize: 12,
-    color: '#3A6FF8',
+    color: '#d3d3ff',
     fontFamily: Fonts.bold,
   },
   detailSeparator: {
     width: 1,
     height: 16,
-    backgroundColor: '#334155',
+    backgroundColor: '#1A1A1A',
   },
   statusBadge: {
     fontSize: 10,
@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 24,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
@@ -374,12 +374,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontFamily: Fonts.bold,
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#94A3B8',
+    color: '#808080',
     textAlign: 'center',
     lineHeight: 22,
     fontFamily: Fonts.regular,

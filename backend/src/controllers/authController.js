@@ -151,13 +151,14 @@ const verifyOTP = async (req, res) => {
     user.otp = undefined;
     await user.save();
 
-    // Generate JWT token
-    const token = generateToken(user._id);
+    // Generate JWT tokens
+    const { accessToken, refreshToken } = generateToken(user._id);
 
     res.status(200).json({
       success: true,
       message: "OTP verified successfully",
-      token,
+      token: accessToken,
+      refreshToken,
       user: {
         id: user._id,
         fullName: user.fullName,
@@ -207,14 +208,15 @@ const googleLoginRegister = async (req, res) => {
       await user.save();
     }
 
-    // Generate JWT token
-    const token = generateToken(user._id);
+    // Generate JWT tokens
+    const { accessToken, refreshToken } = generateToken(user._id);
 
     // Respond with token and user info
     res.status(200).json({
       success: true,
       message: "Google login/register successful",
-      token,
+      token: accessToken,
+      refreshToken,
       user: {
         id: user._id,
         fullName: user.fullName,
@@ -373,6 +375,67 @@ const updateFCMToken = async (req, res) => {
   }
 };
 
+// Refresh token
+const refreshToken = async (req, res) => {
+  try {
+    const { refreshToken: providedToken } = req.body;
+
+    if (!providedToken) {
+      return res.status(400).json({
+        success: false,
+        message: "Refresh token is required",
+      });
+    }
+
+    // Verify refresh token
+    const decoded = jwt.verify(providedToken, process.env.JWT_SECRET);
+
+    if (!decoded.isRefreshToken) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid refresh token",
+      });
+    }
+
+    // Get user from database
+    const user = await User.findById(decoded.userId);
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Generate new tokens
+    const { accessToken, refreshToken: newRefreshToken } = generateToken(
+      user._id,
+    );
+
+    res.status(200).json({
+      success: true,
+      token: accessToken,
+      accessToken: accessToken, // Support both formats
+      refreshToken: newRefreshToken,
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        phone: user.phone,
+        currency: user.currency,
+        notificationSettings: user.notificationSettings,
+        authMethod: user.authMethod,
+      },
+    });
+  } catch (error) {
+    console.error("Error in refreshToken:", error);
+    res.status(401).json({
+      success: false,
+      message: "Invalid or expired refresh token",
+    });
+  }
+};
+
 module.exports = {
   checkUser,
   sendOTPForLogin,
@@ -381,4 +444,5 @@ module.exports = {
   getProfile,
   updateProfile,
   updateFCMToken,
+  refreshToken,
 };

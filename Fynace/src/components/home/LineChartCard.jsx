@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Dimensions, ScrollView } from 'react-native';
-import { Text } from 'react-native-paper';
+import { Text, useTheme } from 'react-native-paper';
 import { LineChart } from 'react-native-chart-kit';
 import LinearGradient from 'react-native-linear-gradient';
 import styles from './styles';
@@ -15,6 +15,7 @@ const LineChartCard = ({
   chartConfig,
   rightAction,
 }) => {
+  const theme = useTheme();
   const { user } = useAuth();
   const { formatAmount, isPrivacyMode } = usePrivacy();
   const screenWidth = Dimensions.get('window').width - 32; // Account for padding
@@ -27,10 +28,10 @@ const LineChartCard = ({
 
   return (
     <LinearGradient
-      colors={['#1E293B', '#0F172A', '#1E293B']}
+      colors={[theme.colors.surfaceVariant, theme.colors.background]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
-      style={styles.chartCard}
+      style={[styles.chartCard, { borderColor: theme.colors.outline }]}
     >
       <View
         style={{

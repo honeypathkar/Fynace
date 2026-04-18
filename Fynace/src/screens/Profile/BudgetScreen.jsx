@@ -198,7 +198,7 @@ const BudgetScreen = () => {
                 },
               ]}
             >
-              <Target size={24} color={theme.primary} />
+              <Target size={24} color={theme.secondary} />
             </View>
           </View>
 
@@ -213,7 +213,7 @@ const BudgetScreen = () => {
             </View>
             <ProgressBar
               progress={Math.min(totals.percentage, 1)}
-              color={totals.percentage > 0.9 ? theme.error : theme.primary}
+              color={totals.percentage > 0.9 ? theme.error : theme.secondary}
               style={[styles.progressBar, { backgroundColor: theme.border }]}
             />
           </View>
@@ -296,8 +296,8 @@ const BudgetScreen = () => {
                     isOver
                       ? theme.error
                       : isWarning
-                      ? theme.warning
-                      : theme.success
+                        ? theme.warning
+                        : theme.success
                   }
                   style={[
                     styles.cardProgress,
@@ -371,9 +371,8 @@ const BudgetScreen = () => {
       </ScrollView>
 
       <FAB
-        icon={({ size, color }) => <Plus size={size} color={color} />}
-        style={[styles.fab, { backgroundColor: theme.primary }]}
-        color="#FFFFFF"
+        icon={({ size, color }) => <Plus size={size} color="#000000" />}
+        style={[styles.fab, { backgroundColor: '#d3d3ff' }]}
         onPress={() => setIsModalVisible(true)}
       />
 
@@ -446,9 +445,9 @@ const BudgetScreen = () => {
       <BottomSheet
         ref={categorySheetRef}
         title="Select Category"
-        options={categories.map(c => ({ label: c, value: { name: c, id: c } }))}
+        options={categories.map(c => ({ label: c, value: c }))}
         selectedValue={selectedCategory?.name}
-        onSelect={val => setSelectedCategory(val)}
+        onSelect={val => setSelectedCategory({ name: val, id: val })}
         initialHeight={0.5}
       />
     </SafeAreaView>
@@ -620,7 +619,7 @@ const styles = StyleSheet.create({
   deleteCancelButton: {
     flex: 1,
     borderRadius: 12,
-    borderColor: '#334155',
+    borderColor: '#1A1A1A',
   },
   deleteConfirmButton: {
     flex: 1,

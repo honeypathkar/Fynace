@@ -30,7 +30,7 @@ const SkeletonPulse = ({ style }) => {
 
   const backgroundColor = animation.interpolate({
     inputRange: [0, 1],
-    outputRange: ['#1E293B', '#334155'],
+    outputRange: ['#121212', '#1A1A1A'],
   });
 
   return (
@@ -41,7 +41,7 @@ const SkeletonPulse = ({ style }) => {
 const styles = StyleSheet.create({
   skeletonBase: {
     borderRadius: 12,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
   },
 });
 

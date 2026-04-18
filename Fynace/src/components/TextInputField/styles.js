@@ -5,9 +5,9 @@ import Fonts from '../../../assets/fonts';
 // Build a lightweight adapter so the provided style tokens map to our theme
 const theme = {
   colors: {
-    textWhite: '#E8F0FF',
-    textSubtle: '#A7B3CC',
-    textMuted: '#94A3B8',
+    textWhite: '#FFFFFF',
+    textSubtle: '#808080',
+    textMuted: '#808080',
     secondary: themeAssets.palette.primary,
     inputBackground: 'rgba(255,255,255,0.12)',
     surfaceBadge: 'rgba(255,255,255,0.08)',

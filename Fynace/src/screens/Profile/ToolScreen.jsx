@@ -47,7 +47,7 @@ const CustomToggle = ({ value, onValueChange }) => (
       width: 50,
       height: 26,
       borderRadius: 13,
-      backgroundColor: value ? '#3A6FF8' : '#334155',
+      backgroundColor: value ? '#d3d3ff' : '#1A1A1A',
       justifyContent: 'center',
       paddingHorizontal: 2,
     }}
@@ -272,12 +272,12 @@ const ToolScreen = () => {
     >
       <View style={styles.menuItemLeft}>
         <View style={styles.iconContainer}>
-          <Icon size={20} color="#1E293B" />
+          <Icon size={20} color="#FFFFFF" />
         </View>
         <Text style={styles.menuItemLabel}>{label}</Text>
       </View>
       <View style={styles.menuItemRight}>
-        {right ? right : <ChevronRight size={20} color="#94A3B8" />}
+        {right ? right : <ChevronRight size={20} color="#808080" />}
       </View>
     </Pressable>
   );
@@ -286,14 +286,14 @@ const ToolScreen = () => {
     <SafeAreaView edges={['top']} style={styles.container}>
       <GlobalHeader
         title="Tools & Settings"
-        titleColor="#F8FAFC"
+        titleColor="#FFFFFF"
         backgroundColor="transparent"
         showLeftIcon
         leftIconName="arrow-left"
-        leftIconColor="#F8FAFC"
+        leftIconColor="#FFFFFF"
         onLeftIconPress={() => navigation.goBack()}
         rightIconComponent={
-          isUpdating ? <ActivityIndicator size="small" color="#F8FAFC" /> : null
+          isUpdating ? <ActivityIndicator size="small" color="#FFFFFF" /> : null
         }
       />
 
@@ -430,7 +430,7 @@ const ToolScreen = () => {
                   <Switch
                     value={smsTrackingEnabled}
                     onValueChange={handleSmsToggle}
-                    color="#3A6FF8"
+                    color="#d3d3ff"
                   />
                 }
               />
@@ -468,7 +468,7 @@ const ToolScreen = () => {
                   <AlertTriangle
                     size={24}
                     color={
-                      alertConfig.type === 'danger' ? '#EF4444' : '#3A6FF8'
+                      alertConfig.type === 'danger' ? '#EF4444' : '#d3d3ff'
                     }
                   />
                 </View>
@@ -513,7 +513,7 @@ export default ToolScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000000',
   },
   scrollContent: {
     paddingHorizontal: 24,
@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 12,
     fontFamily: Fonts.bold,
-    color: '#64748B',
+    color: '#808080',
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginTop: 24,
@@ -543,7 +543,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   menuItemPressed: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
   },
   menuItemLeft: {
     flexDirection: 'row',
@@ -554,25 +554,25 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#1A1A1A',
     justifyContent: 'center',
     alignItems: 'center',
   },
   menuItemLabel: {
     fontSize: 16,
     fontFamily: Fonts.medium,
-    color: '#F8FAFC',
+    color: '#FFFFFF',
   },
   explanationCard: {
-    backgroundColor: 'rgba(30, 41, 59, 0.5)',
-    borderRadius: 20,
+    // backgroundColor: '#121212',
+    borderRadius: 10,
     paddingBottom: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: 'rgba(255, 255, 255, 0.11)',
   },
   explanationText: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: '#808080',
     fontFamily: Fonts.regular,
     paddingHorizontal: 16,
     lineHeight: 18,
@@ -588,23 +588,23 @@ const styles = StyleSheet.create({
   currencyBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
     gap: 4,
   },
   currencyBadgeText: {
-    color: '#3A6FF8',
+    color: '#d3d3ff',
     fontFamily: Fonts.bold,
     fontSize: 14,
   },
   menuContent: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     borderRadius: 12,
   },
   menuItemText: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontFamily: Fonts.medium,
   },
   alertContent: {
@@ -627,10 +627,10 @@ const styles = StyleSheet.create({
   alertTitle: {
     fontSize: 20,
     fontFamily: Fonts.bold,
-    color: '#F8FAFC',
+    color: '#FFFFFF',
   },
   alertMessage: {
-    color: '#94A3B8',
+    color: '#808080',
     fontSize: 16,
     lineHeight: 24,
     fontFamily: Fonts.medium,
@@ -647,18 +647,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   alertButtonPrimary: {
-    backgroundColor: '#3A6FF8',
+    backgroundColor: '#d3d3ff',
   },
   alertButtonSecondary: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   alertButtonTextPrimary: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontFamily: Fonts.bold,
     fontSize: 16,
   },
   alertButtonTextSecondary: {
-    color: '#64748B',
+    color: '#808080',
     fontFamily: Fonts.bold,
     fontSize: 16,
   },

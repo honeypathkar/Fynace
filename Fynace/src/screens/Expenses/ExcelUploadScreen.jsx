@@ -523,7 +523,7 @@ const ExcelUploadScreen = () => {
             style={excelUploadStyles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <ChevronLeft size={28} color="#F8FAFC" />
+            <ChevronLeft size={28} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={excelUploadStyles.headerTitle}>Upload Excel</Text>
           <View style={{ width: 40 }} />
@@ -551,7 +551,7 @@ const ExcelUploadScreen = () => {
             style={excelUploadStyles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <ChevronLeft size={28} color="#F8FAFC" />
+            <ChevronLeft size={28} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={excelUploadStyles.headerTitle}>Upload Excel</Text>
           <View style={{ width: 40 }} />
@@ -636,7 +636,7 @@ const ExcelUploadScreen = () => {
               <Button
                 mode="outlined"
                 onPress={() => navigation.goBack()}
-                textColor="#94A3B8"
+                textColor="#808080"
                 style={excelUploadStyles.cancelButton}
               >
                 Cancel
@@ -646,7 +646,7 @@ const ExcelUploadScreen = () => {
                 onPress={handleBulkUpload}
                 loading={uploading}
                 disabled={uploading || extractedData.length === 0}
-                leftIcon={<Check size={20} color="#F8FAFC" />}
+                leftIcon={<Check size={20} color="#FFFFFF" />}
                 style={excelUploadStyles.uploadButton}
                 buttonColor="#22C55E"
               />

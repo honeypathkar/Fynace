@@ -199,7 +199,7 @@ const AddQRBasedExpenseScreen = () => {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <ChevronLeft size={28} color="#F8FAFC" />
+            <ChevronLeft size={28} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Expense Details</Text>
           <View style={{ width: 40 }} />
@@ -251,11 +251,12 @@ const AddQRBasedExpenseScreen = () => {
             title={formValues.upiId ? 'Pay & Record' : 'Record Expense'}
             onPress={handlePayAndSave}
             loading={saving}
+            buttonColor="#d3d3ff"
             leftIcon={
               formValues.upiId ? (
-                <Send size={20} color="#FFF" />
+                <Send size={20} color="#000" />
               ) : (
-                <CreditCard size={20} color="#FFF" />
+                <CreditCard size={20} color="#000" />
               )
             }
           />
@@ -268,7 +269,7 @@ const AddQRBasedExpenseScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000000',
   },
   header: {
     flexDirection: 'row',
@@ -278,7 +279,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   headerTitle: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontSize: 20,
     fontFamily: Fonts.semibold,
   },
@@ -314,7 +315,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   upiText: {
-    color: '#94A3B8',
+    color: '#808080',
     fontSize: 12,
     fontFamily: Fonts.medium,
     marginLeft: 28,

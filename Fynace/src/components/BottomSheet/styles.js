@@ -16,6 +16,7 @@ export const themeColors = {
   primaryText2: palette.subtext,
   accentPrimary: palette.primary,
   text: palette.text,
+  primaryBackground: '#000000',
 };
 
 export const spacing = {
@@ -43,7 +44,7 @@ export const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.6)', // Put color here instead
   },
   modalContainer: {
-    backgroundColor: palette.surface, // Use theme surface color
+    backgroundColor: '#0A0A0A', // Premium slightly-lighter-than-black
     borderTopLeftRadius: radius.xxl,
     borderTopRightRadius: radius.xxl,
     paddingTop: spacing.s,
@@ -76,6 +77,9 @@ export const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: spacing.xl,
   },
+  modalContentNoFlex: {
+    paddingHorizontal: spacing.xl,
+  },
   optionsList: {
     gap: spacing.m,
     marginBottom: spacing.l,
@@ -89,6 +93,10 @@ export const styles = StyleSheet.create({
     paddingVertical: spacing.s,
     marginBottom: spacing.xs,
     paddingHorizontal: spacing.xl,
+  },
+  dragHandleArea: {
+    backgroundColor: 'transparent',
+    paddingBottom: 4,
   },
   sheetHandle: {
     width: 80,
@@ -112,8 +120,12 @@ export const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.02)',
   },
   sheetOptionActive: {
-    borderColor: palette.primary,
-    backgroundColor: `${palette.primary}1A`, // 10% opacity of primary
+    borderColor: '#d3d3ff',
+    backgroundColor: 'rgba(211, 211, 255, 0.1)', // 10% opacity of Lavender
+  },
+  sheetOptionActionRow: {
+    backgroundColor: '#d3d3ff',
+    borderColor: '#d3d3ff',
   },
   sheetOptionLabel: {
     color: palette.text,
@@ -122,6 +134,10 @@ export const styles = StyleSheet.create({
   },
   sheetOptionLabelMuted: {
     color: palette.subtext,
+  },
+  sheetOptionLabelAction: {
+    color: '#000000',
+    fontFamily: Fonts.bold,
   },
   sheetOptionIcon: {
     marginLeft: spacing.s,
@@ -163,7 +179,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
   },
   continueButtonText: {
-    color: palette.onPrimary,
+    color: '#000000',
     fontSize: normalize(16),
     fontFamily: Fonts.bold,
   },

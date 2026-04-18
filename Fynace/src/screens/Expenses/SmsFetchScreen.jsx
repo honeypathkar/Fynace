@@ -383,7 +383,7 @@ const SmsFetchScreen = () => {
                     onChangeText={setEditValue}
                     autoFocus
                     placeholder="Merchant Name"
-                    placeholderTextColor="#64748B"
+                    placeholderTextColor="#808080"
                   />
                 </View>
 
@@ -414,7 +414,7 @@ const SmsFetchScreen = () => {
                   value={editNotes}
                   onChangeText={setEditNotes}
                   placeholder="Add notes..."
-                  placeholderTextColor="#64748B"
+                  placeholderTextColor="#808080"
                   multiline
                 />
 
@@ -448,7 +448,7 @@ const SmsFetchScreen = () => {
                   <Text style={styles.itemCategory}>{item.category}</Text>
                 </View>
                 {!isAdded && (
-                  <Plus size={12} color="#64748B" style={{ marginLeft: 4 }} />
+                  <Plus size={12} color="#808080" style={{ marginLeft: 4 }} />
                 )}
               </Pressable>
             )}
@@ -459,7 +459,7 @@ const SmsFetchScreen = () => {
                   <Text style={styles.bankTagText}>{item.bank}</Text>
                 </View>
                 <View style={styles.dateInfo}>
-                  <Calendar size={12} color="#64748B" />
+                  <Calendar size={12} color="#808080" />
                   <Text style={styles.dateText}>
                     {new Date(item.date).toLocaleDateString('en-IN', {
                       day: 'numeric',
@@ -518,11 +518,11 @@ const SmsFetchScreen = () => {
     <SafeAreaView edges={['top']} style={styles.container}>
       <GlobalHeader
         title="SMS Transaction Fetch"
-        titleColor="#F8FAFC"
+        titleColor="#FFFFFF"
         backgroundColor="transparent"
         showLeftIcon
         leftIconName="arrow-left"
-        leftIconColor="#F8FAFC"
+        leftIconColor="#FFFFFF"
         onLeftIconPress={() => navigation.goBack()}
       />
 
@@ -567,9 +567,9 @@ const SmsFetchScreen = () => {
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator size="small" color="#3A6FF8" />
+              <ActivityIndicator size="small" color="#d3d3ff" />
             ) : (
-              <RefreshCw size={18} color="#3A6FF8" />
+              <RefreshCw size={18} color="#d3d3ff" />
             )}
             <Text style={styles.refreshText}>Scan</Text>
           </Pressable>
@@ -578,7 +578,7 @@ const SmsFetchScreen = () => {
         {transactions.length === 0 ? (
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconContainer}>
-              <CreditCard size={48} color="#64748B" />
+              <CreditCard size={48} color="#808080" />
             </View>
             <Text style={styles.emptyText}>No results yet</Text>
             <Text style={styles.emptySubtext}>
@@ -626,7 +626,7 @@ const SmsFetchScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000000',
   },
   content: {
     flex: 1,
@@ -639,7 +639,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 12,
     fontFamily: Fonts.bold,
-    color: '#64748B',
+    color: '#808080',
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginBottom: 12,
@@ -649,21 +649,21 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   chip: {
-    backgroundColor: '#1E293B',
-    borderColor: '#334155',
+    backgroundColor: '#121212',
+    borderColor: '#1A1A1A',
     borderWidth: 1,
     borderRadius: 12,
   },
   chipSelected: {
     backgroundColor: 'rgba(58, 111, 248, 0.15)',
-    borderColor: '#3A6FF8',
+    borderColor: '#d3d3ff',
   },
   chipText: {
-    color: '#94A3B8',
+    color: '#808080',
     fontFamily: Fonts.medium,
   },
   chipTextSelected: {
-    color: '#3A6FF8',
+    color: '#d3d3ff',
     fontFamily: Fonts.bold,
   },
   actionHeader: {
@@ -675,7 +675,7 @@ const styles = StyleSheet.create({
   resultsInfo: {
     fontSize: 14,
     fontFamily: Fonts.semibold,
-    color: '#F8FAFC',
+    color: '#FFFFFF',
   },
   refreshButton: {
     flexDirection: 'row',
@@ -689,13 +689,13 @@ const styles = StyleSheet.create({
   refreshText: {
     fontSize: 13,
     fontFamily: Fonts.bold,
-    color: '#3A6FF8',
+    color: '#d3d3ff',
   },
   listContent: {
     paddingBottom: 100,
   },
   transactionCard: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     borderRadius: 20,
     padding: 16,
     marginBottom: 16,
@@ -718,13 +718,13 @@ const styles = StyleSheet.create({
   currency: {
     fontSize: 16,
     fontFamily: Fonts.bold,
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     marginRight: 2,
   },
   amount: {
     fontSize: 22,
     fontFamily: Fonts.bold,
-    color: '#F8FAFC',
+    color: '#FFFFFF',
   },
   cardBody: {
     marginBottom: 16,
@@ -737,7 +737,7 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: 16,
     fontFamily: Fonts.semibold,
-    color: '#F8FAFC',
+    color: '#FFFFFF',
   },
   editContainer: {
     flexDirection: 'row',
@@ -749,7 +749,7 @@ const styles = StyleSheet.create({
   },
   editInput: {
     flex: 1,
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontFamily: Fonts.medium,
     paddingVertical: 8,
     paddingHorizontal: 10,
@@ -776,7 +776,7 @@ const styles = StyleSheet.create({
   bankTagText: {
     fontSize: 10,
     fontFamily: Fonts.bold,
-    color: '#94A3B8',
+    color: '#808080',
   },
   dateInfo: {
     flexDirection: 'row',
@@ -786,11 +786,11 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: 12,
     fontFamily: Fonts.medium,
-    color: '#64748B',
+    color: '#808080',
   },
   addButton: {
     flexDirection: 'row',
-    backgroundColor: '#3A6FF8',
+    backgroundColor: '#d3d3ff',
     height: 40,
     borderRadius: 10,
     justifyContent: 'center',
@@ -803,7 +803,7 @@ const styles = StyleSheet.create({
     borderColor: '#10B981',
   },
   addingButton: {
-    backgroundColor: '#334155',
+    backgroundColor: '#1A1A1A',
   },
   addButtonText: {
     color: '#FFFFFF',
@@ -820,7 +820,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 24,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
@@ -828,20 +828,20 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 18,
     fontFamily: Fonts.bold,
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 14,
     fontFamily: Fonts.regular,
-    color: '#64748B',
+    color: '#808080',
     textAlign: 'center',
     paddingHorizontal: 40,
     lineHeight: 20,
     marginBottom: 24,
   },
   scanButton: {
-    backgroundColor: '#3A6FF8',
+    backgroundColor: '#d3d3ff',
     borderRadius: 12,
   },
   scanButtonLabel: {
@@ -852,13 +852,13 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000000',
     padding: 20,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.05)',
   },
   bulkButton: {
-    backgroundColor: '#3A6FF8',
+    backgroundColor: '#d3d3ff',
     borderRadius: 16,
     elevation: 4,
   },
@@ -874,11 +874,11 @@ const styles = StyleSheet.create({
   },
   editInputLine: {
     borderBottomWidth: 1,
-    borderBottomColor: '#334155',
+    borderBottomColor: '#1A1A1A',
     marginBottom: 12,
   },
   editInput: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontFamily: Fonts.semibold,
     fontSize: 16,
     paddingVertical: 8,
@@ -886,7 +886,7 @@ const styles = StyleSheet.create({
   editLabel: {
     fontSize: 11,
     fontFamily: Fonts.bold,
-    color: '#94A3B8',
+    color: '#808080',
     textTransform: 'uppercase',
     marginBottom: 8,
   },
@@ -895,11 +895,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   catChip: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     height: 32,
   },
   catChipSelected: {
-    backgroundColor: '#3A6FF8',
+    backgroundColor: '#d3d3ff',
   },
   catChipText: {
     fontSize: 12,
@@ -909,7 +909,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 8,
     padding: 10,
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontFamily: Fonts.regular,
     fontSize: 14,
     minHeight: 60,
@@ -936,13 +936,13 @@ const styles = StyleSheet.create({
   itemCategory: {
     fontSize: 12,
     fontFamily: Fonts.medium,
-    color: '#3A6FF8',
+    color: '#d3d3ff',
     marginTop: 2,
   },
   notesPreview: {
     fontSize: 12,
     fontFamily: Fonts.regular,
-    color: '#94A3B8',
+    color: '#808080',
     fontStyle: 'italic',
     marginTop: 8,
     backgroundColor: 'rgba(255,255,255,0.02)',

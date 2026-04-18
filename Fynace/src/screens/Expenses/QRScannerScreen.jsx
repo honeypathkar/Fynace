@@ -22,19 +22,26 @@ import {
   useCameraDevice,
   useCodeScanner,
 } from 'react-native-vision-camera';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import RNQRGenerator from 'rn-qr-generator';
 import Fonts from '../../../assets/fonts';
 
 const QRScannerScreen = () => {
   const navigation = useNavigation();
+  const isFocused = useIsFocused();
   const [hasPermission, setHasPermission] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isActive, setIsActive] = useState(true);
 
   const device = useCameraDevice('back');
+
+  useEffect(() => {
+    if (isFocused) {
+      setIsActive(true);
+    }
+  }, [isFocused]);
 
   useEffect(() => {
     const requestPermission = async () => {
@@ -113,29 +120,7 @@ const QRScannerScreen = () => {
     try {
       setLoading(true);
 
-      // Request permissions for gallery
-      if (Platform.OS === 'android') {
-        let permission;
-        if (Platform.Version >= 33) {
-          permission = PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES;
-        } else {
-          permission = PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE;
-        }
-
-        const hasPermission = await PermissionsAndroid.check(permission);
-        if (!hasPermission) {
-          const status = await PermissionsAndroid.request(permission, {
-            title: 'Gallery Permission',
-            message:
-              'Fynace needs access to your gallery to scan QR codes from images.',
-            buttonPositive: 'OK',
-          });
-          if (status !== PermissionsAndroid.RESULTS.GRANTED) {
-            setLoading(false);
-            return;
-          }
-        }
-      }
+      setLoading(true);
 
       const result = await launchImageLibrary({
         mediaType: 'photo',
@@ -179,7 +164,7 @@ const QRScannerScreen = () => {
   if (!hasPermission) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator color="#3A6FF8" />
+        <ActivityIndicator color="#d3d3ff" />
         <Text style={styles.permissionText}>
           Waiting for camera permission...
         </Text>
@@ -197,20 +182,20 @@ const QRScannerScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar backgroundColor="#0F172A" barStyle="light-content" />
+      <StatusBar backgroundColor="#000000" barStyle="light-content" />
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <ChevronLeft size={28} color="#F8FAFC" />
+          <ChevronLeft size={28} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Scan QR Code</Text>
         <TouchableOpacity
           style={styles.galleryButton}
           onPress={handleGalleryUpload}
         >
-          <ImageIcon size={24} color="#F8FAFC" />
+          <ImageIcon size={24} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
@@ -251,9 +236,9 @@ const QRScannerScreen = () => {
                   torchOn && styles.torchIconBgActive,
                 ]}
               >
-                <Flashlight size={24} color={torchOn ? '#FFF' : '#F8FAFC'} />
+                <Flashlight size={24} color={torchOn ? '#FFF' : '#FFFFFF'} />
               </View>
-              <Text style={[styles.torchText, torchOn && { color: '#3A6FF8' }]}>
+              <Text style={[styles.torchText, torchOn && { color: '#d3d3ff' }]}>
                 {torchOn ? 'Flash On' : 'Flash Off'}
               </Text>
             </TouchableOpacity>
@@ -262,7 +247,7 @@ const QRScannerScreen = () => {
 
         {loading && (
           <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color="#3A6FF8" />
+            <ActivityIndicator size="large" color="#d3d3ff" />
           </View>
         )}
       </View>
@@ -273,7 +258,7 @@ const QRScannerScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A', // Match header for status bar
+    backgroundColor: '#000000', // Match header for status bar
   },
   centered: {
     justifyContent: 'center',
@@ -281,7 +266,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   permissionText: {
-    color: '#94A3B8',
+    color: '#808080',
     fontFamily: Fonts.medium,
   },
   header: {
@@ -290,11 +275,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000000',
     zIndex: 10,
   },
   headerTitle: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontSize: 20,
     fontFamily: Fonts.semibold,
   },
@@ -341,7 +326,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 30,
     height: 30,
-    borderColor: '#3A6FF8',
+    borderColor: '#d3d3ff',
   },
   cornerTopLeft: {
     top: 0,
@@ -372,7 +357,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 20,
   },
   topText: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontSize: 15,
     fontFamily: Fonts.medium,
     marginBottom: 40,
@@ -390,10 +375,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   torchIconBgActive: {
-    backgroundColor: '#3A6FF8',
+    backgroundColor: '#d3d3ff',
   },
   torchText: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontSize: 14,
     fontFamily: Fonts.medium,
   },

@@ -4,6 +4,7 @@ import React, {
   useCallback,
   useState,
   useEffect,
+  useRef,
 } from 'react';
 import {
   View,
@@ -14,23 +15,22 @@ import {
   Dimensions,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   Keyboard,
 } from 'react-native';
-import { Check, X } from 'lucide-react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  runOnJS,
-} from 'react-native-reanimated';
 import {
   Gesture,
   GestureDetector,
   GestureHandlerRootView,
 } from 'react-native-gesture-handler';
-
+import { Check, X, Plus } from 'lucide-react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  useAnimatedScrollHandler,
+  withSpring,
+  withTiming,
+  runOnJS,
+} from 'react-native-reanimated';
 import styles, { themeColors, spacing } from './styles';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -46,20 +46,24 @@ const BottomSheet = forwardRef(
       footer,
       containerStyle,
       contentStyle,
-      initialHeight = 0.4, // Default to 40% of screen height
+      initialHeight = 0.4,
       isMultiSelect = false,
       onClose,
+      onOpen,
+      stickyFooter = false,
+      backgroundColor,
+      titleColor,
+      scrollEnabled = true,
     },
     ref,
   ) => {
     const [isVisible, setIsVisible] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
 
-    // Dynamic snap points based on initialHeight prop
     const SNAP_POINTS = {
       CLOSED: SCREEN_HEIGHT,
       MID: SCREEN_HEIGHT * (1 - initialHeight),
-      FULL: SCREEN_HEIGHT * 0.1, // Max 90% height (10% from top)
+      FULL: SCREEN_HEIGHT * 0.1,
     };
 
     const translateY = useSharedValue(SNAP_POINTS.CLOSED);
@@ -67,7 +71,7 @@ const BottomSheet = forwardRef(
     const close = useCallback(() => {
       translateY.value = withTiming(
         SNAP_POINTS.CLOSED,
-        { duration: 200 },
+        { duration: 250 },
         finished => {
           if (finished) {
             runOnJS(setIsVisible)(false);
@@ -82,6 +86,7 @@ const BottomSheet = forwardRef(
 
     const open = useCallback(() => {
       setIsVisible(true);
+      if (onOpen) onOpen();
       requestAnimationFrame(() => {
         setTimeout(() => {
           translateY.value = withSpring(SNAP_POINTS.MID, {
@@ -91,7 +96,7 @@ const BottomSheet = forwardRef(
           });
         }, 100);
       });
-    }, [translateY, SNAP_POINTS.MID]);
+    }, [translateY, SNAP_POINTS.MID, onOpen]);
 
     useImperativeHandle(ref, () => ({
       open,
@@ -121,8 +126,18 @@ const BottomSheet = forwardRef(
     }, [SNAP_POINTS.FULL, SNAP_POINTS.MID, isExpanded, translateY]);
 
     const startY = useSharedValue(0);
+    const scrollOffset = useSharedValue(0);
+    const scrollViewRef = useRef(null);
 
-    const pan = Gesture.Pan()
+    const scrollHandler = useAnimatedScrollHandler({
+      onScroll: (event) => {
+        scrollOffset.value = event.contentOffset.y;
+      },
+    });
+
+    const handlePan = Gesture.Pan()
+      .activeOffsetY([-12, 12])
+      .failOffsetX([-15, 15])
       .onStart(() => {
         startY.value = translateY.value;
       })
@@ -136,23 +151,51 @@ const BottomSheet = forwardRef(
         const currentPos = translateY.value;
         const velocityY = event.velocityY;
 
-        // Snapping logic
         if (velocityY > 500 || currentPos > SNAP_POINTS.MID + 150) {
           runOnJS(close)();
         } else if (velocityY < -500 || currentPos < SNAP_POINTS.MID - 50) {
-          translateY.value = withSpring(SNAP_POINTS.FULL, {
-            damping: 20,
-            stiffness: 100,
-          });
+          translateY.value = withSpring(SNAP_POINTS.FULL, { damping: 20, stiffness: 100 });
           runOnJS(setIsExpanded)(true);
         } else {
-          translateY.value = withSpring(SNAP_POINTS.MID, {
-            damping: 18,
-            stiffness: 110,
-          });
+          translateY.value = withSpring(SNAP_POINTS.MID, { damping: 18, stiffness: 110 });
           runOnJS(setIsExpanded)(false);
         }
       });
+
+    const contentPan = Gesture.Pan()
+      .minDistance(20)
+      .activeOffsetY([40, 100])
+      .failOffsetY([-100, -30])
+      .failOffsetX([-15, 15])
+      .onStart(() => {
+        startY.value = translateY.value;
+      })
+      .onUpdate(event => {
+        if (scrollOffset.value <= 0) {
+          const newValue = startY.value + event.translationY;
+          if (newValue >= SNAP_POINTS.FULL && newValue <= SNAP_POINTS.CLOSED) {
+            translateY.value = newValue;
+          }
+        }
+      })
+      .onEnd(event => {
+        if (scrollOffset.value <= 0) {
+          const currentPos = translateY.value;
+          const velocityY = event.velocityY;
+          if (velocityY > 500 || currentPos > SNAP_POINTS.MID + 150) {
+            runOnJS(close)();
+          } else if (velocityY < -500 || currentPos < SNAP_POINTS.MID - 50) {
+            translateY.value = withSpring(SNAP_POINTS.FULL, { damping: 20, stiffness: 100 });
+            runOnJS(setIsExpanded)(true);
+          } else {
+            translateY.value = withSpring(SNAP_POINTS.MID, { damping: 18, stiffness: 110 });
+            runOnJS(setIsExpanded)(false);
+          }
+        }
+      });
+
+    const native = Gesture.Native();
+    const combinedGesture = Gesture.Simultaneous(contentPan, native);
 
     const animatedStyle = useAnimatedStyle(() => ({
       transform: [{ translateY: translateY.value }],
@@ -160,7 +203,6 @@ const BottomSheet = forwardRef(
     }));
 
     const contentAnimatedStyle = useAnimatedStyle(() => {
-      // The visible height of the sheet is SCREEN_HEIGHT minus the current translateY
       const visibleHeight = SCREEN_HEIGHT - translateY.value;
       return {
         height: visibleHeight,
@@ -181,6 +223,55 @@ const BottomSheet = forwardRef(
         return selectedValue.includes(value);
       }
       return selectedValue === value;
+    };
+
+    const compactScrollWithFooter = Boolean(
+      stickyFooter && footer && scrollEnabled && options.length > 0,
+    );
+
+    const renderOptionRow = option => {
+      const isActive = isOptionActive(option.value);
+      const showPlus = Boolean(option.showPlusIcon);
+      const LeftIcon = option.LeftIcon;
+      
+      return (
+        <TouchableOpacity
+          key={option.value}
+          style={[
+            styles.sheetOption,
+            showPlus && styles.sheetOptionActionRow,
+            isActive && !showPlus && styles.sheetOptionActive,
+          ]}
+          activeOpacity={0.85}
+          onPress={() => handleSelect(option.value)}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 }}>
+            {LeftIcon && !showPlus ? (
+              <LeftIcon
+                size={20}
+                color={option.leftIconColor ?? themeColors.primaryText2}
+                style={{ marginRight: spacing.s }}
+              />
+            ) : null}
+            <Text
+              style={[
+                styles.sheetOptionLabel,
+                !isActive && !showPlus && styles.sheetOptionLabelMuted,
+                showPlus && styles.sheetOptionLabelAction,
+                option.color && !showPlus ? { color: option.color } : null,
+                { flex: 1, flexShrink: 1 },
+              ]}
+            >
+              {option.label}
+            </Text>
+          </View>
+          {showPlus ? (
+            <Plus size={20} color={themeColors.primaryBackground} style={styles.sheetOptionIcon} />
+          ) : isActive && !showPlus ? (
+            <Check size={20} color={themeColors.accentPrimary} style={styles.sheetOptionIcon} />
+          ) : null}
+        </TouchableOpacity>
+      );
     };
 
     return (
@@ -207,6 +298,7 @@ const BottomSheet = forwardRef(
                   right: 0,
                 },
                 containerStyle,
+                backgroundColor ? { backgroundColor } : null,
                 animatedStyle,
               ]}
             >
@@ -224,71 +316,68 @@ const BottomSheet = forwardRef(
                     contentAnimatedStyle,
                   ]}
                 >
-                  <GestureDetector gesture={pan}>
-                    <View style={{ backgroundColor: 'transparent' }}>
+                  <GestureDetector gesture={handlePan}>
+                    <View style={styles.dragHandleArea}>
                       <View style={styles.sheetHandleWrapper}>
-                        <View style={styles.sheetHandle} />
+                        <View style={[
+                          styles.sheetHandle,
+                          backgroundColor ? { backgroundColor: 'rgba(255,255,255,0.2)' } : null
+                        ]} />
                       </View>
 
                       <View style={styles.modalHeader}>
                         {title ? (
-                          <Text style={styles.modalTitle}>{title}</Text>
+                          <Text style={[
+                            styles.modalTitle,
+                            titleColor ? { color: titleColor } : null
+                          ]}>
+                            {title}
+                          </Text>
                         ) : null}
                         <TouchableOpacity
                           onPress={close}
                           style={styles.modalCloseButton}
                           activeOpacity={0.85}
                         >
-                          <X size={20} color={themeColors.primaryText2} />
+                          <X size={20} color={titleColor || themeColors.primaryText2} />
                         </TouchableOpacity>
                       </View>
                     </View>
                   </GestureDetector>
 
-                  <View style={[styles.modalContent, contentStyle]}>
-                    {options.length > 0 ? (
-                      <ScrollView
-                        style={{ flex: 1 }}
-                        showsVerticalScrollIndicator={false}
-                        contentContainerStyle={{ paddingBottom: spacing.xl }}
-                        keyboardShouldPersistTaps="handled"
-                        nestedScrollEnabled={true}
-                      >
-                        <View style={styles.optionsList}>
-                          {options.map(option => {
-                            const isActive = isOptionActive(option.value);
-                            return (
-                              <TouchableOpacity
-                                key={option.value}
-                                style={[
-                                  styles.sheetOption,
-                                  isActive && styles.sheetOptionActive,
-                                ]}
-                                activeOpacity={0.85}
-                                onPress={() => handleSelect(option.value)}
-                              >
-                                <Text
-                                  style={[
-                                    styles.sheetOptionLabel,
-                                    !isActive && styles.sheetOptionLabelMuted,
-                                  ]}
-                                >
-                                  {option.label}
-                                </Text>
-                                {isActive ? (
-                                  <Check
-                                    size={20}
-                                    color={themeColors.accentPrimary}
-                                    style={styles.sheetOptionIcon}
-                                  />
-                                ) : null}
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </View>
-                      </ScrollView>
+                  <View style={[
+                    compactScrollWithFooter ? styles.modalContentNoFlex : styles.modalContent,
+                    contentStyle
+                  ]}>
+                    {scrollEnabled ? (
+                      <GestureDetector gesture={combinedGesture}>
+                        <Animated.ScrollView
+                          ref={scrollViewRef}
+                          onScroll={scrollHandler}
+                          scrollEventThrottle={16}
+                          style={compactScrollWithFooter ? { flexGrow: 0, flexShrink: 1 } : { flex: 1 }}
+                          showsVerticalScrollIndicator={false}
+                          contentContainerStyle={[
+                            { paddingTop: spacing.s },
+                            compactScrollWithFooter 
+                              ? { paddingBottom: spacing.s, flexGrow: 0 } 
+                              : { paddingBottom: spacing.xl }
+                          ]}
+                          keyboardShouldPersistTaps="handled"
+                          nestedScrollEnabled={true}
+                        >
+                          {options.length > 0 && (
+                            <View style={styles.optionsList}>
+                              {options.map(renderOptionRow)}
+                            </View>
+                          )}
+                          {children}
+                        </Animated.ScrollView>
+                      </GestureDetector>
                     ) : (
-                      children
+                      <View style={{ paddingBottom: spacing.xl, paddingTop: spacing.s, flex: 1 }}>
+                        {children}
+                      </View>
                     )}
                   </View>
 

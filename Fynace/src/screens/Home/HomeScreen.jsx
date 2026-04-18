@@ -20,6 +20,7 @@ import {
   StatCard,
   LineChartCard,
   PieChartCard,
+  BarChartCard,
   HomeHeader,
   homeStyles,
 } from '../../components/home';
@@ -38,44 +39,47 @@ import { syncManager } from '../../sync/SyncManager';
 import BottomSheet from '../../components/BottomSheet';
 import { usePrivacy } from '../../context/PrivacyContext';
 
-const HomeSkeleton = () => (
-  <ScrollView
-    contentContainerStyle={homeStyles.scrollContent}
-    showsVerticalScrollIndicator={false}
-  >
-    <View style={homeStyles.statsRow}>
-      <SkeletonPulse style={[homeStyles.statCard, { height: 100 }]} />
-      <SkeletonPulse style={[homeStyles.statCard, { height: 100 }]} />
-    </View>
-
-    <View
-      style={[
-        homeStyles.chartCard,
-        { padding: 16, backgroundColor: '#1E293B', borderRadius: 16 },
-      ]}
+const HomeSkeleton = () => {
+  const theme = useTheme();
+  return (
+    <ScrollView
+      contentContainerStyle={homeStyles.scrollContent}
+      showsVerticalScrollIndicator={false}
     >
-      <SkeletonPulse style={{ width: 150, height: 20, marginBottom: 20 }} />
-      <SkeletonPulse style={{ width: '100%', height: 220, borderRadius: 16 }} />
-    </View>
+      <View style={homeStyles.statsRow}>
+        <SkeletonPulse style={[homeStyles.statCard, { height: 100 }]} />
+        <SkeletonPulse style={[homeStyles.statCard, { height: 100 }]} />
+      </View>
 
-    <View
-      style={[
-        homeStyles.chartCard,
-        { padding: 16, backgroundColor: '#1E293B', borderRadius: 16 },
-      ]}
-    >
-      <SkeletonPulse style={{ width: 150, height: 20, marginBottom: 20 }} />
-      <View style={{ alignItems: 'center', marginVertical: 20 }}>
-        <SkeletonPulse style={{ width: 180, height: 180, borderRadius: 90 }} />
+      <View
+        style={[
+          homeStyles.chartCard,
+          { padding: 16, backgroundColor: theme.colors.surfaceVariant, borderRadius: 16 },
+        ]}
+      >
+        <SkeletonPulse style={{ width: 150, height: 20, marginBottom: 20 }} />
+        <SkeletonPulse style={{ width: '100%', height: 220, borderRadius: 16 }} />
       </View>
-      <View style={{ gap: 12 }}>
-        <SkeletonPulse style={{ width: '100%', height: 40 }} />
-        <SkeletonPulse style={{ width: '100%', height: 40 }} />
-        <SkeletonPulse style={{ width: '100%', height: 40 }} />
+
+      <View
+        style={[
+          homeStyles.chartCard,
+          { padding: 16, backgroundColor: theme.colors.surfaceVariant, borderRadius: 16 },
+        ]}
+      >
+        <SkeletonPulse style={{ width: 150, height: 20, marginBottom: 20 }} />
+        <View style={{ alignItems: 'center', marginVertical: 20 }}>
+          <SkeletonPulse style={{ width: 180, height: 180, borderRadius: 90 }} />
+        </View>
+        <View style={{ gap: 12 }}>
+          <SkeletonPulse style={{ width: '100%', height: 40 }} />
+          <SkeletonPulse style={{ width: '100%', height: 40 }} />
+          <SkeletonPulse style={{ width: '100%', height: 40 }} />
+        </View>
       </View>
-    </View>
-  </ScrollView>
-);
+    </ScrollView>
+  );
+};
 
 const formatMonth = month => {
   const [year, monthIndex] = month.split('-');
@@ -99,6 +103,9 @@ const HomeScreen = () => {
   const [rawMoneyIn, setRawMoneyIn] = useState([]);
   const [syncStatus, setSyncStatus] = useState(syncManager.status);
 
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
   const [filterType, setFilterType] = useState('all_time');
   const [filterValue, setFilterValue] = useState(null);
   const bottomSheetRef = React.useRef(null);
@@ -111,29 +118,29 @@ const HomeScreen = () => {
 
   const chartConfig = useMemo(() => {
     return {
-      backgroundColor: '#1E293B',
-      backgroundGradientFrom: '#1E293B',
-      backgroundGradientTo: '#1E293B',
+      backgroundColor: theme.colors.surface,
+      backgroundGradientFrom: theme.colors.surface,
+      backgroundGradientTo: theme.colors.surface,
       decimalPlaces: 0,
-      color: (opacity = 1) => `rgba(58, 111, 248, ${opacity})`,
-      labelColor: (opacity = 1) => `rgba(148, 163, 184, ${opacity})`,
+      color: (opacity = 1) => `rgba(211, 211, 255, ${opacity})`,
+      labelColor: (opacity = 1) => `rgba(128, 128, 128, ${opacity})`,
       strokeWidth: 3,
       barPercentage: 0.7,
       useShadowColorFromDataset: false,
-      fillShadowGradient: '#3A6FF8',
-      fillShadowGradientOpacity: 0.3,
+      fillShadowGradient: theme.colors.secondary,
+      fillShadowGradientOpacity: 0.8,
       style: { borderRadius: 16 },
-      propsForDots: { r: '4', strokeWidth: '2', stroke: '#3A6FF8' },
+      propsForDots: { r: '4', strokeWidth: '2', stroke: theme.colors.secondary },
       propsForBackgroundLines: {
         strokeDasharray: '5,5',
-        stroke: '#334155',
+        stroke: theme.colors.outline,
         strokeWidth: 1,
       },
-      propsForVerticalLabels: { fontSize: 10, fontFamily: Fonts.medium },
-      propsForHorizontalLabels: { fontSize: 10, fontFamily: Fonts.medium },
-      propsForLabels: { fontSize: 11, fontFamily: Fonts.medium },
+      propsForVerticalLabels: { fontSize: 10, fontFamily: Fonts.medium, color: theme.colors.subtext },
+      propsForHorizontalLabels: { fontSize: 10, fontFamily: Fonts.medium, color: theme.colors.subtext },
+      propsForLabels: { fontSize: 11, fontFamily: Fonts.medium, color: theme.colors.subtext },
     };
-  }, []);
+  }, [theme]);
 
   const fetchDashboardData = useCallback(async (isSilent = false) => {
     try {
@@ -184,13 +191,28 @@ const HomeScreen = () => {
       expenses = expenses.filter(e => e.month === filterValue);
       moneyIn = moneyIn.filter(m => m.month === filterValue);
     } else if (filterType === 'weekly') {
-      const weekAgo = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate() - 7,
-      ).getTime();
+      const weekAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7).getTime();
       expenses = expenses.filter(e => e.date >= weekAgo);
       moneyIn = moneyIn.filter(m => m.date >= weekAgo);
+    } else if (filterType === 'current_week') {
+      const today = new Date(now);
+      const day = today.getDay();
+      const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Monday
+      const monday = new Date(today.setDate(diff));
+      monday.setHours(0, 0, 0, 0);
+      expenses = expenses.filter(e => e.date >= monday.getTime());
+      moneyIn = moneyIn.filter(m => m.date >= monday.getTime());
+    } else if (filterType === 'last_week') {
+      const lastMon = new Date(now);
+      const day = lastMon.getDay();
+      const diff = lastMon.getDate() - day - 6; // Last Monday
+      lastMon.setDate(diff);
+      lastMon.setHours(0, 0, 0, 0);
+      const lastSun = new Date(lastMon);
+      lastSun.setDate(lastSun.getDate() + 6);
+      lastSun.setHours(23, 59, 59, 999);
+      expenses = expenses.filter(e => e.date >= lastMon.getTime() && e.date <= lastSun.getTime());
+      moneyIn = moneyIn.filter(m => m.date >= lastMon.getTime() && m.date <= lastSun.getTime());
     }
 
     // Sort by date for proper chart order
@@ -209,7 +231,7 @@ const HomeScreen = () => {
       (sum, e) => sum + (e.amountRupees || 0),
       0,
     );
-    return { totalIn, totalOut };
+    return { totalIn, totalOut, balance: totalIn - totalOut };
   }, [filteredData]);
 
   const comparisonPercent = useMemo(() => {
@@ -281,105 +303,6 @@ const HomeScreen = () => {
     return 'Snapshot';
   }, [filterType, filterValue]);
 
-  const lineChartData = useMemo(() => {
-    const { expenses, moneyIn } = filteredData;
-    if (expenses.length === 0 && moneyIn.length === 0) return null;
-
-    let labels = [];
-    let expensePoints = [];
-    let incomePoints = [];
-
-    if (filterType === 'all_time' || filterType === 'yearly') {
-      // Group by month
-      const groups = {};
-      const allTxns = [...expenses, ...moneyIn].sort((a, b) => a.date - b.date);
-
-      allTxns.forEach(t => {
-        if (!groups[t.month])
-          groups[t.month] = {
-            in: 0,
-            out: 0,
-            label: formatMonth(t.month).split(' ')[0],
-          };
-        if (t.type === 'expense') groups[t.month].out += t.amountRupees || 0;
-        else groups[t.month].in += t.amountRupees || 0;
-      });
-
-      const sortedMonths = Object.keys(groups).sort();
-      labels = sortedMonths.map(m => groups[m].label);
-      expensePoints = sortedMonths.map(m => groups[m].out);
-      incomePoints = sortedMonths.map(m => groups[m].in);
-    } else {
-      // Group by date
-      const groups = {};
-      const allTxns = [...expenses, ...moneyIn].sort((a, b) => a.date - b.date);
-      allTxns.forEach(t => {
-        const d = new Date(t.date).toLocaleDateString('default', {
-          day: 'numeric',
-          month: 'short',
-        });
-        if (!groups[d]) groups[d] = { in: 0, out: 0 };
-        if (t.type === 'expense') groups[d].out += t.amountRupees || 0;
-        else groups[d].in += t.amountRupees || 0;
-      });
-      labels = Object.keys(groups);
-      expensePoints = Object.values(groups).map(v => v.out);
-      incomePoints = Object.values(groups).map(v => v.in);
-    }
-
-    if (labels.length > 7) {
-      // Truncate labels for better UI but keep data points
-      labels = labels.map((l, i) =>
-        i % Math.ceil(labels.length / 5) === 0 ? l : '',
-      );
-    }
-
-    return {
-      labels,
-      datasets: [
-        {
-          data: expensePoints,
-          color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
-          strokeWidth: 3,
-        },
-        {
-          data: incomePoints,
-          color: (opacity = 1) => `rgba(34, 197, 94, ${opacity})`,
-          strokeWidth: 3,
-        },
-      ],
-      legend: ['Expense', 'Income'],
-    };
-  }, [filteredData, filterType]);
-
-  const pieChartData = useMemo(() => {
-    const expenses = filteredData.expenses;
-    const cats = {};
-    expenses.forEach(e => {
-      const name = e.category || 'Other';
-      cats[name] = (cats[name] || 0) + (e.amountRupees || 0);
-    });
-
-    const entries = Object.entries(cats).sort((a, b) => b[1] - a[1]);
-    const pieColors = [
-      '#3A6FF8',
-      '#F97316',
-      '#22C55E',
-      '#EF4444',
-      '#A855F7',
-      '#14B8A6',
-    ];
-
-    return entries.map(([name, amount], index) => ({
-      name,
-      population: amount,
-      color: pieColors[index % pieColors.length],
-      legendFontColor: '#94A3B8',
-      legendFontSize: 12,
-      legendFontFamily: Fonts.medium,
-    }));
-  }, [filteredData]);
-
   const categoryStats = useMemo(() => {
     const expenses = filteredData.expenses;
     const cats = {};
@@ -412,13 +335,22 @@ const HomeScreen = () => {
       months: Array.from(months).sort((a, b) => b.localeCompare(a)),
     };
   }, [rawExpenses, rawMoneyIn]);
+
   const FilterChip = ({ label, active, onPress }) => (
     <TouchableOpacity
-      style={[styles.filterChip, active && styles.filterChipActive]}
+      style={[
+        styles.filterChip,
+        { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline },
+        active && { backgroundColor: theme.colors.secondary, borderColor: theme.colors.secondary }
+      ]}
       onPress={onPress}
     >
       <Text
-        style={[styles.filterChipText, active && styles.filterChipTextActive]}
+        style={[
+          styles.filterChipText,
+          { color: theme.colors.subtext },
+          active && { color: theme.colors.onSecondary }
+        ]}
       >
         {label}
       </Text>
@@ -446,9 +378,10 @@ const HomeScreen = () => {
       </View>
     );
   }
+
   return (
-    <SafeAreaView edges={['top']} style={homeStyles.container}>
-      <StatusBar backgroundColor="#0F172A" barStyle="light-content" />
+    <SafeAreaView edges={['top']} style={[homeStyles.container, { backgroundColor: theme.colors.background }]}>
+      <StatusBar backgroundColor={theme.colors.background} barStyle="light-content" />
       <HomeHeader
         userName={user?.fullName}
         onProfilePress={() => navigation.navigate('Profile')}
@@ -456,11 +389,11 @@ const HomeScreen = () => {
 
       <BottomSheet ref={bottomSheetRef} title="Filter Data" initialHeight={0.6}>
         <ScrollView
-          style={styles.filterOptionsScroll}
+          style={[styles.filterOptionsScroll]}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 40 }}
         >
-          <Text style={styles.filterLabel}>Preset Ranges</Text>
+          <Text style={[styles.filterLabel, { color: theme.colors.subtext }]}>Preset Ranges</Text>
           <View style={styles.presetGroup}>
             <FilterChip
               label="All Time"
@@ -472,18 +405,27 @@ const HomeScreen = () => {
               }}
             />
             <FilterChip
-              label="Last 7 Days"
-              active={filterType === 'weekly'}
+              label="Current Week"
+              active={filterType === 'current_week'}
               onPress={() => {
-                setFilterType('weekly');
+                setFilterType('current_week');
+                setFilterValue(null);
+                bottomSheetRef.current?.close();
+              }}
+            />
+            <FilterChip
+              label="Last Week"
+              active={filterType === 'last_week'}
+              onPress={() => {
+                setFilterType('last_week');
                 setFilterValue(null);
                 bottomSheetRef.current?.close();
               }}
             />
           </View>
 
-          <Divider style={styles.modalDivider} />
-          <Text style={styles.filterLabel}>By Year</Text>
+          <Divider style={[styles.modalDivider, { backgroundColor: theme.colors.outline }]} />
+          <Text style={[styles.filterLabel, { color: theme.colors.subtext }]}>By Year</Text>
           <View style={styles.presetGroup}>
             {filterOptions.years.map(y => (
               <FilterChip
@@ -499,8 +441,8 @@ const HomeScreen = () => {
             ))}
           </View>
 
-          <Divider style={styles.modalDivider} />
-          <Text style={styles.filterLabel}>By Month</Text>
+          <Divider style={[styles.modalDivider, { backgroundColor: theme.colors.outline }]} />
+          <Text style={[styles.filterLabel, { color: theme.colors.subtext }]}>By Month</Text>
           <View style={styles.presetGroup}>
             {filterOptions.months.map(m => (
               <FilterChip
@@ -533,9 +475,8 @@ const HomeScreen = () => {
               trend={comparisonPercent.moneyInPercent !== null}
               trendValue={
                 comparisonPercent.moneyInPercent !== null
-                  ? `${comparisonPercent.moneyInPercent >= 0 ? '+' : ''}${
-                      comparisonPercent.moneyInPercent
-                    }%`
+                  ? `${comparisonPercent.moneyInPercent >= 0 ? '+' : ''}${comparisonPercent.moneyInPercent
+                  }%`
                   : ''
               }
               type="in"
@@ -546,47 +487,29 @@ const HomeScreen = () => {
               trend={comparisonPercent.moneyOutPercent !== null}
               trendValue={
                 comparisonPercent.moneyOutPercent !== null
-                  ? `${comparisonPercent.moneyOutPercent >= 0 ? '+' : ''}${
-                      comparisonPercent.moneyOutPercent
-                    }%`
+                  ? `${comparisonPercent.moneyOutPercent >= 0 ? '+' : ''}${comparisonPercent.moneyOutPercent
+                  }%`
                   : ''
               }
               type="out"
             />
           </View>
 
-          <LineChartCard
-            title={chartTitle}
-            netBalance={summary.totalIn - summary.totalOut}
-            netBalanceLabel="Net Balance"
-            lineChartData={lineChartData}
-            screenWidth={screenWidth}
-            chartConfig={chartConfig}
-            rightAction={
-              <TouchableOpacity
-                style={styles.filterButton}
-                onPress={() => bottomSheetRef.current?.open()}
-              >
-                <Filter size={16} color="#F8FAFC" />
-                <Text style={styles.filterButtonText}>Filter</Text>
-              </TouchableOpacity>
-            }
-          />
+          <View style={homeStyles.balanceContainer}>
+            <Text style={homeStyles.balanceLabel}>Amount Left</Text>
+            <Text style={homeStyles.balanceAmount}>{formatAmount(summary.balance, user?.currency)}</Text>
+          </View>
 
-          <PieChartCard
-            title="Spending Categories"
-            pieChartData={pieChartData}
-            categoryData={categoryStats}
-            pieColors={[
-              '#3A6FF8',
-              '#F97316',
-              '#22C55E',
-              '#EF4444',
-              '#A855F7',
-              '#14B8A6',
-            ]}
-            screenWidth={screenWidth}
-            chartConfig={chartConfig}
+          <BarChartCard
+            title="Spend summary"
+            rawExpenses={rawExpenses}
+            categories={categoryStats}
+            totalIncome={summary.totalIn || 0}
+            filterType={filterType}
+            filterValue={filterValue}
+            selectedMonthKey={filterType === 'monthly' ? filterValue : null}
+            granularity={filterType === 'monthly' || filterType.includes('week') ? 'daily' : 'monthly'}
+            onFilterPress={() => bottomSheetRef.current?.open()}
           />
         </ScrollView>
       )}
@@ -603,11 +526,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 4,
-    backgroundColor: 'rgba(58, 111, 248, 0.1)',
   },
   syncText: {
     fontSize: 10,
-    color: '#3A6FF8',
     fontFamily: Fonts.medium,
   },
   headerWrapper: {
@@ -620,16 +541,13 @@ const styles = StyleSheet.create({
   filterButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E293B',
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 20,
     gap: 6,
     borderWidth: 1,
-    borderColor: '#334155',
   },
   filterButtonText: {
-    color: '#F8FAFC',
     fontSize: 12,
     fontFamily: Fonts.medium,
   },
@@ -637,7 +555,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   filterLabel: {
-    color: '#94A3B8',
     fontSize: 14,
     fontFamily: Fonts.semibold,
     marginBottom: 12,
@@ -653,24 +570,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
-    backgroundColor: '#1E293B',
     borderWidth: 1,
-    borderColor: '#334155',
-  },
-  filterChipActive: {
-    backgroundColor: '#3A6FF8',
-    borderColor: '#3A6FF8',
   },
   filterChipText: {
-    color: '#94A3B8',
     fontSize: 13,
     fontFamily: Fonts.medium,
   },
-  filterChipTextActive: {
-    color: '#FFFFFF',
-  },
   modalDivider: {
-    backgroundColor: '#334155',
     marginVertical: 12,
   },
 });

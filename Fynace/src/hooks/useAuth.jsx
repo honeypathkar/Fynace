@@ -217,33 +217,61 @@ export const AuthProvider = ({ children }) => {
     }
   }, [persistAuth]);
 
+  const refreshPromise = React.useRef(null);
+
   const performTokenRefresh = useCallback(async () => {
-    try {
-      const storedRefreshToken = await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
-      if (!storedRefreshToken) throw new Error('No refresh token');
-
-      // Use a separate axios call to avoid the interceptor loop
-      const response = await axios.post(
-        `${apiClient.defaults.baseURL}/auth/refresh`,
-        {
-          refreshToken: storedRefreshToken,
-        },
-      );
-
-      const accessToken = response.data?.token || response.data?.accessToken;
-      const refreshToken = response.data?.refreshToken;
-      const userData = response.data?.user;
-
-      if (accessToken) {
-        await persistAuth(accessToken, refreshToken, userData);
-        return accessToken;
-      }
-      throw new Error('Refresh failed - no access token');
-    } catch (error) {
-      console.warn('Token refresh failed:', error.message);
-      await logout();
-      throw error;
+    // If a refresh is already in progress, return the existing promise
+    if (refreshPromise.current) {
+      return refreshPromise.current;
     }
+
+    refreshPromise.current = (async () => {
+      try {
+        const storedRefreshToken = await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
+        
+        if (!storedRefreshToken) {
+          console.warn('No refresh token available');
+          // Don't logout immediately, just fail the refresh
+          // The interceptor will then reject the original request
+          throw new Error('No refresh token');
+        }
+
+        // Use a separate axios call to avoid the interceptor loop
+        // Ensure no double slashes in URL
+        const baseUrl = apiClient.defaults.baseURL.replace(/\/+$/, '');
+        const response = await axios.post(
+          `${baseUrl}/auth/refresh`,
+          {
+            refreshToken: storedRefreshToken,
+          },
+        );
+
+        const accessToken = response.data?.token || response.data?.accessToken;
+        const refreshToken = response.data?.refreshToken;
+        const userData = response.data?.user;
+
+        if (accessToken) {
+          await persistAuth(accessToken, refreshToken, userData);
+          return accessToken;
+        }
+        throw new Error('Refresh failed - no access token');
+      } catch (error) {
+        console.warn('Token refresh failed:', error.message);
+        
+        // ONLY logout if the server explicitly says the refresh token is invalid (401/403)
+        // or if we have no refresh token at all.
+        // For network errors (no response), we should NOT logout.
+        if (!error.response || error.response.status === 401 || error.response.status === 403 || error.message === 'No refresh token') {
+          console.log('Logging out due to unrecoverable auth error');
+          await logout();
+        }
+        throw error;
+      } finally {
+        refreshPromise.current = null;
+      }
+    })();
+
+    return refreshPromise.current;
   }, [persistAuth, logout]);
 
   useEffect(() => {

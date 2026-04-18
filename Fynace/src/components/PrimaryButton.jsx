@@ -4,8 +4,8 @@ import LinearGradient from 'react-native-linear-gradient';
 import { themeAssets } from '../theme';
 import Fonts from '../../assets/fonts';
 
-const DEFAULT_GRADIENT = ['#111827', '#0B1220', '#060A12'];
-const DISABLED_GRADIENT = ['#4b5563', '#4b5563'];
+const DEFAULT_GRADIENT = ['#000000', '#000000', '#000000'];
+const DISABLED_GRADIENT = ['#333333', '#333333'];
 
 const PrimaryButton = ({
   title,
@@ -19,7 +19,9 @@ const PrimaryButton = ({
   gradientColors = DEFAULT_GRADIENT,
   buttonColor,
 }) => {
-  const contentColor = themeAssets.palette.onPrimary;
+  const isLightBackground = buttonColor === '#d3d3ff' || buttonColor === 'secondary';
+  const contentColor = isLightBackground ? '#000000' : themeAssets.palette.onPrimary;
+  
   const colors = disabled
     ? DISABLED_GRADIENT
     : buttonColor

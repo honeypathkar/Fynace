@@ -21,7 +21,7 @@ const ExpenseSummary = ({ allTimeSummary, onAddPress }) => {
             onPress={onAddPress}
             activeOpacity={0.7}
           >
-            <Plus size={18} color="#3A6FF8" />
+            <Plus size={18} color="#d3d3ff" />
             <Text style={styles.summaryAddButtonText}>Add</Text>
           </TouchableOpacity>
         </View>

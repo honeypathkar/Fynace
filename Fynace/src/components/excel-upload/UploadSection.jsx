@@ -10,7 +10,7 @@ const UploadSection = ({ onFilePick, parsing }) => {
     <View style={styles.uploadSection}>
       <Card style={styles.uploadCard}>
         <Card.Content style={styles.uploadCardContent}>
-          <FileSpreadsheet size={64} color="#3A6FF8" />
+          <FileSpreadsheet size={64} color="#d3d3ff" />
           <Text variant="titleLarge" style={styles.uploadTitle}>
             Upload Excel/CSV File
           </Text>
@@ -25,9 +25,9 @@ const UploadSection = ({ onFilePick, parsing }) => {
             onPress={onFilePick}
             loading={parsing}
             disabled={parsing}
-            leftIcon={<Upload size={20} color="#F8FAFC" />}
+            leftIcon={<Upload size={20} color="#FFFFFF" />}
             style={styles.uploadButton}
-            buttonColor="#3A6FF8"
+            buttonColor="#d3d3ff"
           />
         </Card.Content>
       </Card>

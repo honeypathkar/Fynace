@@ -4,40 +4,39 @@ import Fonts from '../../../assets/fonts';
 
 // Platform-specific values
 const addCategoryCancelButtonBg = Platform.select({
-  android: '#334155', // Higher contrast for Android 14+
-  ios: '#1E293B',
+  android: '#1A1A1A', // Higher contrast for Android 14+
+  ios: '#121212',
 });
 const addCategoryCancelButtonBorderWidth = Platform.select({
   android: 1,
   ios: 0,
 });
 const addCategoryCancelButtonBorderColor = Platform.select({
-  android: '#475569',
+  android: '#808080',
   ios: 'transparent',
 });
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000000',
   },
   keyboardView: {
     flex: 1,
   },
   listContent: {
     paddingHorizontal: themeAssets.spacing[5],
-    paddingBottom: themeAssets.spacing[6],
+    paddingBottom: 120, // Increased to prevent items from being hidden at the bottom
     gap: themeAssets.spacing[3],
-    marginBottom: 50,
   },
   listHeader: {
     gap: themeAssets.spacing[3],
   },
   summaryCard: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1A1A1A',
   },
   summaryHeader: {
     flexDirection: 'row',
@@ -46,7 +45,7 @@ const styles = StyleSheet.create({
     marginBottom: themeAssets.spacing[3],
   },
   summaryTitle: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
   },
   summaryAddButton: {
     flexDirection: 'row',
@@ -56,11 +55,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#3A6FF8',
+    borderColor: '#d3d3ff',
     backgroundColor: 'transparent',
   },
   summaryAddButtonText: {
-    color: '#3A6FF8',
+    color: '#d3d3ff',
     fontSize: 14,
     fontFamily: Fonts.semibold,
   },
@@ -85,7 +84,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.semibold,
   },
   summaryValueRemaining: {
-    color: themeAssets.palette.primary,
+    color: '#FFFFFF',
     fontFamily: Fonts.semibold,
   },
   summaryGeneric: {
@@ -93,10 +92,10 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.regular,
   },
   comparisonCard: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1A1A1A',
   },
   comparisonRow: {
     flexDirection: 'row',
@@ -106,7 +105,7 @@ const styles = StyleSheet.create({
   },
   comparisonLabel: {
     flex: 1,
-    color: '#F8FAFC',
+    color: '#FFFFFF',
   },
   comparisonValues: {
     flexDirection: 'row',
@@ -117,15 +116,15 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   comparisonTitle: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1A1A1A',
     paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 12,
@@ -135,7 +134,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontSize: 16,
     padding: 0,
     fontFamily: Fonts.regular,
@@ -143,25 +142,25 @@ const styles = StyleSheet.create({
   filterButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1A1A1A',
     paddingVertical: 12,
     paddingHorizontal: 16,
     gap: 8,
   },
   filterButtonText: {
     flex: 1,
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontSize: 16,
     fontFamily: Fonts.medium,
   },
   expenseItem: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1A1A1A',
     marginBottom: themeAssets.spacing[2],
   },
   expenseAmounts: {
@@ -173,21 +172,21 @@ const styles = StyleSheet.create({
   editButton: {
     padding: 6,
     borderRadius: 8,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1A1A1A',
     marginLeft: 8,
   },
   deleteButton: {
     padding: 6,
     borderRadius: 8,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     borderWidth: 1,
     borderColor: '#EF4444',
     marginLeft: 8,
   },
   expenseAmount: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontSize: 18,
     fontFamily: Fonts.bold,
   },
@@ -206,11 +205,11 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.regular,
   },
   expenseTitle: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontFamily: Fonts.semibold,
   },
   expenseSubtitle: {
-    color: '#94A3B8',
+    color: '#808080',
     fontFamily: Fonts.medium,
   },
   emptyState: {
@@ -220,11 +219,11 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontFamily: Fonts.semibold,
-    color: '#F8FAFC',
+    color: '#FFFFFF',
   },
   emptySubtitle: {
     textAlign: 'center',
-    color: '#94A3B8',
+    color: '#808080',
     paddingHorizontal: themeAssets.spacing[5],
   },
   emptyButton: {
@@ -235,12 +234,12 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 12,
-    backgroundColor: '#3A6FF8',
+    backgroundColor: '#d3d3ff',
     borderWidth: 1,
-    borderColor: '#3A6FF8',
+    borderColor: '#d3d3ff',
   },
   emptyButtonText: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontSize: 16,
     fontFamily: Fonts.semibold,
   },
@@ -254,22 +253,22 @@ const styles = StyleSheet.create({
     minWidth: 100,
   },
   errorCard: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     borderRadius: 24,
     borderWidth: 1,
     borderColor: '#EF4444',
   },
   errorTitle: {
     marginBottom: themeAssets.spacing[1],
-    color: '#F8FAFC',
+    color: '#FFFFFF',
   },
   errorText: {
     marginBottom: themeAssets.spacing[1],
-    color: '#94A3B8',
+    color: '#808080',
   },
   skeletonBase: {
     borderRadius: 12,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
   },
   skeletonContainer: {
     paddingHorizontal: themeAssets.spacing[5],
@@ -319,7 +318,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#3A6FF8',
+    backgroundColor: '#d3d3ff',
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 8,
@@ -336,10 +335,10 @@ const styles = StyleSheet.create({
   actionMenuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1A1A1A',
     padding: themeAssets.spacing[4],
     gap: themeAssets.spacing[3],
     minHeight: 72,
@@ -348,7 +347,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000000',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -357,12 +356,12 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   actionMenuTitle: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontSize: 16,
     fontFamily: Fonts.semibold,
   },
   actionMenuSubtitle: {
-    color: '#94A3B8',
+    color: '#808080',
     fontSize: 13,
   },
   actionMenuFooter: {
@@ -375,7 +374,7 @@ const styles = StyleSheet.create({
     marginBottom: themeAssets.spacing[3],
   },
   inputLabel: {
-    color: '#94A3B8',
+    color: '#808080',
     fontSize: 14,
     fontFamily: Fonts.semibold,
     marginBottom: themeAssets.spacing[1],
@@ -384,21 +383,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1A1A1A',
     paddingVertical: 14,
     paddingHorizontal: 16,
     minHeight: 48,
   },
   monthPickerText: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontSize: 16,
     flex: 1,
   },
   monthPickerPlaceholder: {
-    color: '#94A3B8',
+    color: '#808080',
   },
   monthPickerModal: {
     flex: 1,
@@ -409,12 +408,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   monthPickerContainer: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '70%',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1A1A1A',
   },
   monthPickerHeader: {
     flexDirection: 'row',
@@ -423,10 +422,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#334155',
+    borderBottomColor: '#1A1A1A',
   },
   monthPickerTitle: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontSize: 18,
     fontFamily: Fonts.semibold,
   },
@@ -435,7 +434,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   monthPickerCloseText: {
-    color: '#3A6FF8',
+    color: '#d3d3ff',
     fontSize: 16,
     fontFamily: Fonts.semibold,
   },
@@ -449,29 +448,29 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#334155',
+    borderBottomColor: '#1A1A1A',
   },
   monthPickerItemSelected: {
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000000',
   },
   monthPickerItemText: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontSize: 16,
   },
   monthPickerItemTextSelected: {
-    color: '#3A6FF8',
+    color: '#d3d3ff',
     fontFamily: Fonts.semibold,
   },
   monthPickerCheckmark: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#3A6FF8',
+    backgroundColor: '#d3d3ff',
     justifyContent: 'center',
     alignItems: 'center',
   },
   monthPickerCheckmarkText: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontSize: 14,
     fontFamily: Fonts.bold,
   },
@@ -482,27 +481,27 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#334155',
+    borderBottomColor: '#1A1A1A',
   },
   addCategoryButtonText: {
-    color: '#3A6FF8',
+    color: '#d3d3ff',
     fontSize: 16,
     fontFamily: Fonts.semibold,
   },
   addCategoryContainer: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#334155',
+    borderBottomColor: '#1A1A1A',
     gap: 12,
   },
   addCategoryInput: {
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000000',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1A1A1A',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontSize: 16,
   },
   addCategoryActions: {
@@ -525,13 +524,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 20,
-    backgroundColor: '#3A6FF8',
+    backgroundColor: '#d3d3ff',
   },
   addCategorySaveButtonDisabled: {
     opacity: 0.5,
   },
   addCategorySaveText: {
-    color: '#F8FAFC',
+    color: '#000000',
     fontSize: 14,
     fontFamily: Fonts.semibold,
   },
@@ -546,7 +545,7 @@ const styles = StyleSheet.create({
     marginBottom: themeAssets.spacing[4],
   },
   filterSectionTitle: {
-    color: '#94A3B8',
+    color: '#808080',
     fontSize: 14,
     fontFamily: Fonts.semibold,
     marginBottom: themeAssets.spacing[2],
@@ -559,33 +558,33 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderRadius: 12,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1A1A1A',
     marginBottom: themeAssets.spacing[2],
   },
   filterSheetItemSelected: {
-    backgroundColor: '#0F172A',
-    borderColor: '#3A6FF8',
+    backgroundColor: '#000000',
+    borderColor: '#d3d3ff',
   },
   filterSheetItemText: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontSize: 16,
   },
   filterSheetItemTextSelected: {
-    color: '#3A6FF8',
+    color: '#d3d3ff',
     fontFamily: Fonts.semibold,
   },
   filterSheetCheckmark: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#3A6FF8',
+    backgroundColor: '#d3d3ff',
     justifyContent: 'center',
     alignItems: 'center',
   },
   filterSheetCheckmarkText: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontSize: 14,
     fontFamily: Fonts.bold,
   },
@@ -594,7 +593,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadMoreText: {
-    color: '#94A3B8',
+    color: '#808080',
     fontSize: 14,
   },
   dateHeader: {
@@ -604,7 +603,7 @@ const styles = StyleSheet.create({
     marginTop: themeAssets.spacing[2],
   },
   dateHeaderText: {
-    color: '#94A3B8',
+    color: '#808080',
     fontSize: 13,
     fontFamily: Fonts.semibold,
     textTransform: 'uppercase',
@@ -634,33 +633,33 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bold,
   },
   deleteMessage: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontSize: 16,
     fontFamily: Fonts.regular,
     lineHeight: 24,
   },
   deleteDetails: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     borderRadius: 12,
     padding: themeAssets.spacing[4],
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1A1A1A',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   deleteAmount: {
     fontSize: 24,
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontFamily: Fonts.bold,
   },
   deleteCategoryChip: {
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000000',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1A1A1A',
   },
   deleteCategoryText: {
-    color: '#94A3B8',
+    color: '#808080',
   },
   deleteWarning: {
     color: '#EF4444',
@@ -677,7 +676,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1A1A1A',
   },
   typeFilterItem: {
     flex: 1,
@@ -685,9 +684,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1A1A1A',
   },
   deleteConfirmButton: {
     flex: 1,

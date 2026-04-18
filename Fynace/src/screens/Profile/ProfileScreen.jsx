@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   Animated,
   Pressable,
@@ -7,7 +7,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Text } from 'react-native-paper';
+import { Text, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import GlobalHeader from '../../components/GlobalHeader';
 import { useAuth } from '../../hooks/useAuth';
@@ -28,6 +28,7 @@ import { FRONTEND_URL } from '../../utils/BASE_URL';
 const ProfileScreen = () => {
   const navigation = useNavigation();
   const { user, logout } = useAuth();
+  const theme = useTheme();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -42,46 +43,31 @@ const ProfileScreen = () => {
   const handleLogout = async () => {
     try {
       await logout();
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Splash' }],
-      });
+      navigation.reset({ index: 0, routes: [{ name: 'Splash' }] });
     } catch (error) {
       console.error('Logout error:', error);
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Splash' }],
-      });
+      navigation.reset({ index: 0, routes: [{ name: 'Splash' }] });
     }
   };
 
-  const MenuItem = ({
-    icon: Icon,
-    label,
-    onPress,
-    isDestructive = false,
-    right,
-  }) => (
+  const MenuItem = ({ icon: Icon, label, onPress, isDestructive = false, right }) => (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.menuItem,
-        pressed && styles.menuItemPressed,
-      ]}
+      style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: '#0F0F0F' }]}
     >
       <View style={styles.menuItemLeft}>
         <View
           style={[
             styles.iconContainer,
-            isDestructive && styles.iconContainerDestructive,
+            { backgroundColor: isDestructive ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.07)' },
           ]}
         >
-          <Icon size={20} color={isDestructive ? '#EF4444' : '#1E293B'} />
+          <Icon size={20} color={isDestructive ? '#EF4444' : '#FFFFFF'} />
         </View>
         <Text
           style={[
             styles.menuItemLabel,
-            isDestructive && styles.menuItemLabelDestructive,
+            isDestructive && { color: '#EF4444' },
           ]}
         >
           {label}
@@ -90,35 +76,44 @@ const ProfileScreen = () => {
       <View style={styles.menuItemRight}>
         {right
           ? right
-          : !isDestructive && <ChevronRight size={20} color="#94A3B8" />}
+          : !isDestructive && <ChevronRight size={18} color="#404040" />}
       </View>
     </Pressable>
   );
+
+  const initials = (user?.fullName || 'U')
+    .split(' ')
+    .map(n => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
 
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
       <GlobalHeader
         title="Profile"
-        titleColor="#F8FAFC"
+        titleColor="#FFFFFF"
         backgroundColor="transparent"
         showLeftIcon
-        leftIconColor="#F8FAFC"
+        leftIconColor="#FFFFFF"
         onLeftIconPress={() => navigation.goBack()}
       />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+
+          {/* Avatar Card */}
           <View style={styles.profileCard}>
             <View style={styles.avatarContainer}>
-              <User size={64} color="#F97316" />
+              <User size={52} color={theme.colors.secondary} />
             </View>
             <Text style={styles.userName}>{user?.fullName || 'User Name'}</Text>
-            <Text style={styles.userEmail}>
-              {user?.email || 'user@example.com'}
-            </Text>
+            <Text style={styles.userEmail}>{user?.email || 'user@example.com'}</Text>
           </View>
 
+          {/* Menu */}
           <View style={styles.menuContainer}>
+
             <MenuItem
               icon={Pencil}
               label="Edit Profile"
@@ -132,13 +127,11 @@ const ProfileScreen = () => {
               label="Tools & Privacy"
               onPress={() => navigation.navigate('Tools')}
             />
-
             <MenuItem
               icon={Target}
               label="Budgets"
               onPress={() => navigation.navigate('Budgets')}
             />
-
             <MenuItem
               icon={Clock}
               label="Recurring Transactions"
@@ -167,7 +160,9 @@ const ProfileScreen = () => {
                 })
               }
             />
+
             <View style={styles.menuDivider} />
+
             <MenuItem
               icon={LogOut}
               label="Logout"
@@ -186,50 +181,52 @@ export default ProfileScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000000',
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 60,
   },
   content: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     alignItems: 'center',
   },
   profileCard: {
     alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 32,
+    marginTop: 24,
+    marginBottom: 36,
   },
   avatarContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#FFE4D6',
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: '#0D0D0D',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
-    borderWidth: 4,
-    borderColor: '#1E293B',
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: 'rgba(211,211,255,0.25)',
   },
   userName: {
-    fontSize: 24,
+    fontSize: 22,
     fontFamily: Fonts.bold,
-    color: '#F8FAFC',
-    marginBottom: 2,
+    color: '#FFFFFF',
+    marginBottom: 4,
   },
   userEmail: {
-    fontSize: 16,
-    color: '#94A3B8',
+    fontSize: 14,
+    color: '#808080',
+    fontFamily: Fonts.regular,
   },
   sectionLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: Fonts.bold,
-    color: '#64748B',
+    color: '#404040',
     textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginTop: 24,
-    marginBottom: 8,
-    marginLeft: 8,
+    letterSpacing: 1.2,
+    marginTop: 28,
+    marginBottom: 6,
+    marginLeft: 4,
+    alignSelf: 'flex-start',
   },
   menuContainer: {
     width: '100%',
@@ -238,67 +235,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderRadius: 16,
-  },
-  menuItemPressed: {
-    backgroundColor: '#1E293B',
+    paddingVertical: 13,
+    paddingHorizontal: 12,
+    borderRadius: 14,
   },
   menuItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 14,
   },
   iconContainer: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  iconContainerDestructive: {
-    backgroundColor: '#FEE2E2',
   },
   menuItemLabel: {
     fontSize: 16,
     fontFamily: Fonts.medium,
-    color: '#F8FAFC',
-  },
-  menuItemLabelDestructive: {
-    color: '#EF4444',
+    color: '#FFFFFF',
   },
   menuItemRight: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  currencyBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1E293B',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 4,
-  },
-  currencyBadgeText: {
-    color: '#3A6FF8',
-    fontFamily: Fonts.bold,
-    fontSize: 14,
-  },
-  menuContent: {
-    backgroundColor: '#1E293B',
-    borderRadius: 12,
-  },
-  menuItemText: {
-    color: '#F8FAFC',
-    fontFamily: Fonts.medium,
-  },
   menuDivider: {
     height: 1,
-    backgroundColor: '#334155',
+    backgroundColor: 'rgba(255,255,255,0.06)',
     marginVertical: 8,
-    marginHorizontal: 16,
+    marginHorizontal: 8,
   },
 });

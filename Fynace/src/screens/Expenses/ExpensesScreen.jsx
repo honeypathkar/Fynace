@@ -182,23 +182,13 @@ const ExpensesScreen = () => {
   }, []);
 
   const fetchFilters = useCallback(async () => {
+    // If we already have data, don't block the UI
     if (months.length > 0 && categories.all.length > 0) return;
 
     try {
       setLoadingFilters(true);
-      const [monthlyResponse, categoriesResponse] = await Promise.all([
-        apiClient
-          .get('transactions/monthly-totals')
-          .catch(() => ({ data: { data: [] } })),
-        apiClient.get('categories').catch(() => ({
-          data: { data: { default: [], custom: [], all: [] } },
-        })),
-      ]);
-
-      const monthsFetched =
-        monthlyResponse.data?.data?.map(item => item.month) || [];
-
-      // Always merge with local data
+      
+      // ─── Step 1: Load EVERYTHING from Local DB first ───
       const [allLocalExpenses, allLocalMoneyIn, allLocalCategories] =
         await Promise.all([
           database
@@ -222,25 +212,26 @@ const ExpensesScreen = () => {
         ]),
       ].filter(Boolean);
 
-      const combinedMonths = [...new Set([...monthsFetched, ...localMonths])];
-      const sortedMonths = combinedMonths.sort((a, b) => b.localeCompare(a));
-
-      console.log(`Navigation found months: ${sortedMonths.join(', ')}`);
+      const sortedMonths = localMonths.sort((a, b) => b.localeCompare(a));
       setMonths(sortedMonths);
 
-      const remoteCategories = categoriesResponse.data?.data?.all || [];
-      const localCategoryNames = allLocalCategories.map(c => c.name);
       const combinedCategories = [
-        ...new Set([...remoteCategories, ...localCategoryNames]),
+        ...new Set(allLocalCategories.map(c => c.name)),
       ];
 
-      setCategories({
-        default: categoriesResponse.data?.data?.default || [],
-        custom: categoriesResponse.data?.data?.custom || [],
+      setCategories(prev => ({
+        ...prev,
         all: combinedCategories,
-      });
+      }));
+
+      // ─── Step 2: Sync in the background (Non-blocking) ───
+      apiClient.get('transactions/monthly-totals').then(res => {
+        const remoteMonths = res.data?.data?.map(item => item.month) || [];
+        setMonths(prev => [...new Set([...prev, ...remoteMonths])].sort((a, b) => b.localeCompare(a)));
+      }).catch(() => {});
+
     } catch (err) {
-      console.warn('Failed to fetch filters', err);
+      console.warn('Failed to fetch local filters', err);
     } finally {
       setLoadingFilters(false);
     }
@@ -316,61 +307,64 @@ const ExpensesScreen = () => {
         if (!append) {
           LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
           setExpenses(newExpenses);
+          setLoading(false); // Set loading false immediately after getting list data
 
-          // Only calculate summary on initial fetch or filter change
-          const summaryClauses = [Q.where('is_deleted', false)];
-          if (monthSelection !== 'All') {
-            summaryClauses.push(Q.where('month', monthSelection));
-          }
+          // Calculate summary in the background
+          setTimeout(async () => {
+            const summaryClauses = [Q.where('is_deleted', false)];
+            if (monthSelection !== 'All') {
+              summaryClauses.push(Q.where('month', monthSelection));
+            }
 
-          const [allIn, allOut] = await Promise.all([
-            database
-              .get('transactions')
-              .query(Q.where('type', 'income'), ...summaryClauses)
-              .fetch(),
-            database
-              .get('transactions')
-              .query(Q.where('type', 'expense'), ...summaryClauses)
-              .fetch(),
-          ]);
+            const [allIn, allOut] = await Promise.all([
+              database
+                .get('transactions')
+                .query(Q.where('type', 'income'), ...summaryClauses)
+                .fetch(),
+              database
+                .get('transactions')
+                .query(Q.where('type', 'expense'), ...summaryClauses)
+                .fetch(),
+            ]);
 
-          const totalMoneyOut = allOut.reduce(
-            (sum, exp) => sum + (exp.amountRupees || 0),
-            0,
-          );
-          const totalMoneyIn = allIn.reduce(
-            (sum, entry) => sum + (entry.amountRupees || 0),
-            0,
-          );
-          const remaining = totalMoneyIn - totalMoneyOut;
+            const totalMoneyOut = allOut.reduce(
+              (sum, exp) => sum + (exp.amountRupees || 0),
+              0,
+            );
+            const totalMoneyIn = allIn.reduce(
+              (sum, entry) => sum + (entry.amountRupees || 0),
+              0,
+            );
+            const remaining = totalMoneyIn - totalMoneyOut;
 
-          // Category breakdown should only be for expenses
-          const breakdownObj = allOut.reduce((acc, exp) => {
-            const amt = exp.amountRupees || 0;
-            acc[exp.category] = (acc[exp.category] || 0) + amt;
-            return acc;
-          }, {});
+            const breakdownObj = allOut.reduce((acc, exp) => {
+              const amt = exp.amountRupees || 0;
+              acc[exp.category] = (acc[exp.category] || 0) + amt;
+              return acc;
+            }, {});
 
-          const breakdown = Object.entries(breakdownObj).map(
-            ([name, value]) => ({
-              name,
-              value,
-            }),
-          );
-          const finalSummary = {
-            totalMoneyIn,
-            totalMoneyOut,
-            remaining,
-            totalExpenses: allOut.length,
-          };
+            const breakdown = Object.entries(breakdownObj).map(
+              ([name, value]) => ({
+                name,
+                value,
+              }),
+            );
+            const finalSummary = {
+              totalMoneyIn,
+              totalMoneyOut,
+              remaining,
+              totalExpenses: allOut.length,
+            };
 
-          if (monthSelection === 'All') {
-            setAllTimeSummary(finalSummary);
-            setSummary(null);
-          } else {
-            setSummary(finalSummary);
-          }
-          setCategoryBreakdown(breakdown);
+            if (monthSelection === 'All') {
+              setAllTimeSummary(finalSummary);
+              setSummary(null);
+            } else {
+              setSummary(finalSummary);
+              setAllTimeSummary(null);
+            }
+            setCategoryBreakdown(breakdown);
+          }, 0);
 
           const hasMoreData = totalCount > newExpenses.length;
           setHasMore(hasMoreData);
@@ -386,15 +380,15 @@ const ExpensesScreen = () => {
 
         const newLastCreated =
           newExpenses.length > 0
-            ? newExpenses[newExpenses.length - 1].date // Use date for reliable pagination if sorted by date
+            ? newExpenses[newExpenses.length - 1].date
             : null;
         setLastCreatedAt(newLastCreated);
         lastCreatedAtRef.current = newLastCreated;
       } catch (err) {
         console.error('Fetch error:', err);
         setError(err.message || 'Failed to fetch local expenses');
-      } finally {
         setLoading(false);
+      } finally {
         setLoadingMore(false);
         loadingMoreRef.current = false;
         setInitialLoad(false);
@@ -435,35 +429,24 @@ const ExpensesScreen = () => {
       setLoading(true);
       setError(null);
 
-      // ─── Step 1: Load from local DB immediately (no network wait) ───
-      const [allLocalExpenses, allLocalMoneyIn] = await Promise.all([
-        database
-          .get('transactions')
-          .query(Q.where('type', 'expense'), Q.where('is_deleted', false))
-          .fetch(),
-        database
-          .get('transactions')
-          .query(Q.where('type', 'income'), Q.where('is_deleted', false))
-          .fetch(),
-      ]);
+      // ─── Step 1: Get unique months more efficiently ───
+      // Instead of fetching EVERYTHING, we just fetch a limited set of recent ones
+      // or use a more targeted query if possible.
+      const recentTransactions = await database
+        .get('transactions')
+        .query(Q.where('is_deleted', false), Q.sortBy('date', Q.desc), Q.take(500))
+        .fetch();
 
-      const localMonths = [
-        ...new Set([
-          ...allLocalExpenses.map(e => e.month),
-          ...allLocalMoneyIn.map(m => m.month),
-        ]),
-      ].filter(Boolean);
-
-      const sortedLocalMonths = [...localMonths].sort((a, b) =>
-        b.localeCompare(a),
-      );
+      const localMonths = [...new Set(recentTransactions.map(t => t.month))].filter(Boolean);
+      const sortedLocalMonths = [...localMonths].sort((a, b) => b.localeCompare(a));
       setMonths(sortedLocalMonths);
 
-      // Show local data right away
+      // ─── Step 2: Show initial list data ───
       setLastCreatedAt(null);
       setHasMore(true);
       lastCreatedAtRef.current = null;
       hasMoreRef.current = true;
+      
       await fetchExpenses(
         initialLoad ? 'All' : selectedMonth,
         null,
@@ -480,7 +463,7 @@ const ExpensesScreen = () => {
       setLoading(false);
       setInitialLoad(false);
     }
-  }, [token, fetchExpenses]);
+  }, [token, fetchExpenses, initialLoad, selectedMonth, selectedCategory, selectedType, debouncedSearch]);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -661,10 +644,10 @@ const ExpensesScreen = () => {
     () =>
       StyleSheet.create({
         positive: {
-          backgroundColor: '#1E3A5F',
+          backgroundColor: '#001A3D',
         },
         negative: {
-          backgroundColor: '#5F1E1E',
+          backgroundColor: '#3D0000',
         },
       }),
     [],
@@ -864,7 +847,7 @@ const ExpensesScreen = () => {
       <View style={expenseStyles.keyboardView}>
         <GlobalHeader
           title="Expenses"
-          titleColor="#F8FAFC"
+          titleColor="#FFFFFF"
           backgroundColor="transparent"
           renderRightComponent={() => (
             <View
@@ -876,15 +859,15 @@ const ExpensesScreen = () => {
                   {
                     padding: 8,
                     borderRadius: 12,
-                    backgroundColor: isPrivacyMode ? '#1E293B' : 'transparent',
+                    backgroundColor: isPrivacyMode ? '#121212' : 'transparent',
                   },
                   pressed && { opacity: 0.7 },
                 ]}
               >
                 {isPrivacyMode ? (
-                  <Eye size={20} color="#3A6FF8" />
+                  <Eye size={20} color="#d3d3ff" />
                 ) : (
-                  <EyeOff size={20} color="#94A3B8" />
+                  <EyeOff size={20} color="#808080" />
                 )}
               </Pressable>
               <TouchableOpacity
@@ -893,16 +876,16 @@ const ExpensesScreen = () => {
                   paddingHorizontal: 12,
                   paddingVertical: 8,
                   borderRadius: 12,
-                  backgroundColor: '#1E293B',
+                  backgroundColor: '#121212',
                   flexDirection: 'row',
                   alignItems: 'center',
                   gap: 8,
                 }}
               >
-                <Filter size={18} color="#F8FAFC" />
+                <Filter size={18} color="#FFFFFF" />
                 <Text
                   style={{
-                    color: '#F8FAFC',
+                    color: '#FFFFFF',
                     fontFamily: Fonts.semibold,
                     fontSize: 13,
                   }}
@@ -1023,9 +1006,9 @@ const ExpensesScreen = () => {
                 }}
   activeOpacity={0.7}
                 >
-                  <Filter size={20} color="#94A3B8" />
+                  <Filter size={20} color="#808080" />
                   <Text style={expenseStyles.filterButtonText}>Filters</Text>
-                  <ChevronDown size={18} color="#94A3B8" />
+                  <ChevronDown size={18} color="#808080" />
                 </TouchableOpacity> */}
               </View>
             }
@@ -1044,7 +1027,7 @@ const ExpensesScreen = () => {
                   onPress={openForm}
                   activeOpacity={0.8}
                 >
-                  <Plus size={20} color="#F8FAFC" />
+                  <Plus size={20} color="#FFFFFF" />
                   <Text style={expenseStyles.emptyButtonText}>Add expense</Text>
                 </TouchableOpacity>
               </View>
@@ -1130,7 +1113,7 @@ const ExpensesScreen = () => {
                 onPress={() => deleteSheetRef.current?.close()}
                 style={expenseStyles.deleteCancelButton}
                 contentStyle={{ height: 48 }}
-                textColor="#94A3B8"
+                textColor="#808080"
                 disabled={isDeleting}
               >
                 Cancel

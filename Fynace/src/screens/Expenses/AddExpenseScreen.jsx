@@ -147,31 +147,49 @@ const AddExpenseScreen = () => {
 
   const createCategory = useCallback(
     async categoryName => {
-      if (!categoryName.trim() || creatingCategory) return;
+      const trimmedName = categoryName.trim();
+      if (!trimmedName || creatingCategory) return;
+      
       try {
         setCreatingCategory(true);
+        
+        // Check if category already exists
+        const existing = await database
+          .get('categories')
+          .query(Q.where('name', trimmedName), Q.where('is_deleted', false))
+          .fetch();
+          
+        if (existing.length > 0) {
+          const existingCat = existing[0];
+          updateFormValue('category', existingCat.name);
+          updateFormValue('categoryId', existingCat.id);
+          return true;
+        }
+
         await database.write(async () => {
-          await database.get('categories').create(record => {
-            record.name = categoryName.trim();
+          const newCategory = await database.get('categories').create(record => {
+            record.name = trimmedName;
             record.type = 'expense';
             record.synced = false;
             record.updatedAt = Date.now();
             record.isDeleted = false;
           });
+          
+          // Auto-select the newly created category
+          updateFormValue('category', newCategory.name);
+          updateFormValue('categoryId', newCategory.id);
         });
+
         await fetchCategories();
         setNewCategoryName('');
         setShowAddCategory(false);
 
         // Background sync
         syncManager.sync().catch(console.error);
+        return true;
       } catch (err) {
-        if (Platform.OS === 'android') {
-          ToastAndroid.show(
-            'Failed to create local category',
-            ToastAndroid.LONG,
-          );
-        }
+        console.error('Failed to create category', err);
+        return false;
       } finally {
         setCreatingCategory(false);
       }
@@ -330,7 +348,7 @@ const AddExpenseScreen = () => {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <ChevronLeft size={28} color="#F8FAFC" />
+            <ChevronLeft size={28} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>
             {editingExpenseId ? 'Edit Expense' : 'Add Expense'}
@@ -354,7 +372,7 @@ const AddExpenseScreen = () => {
               <Text style={styles.pickerText}>
                 {transformMonthLabel(formValues.month)}
               </Text>
-              <ChevronDown size={20} color="#94A3B8" />
+              <ChevronDown size={20} color="#808080" />
             </TouchableOpacity>
           </View>
 
@@ -380,7 +398,7 @@ const AddExpenseScreen = () => {
               >
                 {formValues.category || 'Select a category'}
               </Text>
-              <ChevronDown size={20} color="#94A3B8" />
+              <ChevronDown size={20} color="#808080" />
             </TouchableOpacity>
           </View>
 
@@ -411,7 +429,7 @@ const AddExpenseScreen = () => {
                     styles.pickerButton,
                     { flex: 1, justifyContent: 'center' },
                     formValues.type === t && {
-                      borderColor: '#3A6FF8',
+                      borderColor: '#d3d3ff',
                       backgroundColor: 'rgba(58, 111, 248, 0.1)',
                     },
                   ]}
@@ -421,7 +439,7 @@ const AddExpenseScreen = () => {
                     style={[
                       styles.pickerText,
                       { textTransform: 'capitalize' },
-                      formValues.type === t && { color: '#3A6FF8' },
+                      formValues.type === t && { color: '#d3d3ff' },
                     ]}
                   >
                     {t}
@@ -443,7 +461,7 @@ const AddExpenseScreen = () => {
           >
             <View>
               <Text style={styles.inputLabel}>Is Recurring?</Text>
-              <Text style={{ color: '#94A3B8', fontSize: 12 }}>
+              <Text style={{ color: '#808080', fontSize: 12 }}>
                 Automatically repeat this transaction
               </Text>
             </View>
@@ -455,7 +473,7 @@ const AddExpenseScreen = () => {
                 width: 50,
                 height: 26,
                 borderRadius: 13,
-                backgroundColor: formValues.isRecurring ? '#3A6FF8' : '#334155',
+                backgroundColor: formValues.isRecurring ? '#d3d3ff' : '#1A1A1A',
                 justifyContent: 'center',
                 paddingHorizontal: 2,
               }}
@@ -483,7 +501,7 @@ const AddExpenseScreen = () => {
                       styles.pickerButton,
                       { paddingVertical: 8, paddingHorizontal: 12 },
                       formValues.frequency === f && {
-                        borderColor: '#3A6FF8',
+                        borderColor: '#d3d3ff',
                         backgroundColor: 'rgba(58, 111, 248, 0.1)',
                       },
                     ]}
@@ -493,7 +511,7 @@ const AddExpenseScreen = () => {
                       style={[
                         styles.pickerText,
                         { fontSize: 14, textTransform: 'capitalize' },
-                        formValues.frequency === f && { color: '#3A6FF8' },
+                        formValues.frequency === f && { color: '#d3d3ff' },
                       ]}
                     >
                       {f}
@@ -510,7 +528,7 @@ const AddExpenseScreen = () => {
             title={editingExpenseId ? 'Update Expense' : 'Save Expense'}
             onPress={handleSave}
             loading={savingExpense}
-            buttonColor="#3A6FF8"
+            buttonColor="#d3d3ff"
           />
         </View>
       </KeyboardAvoidingView>
@@ -554,7 +572,7 @@ const AddExpenseScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000000',
   },
   header: {
     flexDirection: 'row',
@@ -564,7 +582,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   headerTitle: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontSize: 20,
     fontFamily: Fonts.semibold,
   },
@@ -585,7 +603,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   inputLabel: {
-    color: '#94A3B8',
+    color: '#808080',
     fontSize: 14,
     fontFamily: Fonts.semibold,
     marginBottom: 8,
@@ -594,26 +612,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1A1A1A',
     paddingVertical: 14,
     paddingHorizontal: 16,
     minHeight: 48,
   },
   pickerText: {
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     fontSize: 16,
   },
   pickerPlaceholder: {
-    color: '#94A3B8',
+    color: '#808080',
   },
   footer: {
     padding: 20,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.05)',
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000000',
   },
 });
 

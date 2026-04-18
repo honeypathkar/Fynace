@@ -1,16 +1,25 @@
 const jwt = require('jsonwebtoken');
 
 const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET, {
-    expiresIn: '30d', // Token expires in 30 days
+  const accessToken = jwt.sign({ userId }, process.env.JWT_SECRET, {
+    expiresIn: '7d', // Access token expires in 7 days
   });
+
+  const refreshToken = jwt.sign({ userId, isRefreshToken: true }, process.env.JWT_SECRET, {
+    expiresIn: '90d', // Refresh token expires in 90 days
+  });
+
+  return { accessToken, refreshToken };
 };
 
 const verifyToken = (token) => {
   try {
     return jwt.verify(token, process.env.JWT_SECRET);
   } catch (error) {
-    throw new Error('Invalid or expired token');
+    if (error.name === 'TokenExpiredError') {
+      throw new Error('Token expired');
+    }
+    throw new Error('Invalid token');
   }
 };
 

@@ -44,11 +44,11 @@ const FilterSheet = ({
       >
         {loading ? (
           <View style={{ paddingVertical: 40 }}>
-            <ActivityIndicator color="#3A6FF8" size="large" />
+            <ActivityIndicator color="#d3d3ff" size="large" />
             <Text
               style={{
                 marginTop: 12,
-                color: '#94A3B8',
+                color: '#808080',
                 fontFamily: Fonts.medium,
               }}
             >

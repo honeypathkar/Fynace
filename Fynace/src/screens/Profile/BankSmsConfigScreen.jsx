@@ -125,11 +125,11 @@ const BankSmsConfigScreen = () => {
     <SafeAreaView edges={['top']} style={styles.container}>
       <GlobalHeader
         title="Bank SMS Config"
-        titleColor="#F8FAFC"
+        titleColor="#FFFFFF"
         backgroundColor="transparent"
         showLeftIcon
         leftIconName="arrow-left"
-        leftIconColor="#F8FAFC"
+        leftIconColor="#FFFFFF"
         onLeftIconPress={() => navigation.goBack()}
       />
 
@@ -152,7 +152,7 @@ const BankSmsConfigScreen = () => {
         {selectedBanks.length === 0 ? (
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconContainer}>
-              <Building2 size={48} color="#64748B" />
+              <Building2 size={48} color="#808080" />
             </View>
             <Text style={styles.emptyText}>No banks added yet</Text>
             <Text style={styles.emptySubtext}>
@@ -175,7 +175,7 @@ const BankSmsConfigScreen = () => {
               <View style={styles.bankCard}>
                 <View style={styles.bankInfo}>
                   <View style={styles.bankIconContainer}>
-                    <Building2 size={24} color="#3A6FF8" />
+                    <Building2 size={24} color="#d3d3ff" />
                   </View>
                   <View style={styles.bankDetails}>
                     <Text style={styles.bankName}>{item.name}</Text>
@@ -218,7 +218,7 @@ const BankSmsConfigScreen = () => {
           </View>
           <Text style={styles.deleteText}>
             Are you sure you want to remove{' '}
-            <Text style={{ color: '#F8FAFC' }}>{bankToDelete?.name}</Text> from
+            <Text style={{ color: '#FFFFFF' }}>{bankToDelete?.name}</Text> from
             tracking?
           </Text>
           <View style={styles.deleteActions}>
@@ -246,7 +246,7 @@ export default BankSmsConfigScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000000',
   },
   content: {
     flex: 1,
@@ -262,23 +262,23 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontFamily: Fonts.bold,
-    color: '#F8FAFC',
+    color: '#FFFFFF',
   },
   subtitle: {
     fontSize: 14,
     fontFamily: Fonts.regular,
-    color: '#94A3B8',
+    color: '#808080',
     marginTop: 4,
   },
   addButton: {
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: '#3A6FF8',
+    backgroundColor: '#d3d3ff',
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 4,
-    shadowColor: '#3A6FF8',
+    shadowColor: '#d3d3ff',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     borderRadius: 20,
     padding: 16,
     marginBottom: 16,
@@ -317,12 +317,12 @@ const styles = StyleSheet.create({
   bankName: {
     fontSize: 16,
     fontFamily: Fonts.bold,
-    color: '#F8FAFC',
+    color: '#FFFFFF',
   },
   bankIds: {
     fontSize: 12,
     fontFamily: Fonts.medium,
-    color: '#64748B',
+    color: '#808080',
     marginTop: 2,
   },
   deleteButton: {
@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 30,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#121212',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
@@ -352,20 +352,20 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 20,
     fontFamily: Fonts.bold,
-    color: '#F8FAFC',
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 14,
     fontFamily: Fonts.regular,
-    color: '#94A3B8',
+    color: '#808080',
     textAlign: 'center',
     maxWidth: '80%',
     lineHeight: 20,
     marginBottom: 32,
   },
   emptyAddButton: {
-    backgroundColor: '#3A6FF8',
+    backgroundColor: '#d3d3ff',
     paddingHorizontal: 24,
     paddingVertical: 14,
     borderRadius: 16,
@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
   deleteText: {
     fontSize: 16,
     fontFamily: Fonts.medium,
-    color: '#94A3B8',
+    color: '#808080',
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 32,
@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: 16,
     fontFamily: Fonts.bold,
-    color: '#94A3B8',
+    color: '#808080',
   },
   confirmButton: {
     backgroundColor: '#EF4444',
