@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useMemo, useState } from 'react';
 import { View, StyleSheet, Keyboard, TouchableOpacity } from 'react-native';
-import { Portal, Modal, Text, TextInput } from 'react-native-paper';
+import { Portal, Modal, Text, TextInput, useTheme } from 'react-native-paper';
 import { X } from 'lucide-react-native';
 import BottomSheet from '../BottomSheet';
 import PrimaryButton from '../PrimaryButton';
@@ -70,6 +70,8 @@ const CategoryPicker = ({
     }
   };
 
+  const theme = useTheme();
+
   return (
     <>
       <BottomSheet
@@ -86,12 +88,18 @@ const CategoryPicker = ({
         <Modal
           visible={isModalVisible}
           onDismiss={() => setIsModalVisible(false)}
-          contentContainerStyle={localStyles.modalContainer}
+          contentContainerStyle={[
+            localStyles.modalContainer, 
+            { 
+              backgroundColor: theme.colors.elevation.level1,
+              borderColor: theme.colors.outlineVariant 
+            }
+          ]}
         >
           <View style={localStyles.modalHeader}>
-            <Text style={localStyles.modalTitle}>New Category</Text>
+            <Text style={[localStyles.modalTitle, { color: theme.colors.text }]}>New Category</Text>
             <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-              <X size={24} color="#808080" />
+              <X size={24} color={theme.colors.onSurfaceVariant} />
             </TouchableOpacity>
           </View>
 
@@ -103,18 +111,18 @@ const CategoryPicker = ({
               onChangeText={setInternalNewCategory}
               mode="outlined"
               autoFocus
-              style={localStyles.input}
-              outlineColor="rgba(255,255,255,0.1)"
-              activeOutlineColor="#FFFFFF"
-              textColor="#FFFFFF"
+              style={[localStyles.input, { backgroundColor: 'transparent' }]}
+              outlineColor={theme.colors.outlineVariant}
+              activeOutlineColor={theme.colors.primary}
+              textColor={theme.colors.text}
             />
             
             <PrimaryButton
               title={creatingCategory ? "CREATING..." : "ADD CATEGORY"}
               onPress={handleCreateCategory}
               disabled={!internalNewCategory.trim() || creatingCategory}
-              buttonColor="#FFFFFF"
-              textColor="#000000"
+              buttonColor={theme.colors.secondary}
+              textColor={theme.colors.onSecondary}
               style={localStyles.saveButton}
             />
           </View>
@@ -126,12 +134,10 @@ const CategoryPicker = ({
 
 const localStyles = StyleSheet.create({
   modalContainer: {
-    backgroundColor: '#000000',
     margin: 20,
     padding: 24,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -142,13 +148,11 @@ const localStyles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontFamily: Fonts.bold,
-    color: '#FFFFFF',
   },
   addForm: {
     gap: 20,
   },
   input: {
-    backgroundColor: '#000000',
     fontSize: 16,
     fontFamily: Fonts.medium,
   },

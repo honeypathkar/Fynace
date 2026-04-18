@@ -1,25 +1,27 @@
 import React from 'react';
 import { View } from 'react-native';
-import { Card, Chip, Text } from 'react-native-paper';
-import styles from './styles';
+import { Card, Chip, Text, useTheme } from 'react-native-paper';
 import { usePrivacy } from '../../context/PrivacyContext';
 
-const comparisonChipStyles = {
-  positive: {
-    backgroundColor: '#22C55E',
-    borderColor: '#22C55E',
-  },
-  negative: {
-    backgroundColor: '#EF4444',
-    borderColor: '#EF4444',
-  },
-};
-
-const ExpenseComparison = ({ comparison }) => {
+const ExpenseComparison = ({ comparison, styles: propStyles }) => {
   const { isPrivacyMode } = usePrivacy();
+  const theme = useTheme();
+  const styles = propStyles || require('./styles').getStyles(theme);
+
   if (!comparison) return null;
 
   const comparisonKeys = ['moneyIn', 'moneyOut', 'remaining'];
+
+  const comparisonChipStyles = {
+    positive: {
+      backgroundColor: theme.colors.success,
+      borderColor: theme.colors.success,
+    },
+    negative: {
+      backgroundColor: theme.colors.error,
+      borderColor: theme.colors.error,
+    },
+  };
 
   return (
     <Card style={styles.comparisonCard}>
@@ -30,7 +32,7 @@ const ExpenseComparison = ({ comparison }) => {
       <Card.Content>
         {comparisonKeys.map(key => (
           <View key={key} style={styles.comparisonRow}>
-            <Text variant="bodyLarge" style={styles.comparisonLabel}>
+            <Text variant="bodyLarge" style={[styles.comparisonLabel, { color: theme.colors.text }]}>
               {key === 'moneyIn'
                 ? 'Money In'
                 : key === 'moneyOut'
@@ -38,7 +40,7 @@ const ExpenseComparison = ({ comparison }) => {
                 : 'Remaining'}
             </Text>
             <View style={styles.comparisonValues}>
-              <Text variant="bodyMedium">
+              <Text variant="bodyMedium" style={{ color: theme.colors.text }}>
                 {isPrivacyMode
                   ? '******'
                   : (comparison[key].difference >= 0 ? '+' : '') +
@@ -52,6 +54,7 @@ const ExpenseComparison = ({ comparison }) => {
                     ? comparisonChipStyles.positive
                     : comparisonChipStyles.negative,
                 ]}
+                textStyle={{ color: '#FFFFFF' }}
               >
                 {comparison[key].percentageChange.toFixed(1)}%
               </Chip>

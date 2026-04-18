@@ -4,10 +4,10 @@ import { themeAssets } from '../../theme';
 
 const { palette } = themeAssets;
 
-const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: palette.background,
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -18,18 +18,18 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   greeting: {
-    color: palette.text,
+    color: theme.colors.text,
     fontFamily: Fonts.bold,
   },
   subtitle: {
-    color: palette.subtext,
+    color: theme.colors.onSurfaceVariant,
     fontFamily: Fonts.regular,
   },
   profileIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: palette.surfaceVariant,
+    backgroundColor: theme.colors.surfaceVariant,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -47,22 +47,22 @@ const styles = StyleSheet.create({
   balanceContainer: {
     alignItems: 'center',
     marginVertical: 12,
-    backgroundColor: '#0A0A0A',
+    backgroundColor: theme.colors.elevation.level1,
     paddingVertical: 10,
     marginHorizontal: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: theme.colors.outlineVariant,
   },
   balanceLabel: {
     fontSize: 14,
-    color: palette.subtext,
+    color: theme.colors.onSurfaceVariant,
     fontFamily: Fonts.medium,
     marginBottom: 4,
   },
   balanceAmount: {
     fontSize: 28,
-    color: palette.text,
+    color: theme.colors.text,
     fontFamily: Fonts.bold,
   },
   statCard: {
@@ -70,20 +70,21 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#2A2A2A',
+    borderColor: theme.colors.outlineVariant,
+    backgroundColor: theme.colors.elevation.level1,
   },
   statLabel: {
-    color: palette.subtext,
+    color: theme.colors.onSurfaceVariant,
     marginBottom: 8,
     fontFamily: Fonts.regular,
   },
   statValueIn: {
-    color: palette.text,
+    color: theme.colors.text,
     fontFamily: Fonts.bold,
     marginBottom: 4,
   },
   statValueOut: {
-    color: palette.text,
+    color: theme.colors.text,
     fontFamily: Fonts.bold,
     marginBottom: 4,
   },
@@ -93,11 +94,11 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   trendTextIn: {
-    color: palette.success,
+    color: theme.colors.success,
     fontSize: 12,
   },
   trendTextOut: {
-    color: palette.error,
+    color: theme.colors.error,
     fontSize: 12,
   },
   chartCard: {
@@ -108,21 +109,21 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   sectionTitle: {
-    color: palette.text,
+    color: theme.colors.text,
     marginBottom: 16,
     paddingHorizontal: 15,
     fontFamily: Fonts.semibold,
     paddingTop: 5,
   },
   netBalance: {
-    color: palette.text,
+    color: theme.colors.text,
     fontFamily: Fonts.bold,
     marginBottom: 20,
     paddingHorizontal: 15,
     textAlign: 'left',
   },
   netBalanceLabel: {
-    color: palette.subtext,
+    color: theme.colors.onSurfaceVariant,
     fontSize: 14,
     fontFamily: Fonts.regular,
     textAlign: 'left',
@@ -131,7 +132,7 @@ const styles = StyleSheet.create({
     marginVertical: 8,
     borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: palette.surfaceVariant,
+    backgroundColor: theme.colors.surfaceVariant,
   },
   chart: {
     borderRadius: 16,
@@ -177,12 +178,12 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   categoryName: {
-    color: palette.subtext,
+    color: theme.colors.onSurfaceVariant,
     fontFamily: Fonts.regular,
     flex: 1,
   },
   categoryAmount: {
-    color: palette.text,
+    color: theme.colors.text,
     fontFamily: Fonts.semibold,
     fontSize: 14,
   },
@@ -191,7 +192,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   categoryPercentage: {
-    color: palette.subtext,
+    color: theme.colors.onSurfaceVariant,
     fontFamily: Fonts.medium,
     fontSize: 12,
   },
@@ -207,15 +208,15 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   centeredTitle: {
-    color: palette.text,
+    color: theme.colors.text,
     marginBottom: 8,
   },
   centeredSubtitle: {
-    color: palette.subtext,
+    color: theme.colors.onSurfaceVariant,
     textAlign: 'center',
   },
   placeholderText: {
-    color: palette.subtext,
+    color: theme.colors.onSurfaceVariant,
     textAlign: 'center',
     fontSize: 16,
     fontFamily: Fonts.medium,
@@ -227,11 +228,9 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
   },
   placeholderSubtext: {
-    color: palette.placeholder,
+    color: theme.colors.outline,
     textAlign: 'center',
     marginTop: 8,
     fontSize: 14,
   },
 });
-
-export default styles;

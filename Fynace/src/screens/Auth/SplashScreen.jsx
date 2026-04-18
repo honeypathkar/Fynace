@@ -136,7 +136,7 @@ export default SplashScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'black',
+    backgroundColor: PRIMARY_COLOR,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
     width: CIRCLE_SIZE,
     height: CIRCLE_SIZE,
     borderRadius: CIRCLE_SIZE / 2,
-    backgroundColor: PRIMARY_COLOR,
+    backgroundColor: 'black',
     position: 'absolute',
   },
   logoContainer: {

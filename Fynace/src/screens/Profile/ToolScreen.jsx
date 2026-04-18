@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -9,11 +9,12 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Platform,
+  InteractionManager,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import messaging from '@react-native-firebase/messaging';
-import { useNavigation } from '@react-navigation/native';
-import { Text, Divider } from 'react-native-paper';
+import { useNavigation, useIsFocused, useFocusEffect } from '@react-navigation/native';
+import { Text, Divider, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ChevronRight,
@@ -40,36 +41,42 @@ import {
   openSettings,
 } from 'react-native-permissions';
 
-const CustomToggle = ({ value, onValueChange }) => (
-  <TouchableOpacity
-    onPress={() => onValueChange(!value)}
-    style={{
-      width: 50,
-      height: 26,
-      borderRadius: 13,
-      backgroundColor: value ? '#d3d3ff' : '#1A1A1A',
-      justifyContent: 'center',
-      paddingHorizontal: 2,
-    }}
-  >
-    <View
+const CustomToggle = ({ value, onValueChange }) => {
+  const theme = useTheme();
+  return (
+    <TouchableOpacity
+      onPress={() => onValueChange(!value)}
       style={{
-        width: 22,
-        height: 22,
-        borderRadius: 11,
-        backgroundColor: '#FFF',
-        alignSelf: value ? 'flex-end' : 'flex-start',
+        width: 50,
+        height: 26,
+        borderRadius: 13,
+        backgroundColor: value ? theme.colors.secondary : theme.colors.surfaceVariant,
+        justifyContent: 'center',
+        paddingHorizontal: 2,
       }}
-    />
-  </TouchableOpacity>
-);
+    >
+      <View
+        style={{
+          width: 22,
+          height: 22,
+          borderRadius: 11,
+          backgroundColor: '#FFF',
+          alignSelf: value ? 'flex-end' : 'flex-start',
+        }}
+      />
+    </TouchableOpacity>
+  );
+};
 
 const ToolScreen = () => {
   const navigation = useNavigation();
-  const { user, updateProfile } = useAuth();
+  const theme = useTheme();
+  const isDark = theme.dark;
+  const isFocused = useIsFocused();
+  const { user, updateProfile, refreshProfile } = useAuth();
   const { isPrivacyMode, togglePrivacyMode } = usePrivacy();
   const { isBiometricEnabled, toggleBiometric, isSupported } = useSecurity();
-  const [hasSystemPermission, setHasSystemPermission] = useState(false);
+  const [hasSystemPermission, setHasSystemPermission] = useState(true); // Default to true to avoid flicker
   const [smsTrackingEnabled, setSmsTrackingEnabled] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const currencySheetRef = React.useRef(null);
@@ -97,28 +104,52 @@ const ToolScreen = () => {
     alertSheetRef.current?.open();
   };
 
-  React.useEffect(() => {
-    const checkPermissions = async () => {
-      try {
-        if (Platform.OS === 'android') {
-          const notifGranted = await PermissionsAndroid.check(
-            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
-          );
-          const smsReadGranted = await PermissionsAndroid.check(
-            PermissionsAndroid.PERMISSIONS.READ_SMS,
-          );
+  // Use a ref to track if we've already checked permissions in this focus session
+  const hasCheckedPerms = React.useRef(false);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const task = InteractionManager.runAfterInteractions(async () => {
+        // Refresh profile to sync settings
+        await refreshProfile();
+
+        // Check permissions
+        try {
+          let notifGranted = false;
+          if (Platform.OS === 'android') {
+            if (Platform.Version >= 33) {
+              notifGranted = await PermissionsAndroid.check(
+                PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+              );
+            } else {
+              notifGranted = true;
+            }
+            const smsReadGranted = await PermissionsAndroid.check(
+              PermissionsAndroid.PERMISSIONS.READ_SMS,
+            );
+            setSmsTrackingEnabled(smsReadGranted);
+          } else {
+            const status = await checkPerm(PERMISSIONS.IOS.NOTIFICATIONS);
+            notifGranted = status === RESULTS.GRANTED;
+          }
           setHasSystemPermission(notifGranted);
-          setSmsTrackingEnabled(smsReadGranted);
-        } else {
-          const status = await checkPerm(PERMISSIONS.IOS.NOTIFICATIONS);
-          setHasSystemPermission(status === RESULTS.GRANTED);
+
+          // If backend says ON but system says OFF, prompt for permission (only once)
+          if (user?.notificationSettings?.pushNotificationsEnabled && !notifGranted && !hasCheckedPerms.current) {
+            hasCheckedPerms.current = true;
+            handleNotificationToggle(true);
+          }
+        } catch (err) {
+          console.warn('Error checking permissions', err);
         }
-      } catch (err) {
-        console.warn('Error checking permissions', err);
-      }
-    };
-    checkPermissions();
-  }, []);
+      });
+
+      return () => {
+        task.cancel();
+        hasCheckedPerms.current = false;
+      };
+    }, [user?.notificationSettings?.pushNotificationsEnabled, refreshProfile])
+  );
 
   const handleNotificationToggle = async value => {
     try {
@@ -272,28 +303,186 @@ const ToolScreen = () => {
     >
       <View style={styles.menuItemLeft}>
         <View style={styles.iconContainer}>
-          <Icon size={20} color="#FFFFFF" />
+          <Icon size={20} color={theme.colors.text} />
         </View>
         <Text style={styles.menuItemLabel}>{label}</Text>
       </View>
       <View style={styles.menuItemRight}>
-        {right ? right : <ChevronRight size={20} color="#808080" />}
+        {right ? right : <ChevronRight size={20} color={theme.colors.onSurfaceVariant} />}
       </View>
     </Pressable>
   );
+
+  const styles = useMemo(() => StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    scrollContent: {
+      paddingHorizontal: 24,
+      paddingTop: 20,
+      paddingBottom: 40,
+    },
+    sectionLabel: {
+      fontSize: 12,
+      fontFamily: Fonts.bold,
+      color: theme.colors.onSurfaceVariant,
+      textTransform: 'uppercase',
+      letterSpacing: 1,
+      marginTop: 24,
+      marginBottom: 8,
+      marginLeft: 8,
+    },
+    menuContainer: {
+      width: '100%',
+    },
+    menuItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 12,
+      paddingHorizontal: 8,
+      borderRadius: 16,
+      marginBottom: 4,
+    },
+    menuItemPressed: {
+      backgroundColor: theme.colors.surfaceVariant,
+    },
+    menuItemLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 16,
+    },
+    iconContainer: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: theme.colors.surfaceVariant,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    menuItemLabel: {
+      fontSize: 16,
+      fontFamily: Fonts.medium,
+      color: theme.colors.text,
+    },
+    explanationCard: {
+      borderRadius: 10,
+      paddingBottom: 12,
+      borderWidth: 1,
+      borderColor: theme.colors.outlineVariant,
+    },
+    explanationText: {
+      fontSize: 12,
+      color: theme.colors.onSurfaceVariant,
+      fontFamily: Fonts.regular,
+      paddingHorizontal: 16,
+      lineHeight: 18,
+      marginTop: -4,
+    },
+    settingsGroup: {
+      paddingTop: 8,
+    },
+    menuItemRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    currencyBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.colors.surfaceVariant,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 12,
+      gap: 4,
+    },
+    currencyBadgeText: {
+      color: theme.colors.secondary,
+      fontFamily: Fonts.bold,
+      fontSize: 14,
+    },
+    menuContent: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 12,
+    },
+    menuItemText: {
+      color: theme.colors.text,
+      fontFamily: Fonts.medium,
+    },
+    alertContent: {
+      padding: 0,
+      paddingBottom: 40,
+      gap: 20,
+    },
+    alertHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    alertIconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    alertTitle: {
+      fontSize: 20,
+      fontFamily: Fonts.bold,
+      color: theme.colors.text,
+    },
+    alertMessage: {
+      color: theme.colors.onSurfaceVariant,
+      fontSize: 16,
+      lineHeight: 24,
+      fontFamily: Fonts.medium,
+    },
+    alertActions: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    alertButton: {
+      flex: 1,
+      height: 50,
+      borderRadius: 16,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    alertButtonPrimary: {
+      backgroundColor: theme.colors.primary,
+    },
+    alertButtonSecondary: {
+      backgroundColor: theme.colors.surfaceVariant,
+    },
+    alertButtonTextPrimary: {
+      color: theme.colors.onPrimary,
+      fontFamily: Fonts.bold,
+      fontSize: 16,
+    },
+    alertButtonTextSecondary: {
+      color: theme.colors.onSurfaceVariant,
+      fontFamily: Fonts.bold,
+      fontSize: 16,
+    },
+    divider: {
+      backgroundColor: theme.colors.outlineVariant,
+      marginVertical: 4,
+      marginHorizontal: 16,
+    },
+  }), [theme]);
 
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
       <GlobalHeader
         title="Tools & Settings"
-        titleColor="#FFFFFF"
+        titleColor={theme.colors.text}
         backgroundColor="transparent"
         showLeftIcon
         leftIconName="arrow-left"
-        leftIconColor="#FFFFFF"
+        leftIconColor={theme.colors.text}
         onLeftIconPress={() => navigation.goBack()}
         rightIconComponent={
-          isUpdating ? <ActivityIndicator size="small" color="#FFFFFF" /> : null
+          isUpdating ? <ActivityIndicator size="small" color={theme.colors.secondary} /> : null
         }
       />
 
@@ -420,33 +609,6 @@ const ToolScreen = () => {
             )}
           </View>
 
-          {/* {Platform.OS === 'android' && (
-            <View style={[styles.explanationCard, { marginTop: 12 }]}>
-              <MenuItem
-                icon={Search}
-                label="Automatic SMS Tracking"
-                onPress={() => handleSmsToggle(!smsTrackingEnabled)}
-                right={
-                  <Switch
-                    value={smsTrackingEnabled}
-                    onValueChange={handleSmsToggle}
-                    color="#d3d3ff"
-                  />
-                }
-              />
-              <Text style={styles.explanationText}>
-                Automatically log expenses from bank alerts. We only securely
-                scan financial transaction messages.
-              </Text>
-              <Divider style={styles.divider} />
-              <MenuItem
-                icon={ChevronRight}
-                label="SMS Config"
-                onPress={() => navigation.navigate('BankSmsConfig')}
-              />
-            </View>
-          )} */}
-
           <BottomSheet
             ref={alertSheetRef}
             title={alertConfig.title}
@@ -460,15 +622,15 @@ const ToolScreen = () => {
                     {
                       backgroundColor:
                         alertConfig.type === 'danger'
-                          ? 'rgba(239, 68, 68, 0.1)'
-                          : 'rgba(58, 111, 248, 0.1)',
+                          ? theme.colors.error + '1A'
+                          : theme.colors.primary + '1A',
                     },
                   ]}
                 >
                   <AlertTriangle
                     size={24}
                     color={
-                      alertConfig.type === 'danger' ? '#EF4444' : '#d3d3ff'
+                      alertConfig.type === 'danger' ? theme.colors.error : theme.colors.secondary
                     }
                   />
                 </View>
@@ -479,26 +641,26 @@ const ToolScreen = () => {
 
               <View style={styles.alertActions}>
                 {alertConfig.showCancel && (
-                  <Pressable
+                  <TouchableOpacity 
+                    onPress={() => alertSheetRef.current?.close()} 
                     style={[styles.alertButton, styles.alertButtonSecondary]}
-                    onPress={() => alertSheetRef.current?.close()}
                   >
                     <Text style={styles.alertButtonTextSecondary}>
                       {alertConfig.cancelText}
                     </Text>
-                  </Pressable>
+                  </TouchableOpacity>
                 )}
-                <Pressable
-                  style={[styles.alertButton, styles.alertButtonPrimary]}
+                <TouchableOpacity
                   onPress={() => {
                     alertSheetRef.current?.close();
                     if (alertConfig.onConfirm) alertConfig.onConfirm();
                   }}
+                  style={[styles.alertButton, styles.alertButtonPrimary]}
                 >
                   <Text style={styles.alertButtonTextPrimary}>
                     {alertConfig.confirmText}
                   </Text>
-                </Pressable>
+                </TouchableOpacity>
               </View>
             </View>
           </BottomSheet>
@@ -509,162 +671,3 @@ const ToolScreen = () => {
 };
 
 export default ToolScreen;
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  scrollContent: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 40,
-  },
-  sectionLabel: {
-    fontSize: 12,
-    fontFamily: Fonts.bold,
-    color: '#808080',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginTop: 24,
-    marginBottom: 8,
-    marginLeft: 8,
-  },
-  menuContainer: {
-    width: '100%',
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderRadius: 16,
-    marginBottom: 4,
-  },
-  menuItemPressed: {
-    backgroundColor: '#121212',
-  },
-  menuItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#1A1A1A',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  menuItemLabel: {
-    fontSize: 16,
-    fontFamily: Fonts.medium,
-    color: '#FFFFFF',
-  },
-  explanationCard: {
-    // backgroundColor: '#121212',
-    borderRadius: 10,
-    paddingBottom: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.11)',
-  },
-  explanationText: {
-    fontSize: 12,
-    color: '#808080',
-    fontFamily: Fonts.regular,
-    paddingHorizontal: 16,
-    lineHeight: 18,
-    marginTop: -4,
-  },
-  settingsGroup: {
-    paddingTop: 8,
-  },
-  menuItemRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  currencyBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#121212',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 4,
-  },
-  currencyBadgeText: {
-    color: '#d3d3ff',
-    fontFamily: Fonts.bold,
-    fontSize: 14,
-  },
-  menuContent: {
-    backgroundColor: '#121212',
-    borderRadius: 12,
-  },
-  menuItemText: {
-    color: '#FFFFFF',
-    fontFamily: Fonts.medium,
-  },
-  alertContent: {
-    padding: 0,
-    paddingBottom: 40,
-    gap: 20,
-  },
-  alertHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  alertIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  alertTitle: {
-    fontSize: 20,
-    fontFamily: Fonts.bold,
-    color: '#FFFFFF',
-  },
-  alertMessage: {
-    color: '#808080',
-    fontSize: 16,
-    lineHeight: 24,
-    fontFamily: Fonts.medium,
-  },
-  alertActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  alertButton: {
-    flex: 1,
-    height: 50,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  alertButtonPrimary: {
-    backgroundColor: '#d3d3ff',
-  },
-  alertButtonSecondary: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  alertButtonTextPrimary: {
-    color: '#FFFFFF',
-    fontFamily: Fonts.bold,
-    fontSize: 16,
-  },
-  alertButtonTextSecondary: {
-    color: '#808080',
-    fontFamily: Fonts.bold,
-    fontSize: 16,
-  },
-  divider: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    marginVertical: 4,
-    marginHorizontal: 16,
-  },
-});

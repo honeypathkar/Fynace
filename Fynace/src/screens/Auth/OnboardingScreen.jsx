@@ -16,7 +16,10 @@ import { FRONTEND_URL } from '../../utils/BASE_URL';
 
 const { width, height } = Dimensions.get('window');
 
+import { useTheme } from 'react-native-paper';
+
 const OnboardingScreen = () => {
+  const theme = useTheme();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const navigation = useNavigation();
@@ -41,19 +44,16 @@ const OnboardingScreen = () => {
     navigation.navigate('Login');
   };
 
+  const isDark = theme.dark;
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.dark ? theme.colors.primary : theme.colors.background }]}>
       <StatusBar
-        barStyle="light-content"
-        backgroundColor="#000000"
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor="transparent"
         translucent
       />
       
-      <LinearGradient
-        colors={['#000000', '#050505', '#0A0A0A']}
-        style={StyleSheet.absoluteFill}
-      />
-
       <Animated.View
         style={[
           styles.content,
@@ -64,30 +64,30 @@ const OnboardingScreen = () => {
         ]}
       >
         <View style={styles.textContainer}>
-          <Text style={styles.appName}>Fynace</Text>
-          <Text style={styles.tagline}>Financial intelligence,{"\n"}redefined.</Text>
-          <Text style={styles.description}>
-            Experience a new era of money management. Clean, dark, and designed for clarity.
+          <Text style={[styles.appName, { color: theme.colors.text }]}>Fynace</Text>
+          <Text style={[styles.tagline, { color: theme.colors.text }]}>Financial intelligence,{"\n"}redefined.</Text>
+          <Text style={[styles.description, { color: theme.colors.onSurfaceVariant }]}>
+            Experience a new era of money management. Clean, intuitive, and designed for clarity.
           </Text>
         </View>
 
         <View style={styles.footer}>
           <TouchableOpacity
-            style={styles.button}
+            style={[styles.button, { backgroundColor: theme.colors.secondary }]}
             onPress={handleGetStarted}
             activeOpacity={0.9}
           >
-            <Text style={styles.buttonText}>Get Started</Text>
+            <Text style={[styles.buttonText, { color: theme.colors.onSecondary }]}>Get Started</Text>
           </TouchableOpacity>
           <View style={styles.footerNoteContainer}>
-            <Text style={styles.footerNote}>By continuing, you agree to our </Text>
+            <Text style={[styles.footerNote, { color: theme.colors.outline }]}>By continuing, you agree to our </Text>
             <TouchableOpacity onPress={() => 
               navigation.navigate('WebView', {
                 url: `${FRONTEND_URL}/terms-and-conditions`,
                 title: 'Terms & Conditions',
               })
             }>
-              <Text style={styles.footerLink}>Terms of Service</Text>
+              <Text style={[styles.footerLink, { color: theme.colors.onSurfaceVariant }]}>Terms of Service</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -101,7 +101,6 @@ export default OnboardingScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
   },
   content: {
     flex: 1,
@@ -117,7 +116,6 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 28,
     fontFamily: Fonts.bold,
-    color: '#FFFFFF', // Switched from Lavender to White
     letterSpacing: 6,
     textTransform: 'uppercase',
     marginBottom: 60,
@@ -126,7 +124,6 @@ const styles = StyleSheet.create({
   tagline: {
     fontSize: 36,
     fontFamily: Fonts.bold,
-    color: '#FFFFFF',
     marginBottom: 24,
     textAlign: 'center',
     lineHeight: 44,
@@ -134,7 +131,6 @@ const styles = StyleSheet.create({
   description: {
     fontSize: 16,
     fontFamily: Fonts.regular,
-    color: '#808080',
     textAlign: 'center',
     lineHeight: 26,
     paddingHorizontal: 10,
@@ -146,20 +142,14 @@ const styles = StyleSheet.create({
     paddingBottom: 60,
   },
   button: {
-    backgroundColor: '#FFFFFF', // Switched from Lavender to White
     height: 64,
     borderRadius: 20,
     width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#FFFFFF',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
     elevation: 5,
   },
   buttonText: {
-    color: '#000000',
     fontSize: 18,
     fontFamily: Fonts.bold,
     letterSpacing: 0.5,
@@ -171,12 +161,10 @@ const styles = StyleSheet.create({
   },
   footerNote: {
     fontSize: 13,
-    color: '#404040',
     fontFamily: Fonts.medium,
   },
   footerLink: {
     fontSize: 13,
-    color: '#808080',
     fontFamily: Fonts.bold,
     textDecorationLine: 'underline',
   },

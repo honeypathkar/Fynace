@@ -3,7 +3,7 @@ import { View, Dimensions, ScrollView } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import { LineChart } from 'react-native-chart-kit';
 import LinearGradient from 'react-native-linear-gradient';
-import styles from './styles';
+import { getStyles } from './styles';
 import { usePrivacy } from '../../context/PrivacyContext';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -16,6 +16,7 @@ const LineChartCard = ({
   rightAction,
 }) => {
   const theme = useTheme();
+  const styles = React.useMemo(() => getStyles(theme), [theme]);
   const { user } = useAuth();
   const { formatAmount, isPrivacyMode } = usePrivacy();
   const screenWidth = Dimensions.get('window').width - 32; // Account for padding

@@ -5,9 +5,11 @@ import {
   StatusBar,
   View,
   StyleSheet,
+  RefreshControl,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { ActivityIndicator, Text, useTheme, Divider } from 'react-native-paper';
+import { InteractionManager } from 'react-native';
 import GlobalHeader from '../../components/GlobalHeader';
 import { useAuth } from '../../hooks/useAuth';
 import { apiClient, parseApiError } from '../../api/client';
@@ -22,9 +24,9 @@ import {
   PieChartCard,
   BarChartCard,
   HomeHeader,
-  homeStyles,
 } from '../../components/home';
-import { SkeletonPulse } from '../../components/expenses';
+import { getStyles as homeGetStyles } from '../../components/home/styles';
+import { SkeletonPulse, ExpenseCard } from '../../components/expenses';
 import {
   QrCode,
   Plus,
@@ -41,19 +43,20 @@ import { usePrivacy } from '../../context/PrivacyContext';
 
 const HomeSkeleton = () => {
   const theme = useTheme();
+  const styles = useMemo(() => homeGetStyles(theme), [theme]);
   return (
     <ScrollView
-      contentContainerStyle={homeStyles.scrollContent}
+      contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
-      <View style={homeStyles.statsRow}>
-        <SkeletonPulse style={[homeStyles.statCard, { height: 100 }]} />
-        <SkeletonPulse style={[homeStyles.statCard, { height: 100 }]} />
+      <View style={styles.statsRow}>
+        <SkeletonPulse style={[styles.statCard, { height: 100 }]} />
+        <SkeletonPulse style={[styles.statCard, { height: 100 }]} />
       </View>
 
       <View
         style={[
-          homeStyles.chartCard,
+          styles.chartCard,
           { padding: 16, backgroundColor: theme.colors.surfaceVariant, borderRadius: 16 },
         ]}
       >
@@ -63,7 +66,7 @@ const HomeSkeleton = () => {
 
       <View
         style={[
-          homeStyles.chartCard,
+          styles.chartCard,
           { padding: 16, backgroundColor: theme.colors.surfaceVariant, borderRadius: 16 },
         ]}
       >
@@ -93,6 +96,7 @@ const formatMonth = month => {
 const HomeScreen = () => {
   const { user, token } = useAuth();
   const theme = useTheme();
+  const homeStyles = useMemo(() => homeGetStyles(theme), [theme]);
   const { formatAmount } = usePrivacy();
   const navigation = useNavigation();
   const screenWidth = Dimensions.get('window').width;
@@ -102,19 +106,48 @@ const HomeScreen = () => {
   const [rawExpenses, setRawExpenses] = useState([]);
   const [rawMoneyIn, setRawMoneyIn] = useState([]);
   const [syncStatus, setSyncStatus] = useState(syncManager.status);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const now = new Date();
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
   const [filterType, setFilterType] = useState('all_time');
   const [filterValue, setFilterValue] = useState(null);
+  const [activeChartType, setActiveChartType] = useState('expense');
+  const [activeChartPeriod, setActiveChartPeriod] = useState(null);
   const bottomSheetRef = React.useRef(null);
+  const categorySheetRef = React.useRef(null);
+
+  const [selectedCategoryName, setSelectedCategoryName] = useState('');
+  const [categoryTxns, setCategoryTxns] = useState([]);
+
+  // --- Helpers for ExpenseCard ---
+  const formatItemTime = (dateStr) => {
+    const date = new Date(dateStr);
+    return date.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+  };
+
+  const transformMonthLabel = (monthKey) => {
+    if (!monthKey) return '';
+    const [year, month] = monthKey.split('-');
+    const date = new Date(year, parseInt(month) - 1);
+    return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+  };
 
   useEffect(() => {
-    return syncManager.subscribe(status => {
+    const unsubscribe = syncManager.subscribe(status => {
       setSyncStatus(status);
+      // Auto-refresh data when sync finishes
+      if (status === 'idle') {
+        fetchDashboardData(true);
+      }
     });
-  }, []);
+    return unsubscribe;
+  }, [fetchDashboardData]);
 
   const chartConfig = useMemo(() => {
     return {
@@ -174,8 +207,20 @@ const HomeScreen = () => {
   useFocusEffect(
     useCallback(() => {
       fetchDashboardData(rawExpenses.length > 0);
-    }, [fetchDashboardData]),
+    }, [fetchDashboardData, rawExpenses.length]),
   );
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await syncManager.sync(true);
+      await fetchDashboardData(true);
+    } catch (err) {
+      console.warn('Manual refresh failed:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [fetchDashboardData]);
 
   // --- Filtering Logic ---
   const filteredData = useMemo(() => {
@@ -304,9 +349,22 @@ const HomeScreen = () => {
   }, [filterType, filterValue]);
 
   const categoryStats = useMemo(() => {
-    const expenses = filteredData.expenses;
+    const isDaily = filterType === 'monthly' || filterType.includes('week');
+    const sourceData = activeChartType === 'expense' ? filteredData.expenses : filteredData.moneyIn;
+
+    // Filter source data by the active period selected in the chart
+    let periodData = sourceData;
+    if (activeChartPeriod) {
+      periodData = sourceData.filter(item => {
+        const itemKey = isDaily
+          ? new Date(item.date).getFullYear() + '-' + String(new Date(item.date).getMonth() + 1).padStart(2, '0') + '-' + String(new Date(item.date).getDate()).padStart(2, '0')
+          : item.month;
+        return itemKey === activeChartPeriod;
+      });
+    }
+
     const cats = {};
-    expenses.forEach(e => {
+    periodData.forEach(e => {
       const name = e.category || 'Other';
       cats[name] = (cats[name] || 0) + (e.amountRupees || 0);
     });
@@ -314,7 +372,29 @@ const HomeScreen = () => {
     return Object.entries(cats)
       .map(([category, totalMoneyOut]) => ({ category, totalMoneyOut }))
       .sort((a, b) => b.totalMoneyOut - a.totalMoneyOut);
-  }, [filteredData]);
+  }, [filteredData, activeChartType, activeChartPeriod, filterType]);
+
+  const handleCategoryPress = useCallback((categoryName) => {
+    const isDaily = filterType === 'monthly' || filterType.includes('week');
+    const sourceData = activeChartType === 'expense' ? filteredData.expenses : filteredData.moneyIn;
+    
+    const txns = sourceData.filter(item => {
+      const matchCat = (item.category || 'Other') === categoryName;
+      if (!matchCat) return false;
+      
+      if (activeChartPeriod) {
+        const itemKey = isDaily 
+          ? new Date(item.date).getFullYear() + '-' + String(new Date(item.date).getMonth() + 1).padStart(2, '0') + '-' + String(new Date(item.date).getDate()).padStart(2, '0')
+          : item.month;
+        return itemKey === activeChartPeriod;
+      }
+      return true;
+    });
+
+    setCategoryTxns(txns.sort((a, b) => b.date - a.date));
+    setSelectedCategoryName(categoryName);
+    categorySheetRef.current?.open();
+  }, [filteredData, activeChartType, activeChartPeriod, filterType]);
 
   // --- Helper to get distinct years/months for filter ---
   const filterOptions = useMemo(() => {
@@ -381,7 +461,7 @@ const HomeScreen = () => {
 
   return (
     <SafeAreaView edges={['top']} style={[homeStyles.container, { backgroundColor: theme.colors.background }]}>
-      <StatusBar backgroundColor={theme.colors.background} barStyle="light-content" />
+      <StatusBar backgroundColor={theme.colors.background} barStyle={theme.dark ? 'light-content' : 'dark-content'} />
       <HomeHeader
         userName={user?.fullName}
         onProfilePress={() => navigation.navigate('Profile')}
@@ -399,27 +479,33 @@ const HomeScreen = () => {
               label="All Time"
               active={filterType === 'all_time'}
               onPress={() => {
-                setFilterType('all_time');
-                setFilterValue(null);
                 bottomSheetRef.current?.close();
+                InteractionManager.runAfterInteractions(() => {
+                  setFilterType('all_time');
+                  setFilterValue(null);
+                });
               }}
             />
             <FilterChip
               label="Current Week"
               active={filterType === 'current_week'}
               onPress={() => {
-                setFilterType('current_week');
-                setFilterValue(null);
                 bottomSheetRef.current?.close();
+                InteractionManager.runAfterInteractions(() => {
+                  setFilterType('current_week');
+                  setFilterValue(null);
+                });
               }}
             />
             <FilterChip
               label="Last Week"
               active={filterType === 'last_week'}
               onPress={() => {
-                setFilterType('last_week');
-                setFilterValue(null);
                 bottomSheetRef.current?.close();
+                InteractionManager.runAfterInteractions(() => {
+                  setFilterType('last_week');
+                  setFilterValue(null);
+                });
               }}
             />
           </View>
@@ -433,9 +519,11 @@ const HomeScreen = () => {
                 label={y.toString()}
                 active={filterType === 'yearly' && filterValue === y.toString()}
                 onPress={() => {
-                  setFilterType('yearly');
-                  setFilterValue(y.toString());
                   bottomSheetRef.current?.close();
+                  InteractionManager.runAfterInteractions(() => {
+                    setFilterType('yearly');
+                    setFilterValue(y.toString());
+                  });
                 }}
               />
             ))}
@@ -450,9 +538,11 @@ const HomeScreen = () => {
                 label={formatMonth(m)}
                 active={filterType === 'monthly' && filterValue === m}
                 onPress={() => {
-                  setFilterType('monthly');
-                  setFilterValue(m);
                   bottomSheetRef.current?.close();
+                  InteractionManager.runAfterInteractions(() => {
+                    setFilterType('monthly');
+                    setFilterValue(m);
+                  });
                 }}
               />
             ))}
@@ -467,6 +557,15 @@ const HomeScreen = () => {
           contentContainerStyle={homeStyles.scrollContent}
           showsVerticalScrollIndicator={false}
           scrollEventThrottle={16}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              colors={[theme.colors.secondary]}
+              progressBackgroundColor={theme.colors.surfaceVariant}
+              tintColor={theme.colors.secondary}
+            />
+          }
         >
           <View style={homeStyles.statsRow}>
             <StatCard
@@ -501,18 +600,47 @@ const HomeScreen = () => {
           </View>
 
           <BarChartCard
-            title="Spend summary"
+            title="Activity summary"
             rawExpenses={rawExpenses}
+            rawMoneyIn={rawMoneyIn}
             categories={categoryStats}
-            totalIncome={summary.totalIn || 0}
+            totalIncome={activeChartType === 'expense' ? summary.totalIn : summary.totalOut}
             filterType={filterType}
             filterValue={filterValue}
-            selectedMonthKey={filterType === 'monthly' ? filterValue : null}
+            activeType={activeChartType}
+            onTypeChange={setActiveChartType}
+            onSelectPeriod={setActiveChartPeriod}
+            onCategoryPress={handleCategoryPress}
             granularity={filterType === 'monthly' || filterType.includes('week') ? 'daily' : 'monthly'}
             onFilterPress={() => bottomSheetRef.current?.open()}
           />
         </ScrollView>
       )}
+
+      <BottomSheet 
+        ref={categorySheetRef} 
+        title={`${selectedCategoryName} Transactions`}
+        initialHeight={0.7}
+      >
+        <View style={{ paddingBottom: 40 }}>
+          {categoryTxns.length > 0 ? (
+            categoryTxns.map((item, index) => (
+              <ExpenseCard
+                key={item.id || item._id || index}
+                item={item}
+                formatItemTime={formatItemTime}
+                transformMonthLabel={transformMonthLabel}
+                onEdit={null}
+                onDelete={null} 
+              />
+            ))
+          ) : (
+            <Text style={{ textAlign: 'center', marginTop: 20, color: theme.colors.subtext }}>
+              No transactions found
+            </Text>
+          )}
+        </View>
+      </BottomSheet>
     </SafeAreaView>
   );
 };
@@ -569,7 +697,7 @@ const styles = StyleSheet.create({
   filterChip: {
     paddingVertical: 8,
     paddingHorizontal: 16,
-    borderRadius: 20,
+    borderRadius: 10,
     borderWidth: 1,
   },
   filterChipText: {

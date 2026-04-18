@@ -15,14 +15,36 @@ import { AuthProvider } from './src/hooks/useAuth';
 import { BottomBarProvider } from './src/context/BottomBarContext';
 import { PrivacyProvider } from './src/context/PrivacyContext';
 import { SecurityProvider } from './src/context/SecurityContext';
+import { ThemeProvider, useAppTheme } from './src/context/ThemeContext';
 import NotificationHandler from './src/components/NotificationHandler';
 
 import { syncManager } from './src/sync/SyncManager';
 
-function App() {
-  const scheme = useColorScheme();
-  const paperTheme = React.useMemo(() => buildPaperTheme(scheme), [scheme]);
+function AppContent() {
+  const { paperTheme, activeScheme } = useAppTheme();
 
+  return (
+    <PaperProvider theme={paperTheme}>
+      <AuthProvider>
+        <SecurityProvider>
+          <PrivacyProvider>
+            <BottomBarProvider>
+              <NotificationHandler>
+                <StatusBar
+                  barStyle={activeScheme === 'dark' ? 'light-content' : 'dark-content'}
+                  backgroundColor={paperTheme.colors.background}
+                />
+                <AppNavigator />
+              </NotificationHandler>
+            </BottomBarProvider>
+          </PrivacyProvider>
+        </SecurityProvider>
+      </AuthProvider>
+    </PaperProvider>
+  );
+}
+
+function App() {
   React.useEffect(() => {
     // Initial background sync
     syncManager.sync().catch(console.error);
@@ -30,23 +52,9 @@ function App() {
 
   return (
     <SafeAreaProvider>
-      <PaperProvider theme={paperTheme}>
-        <AuthProvider>
-          <SecurityProvider>
-            <PrivacyProvider>
-              <BottomBarProvider>
-                <NotificationHandler>
-                  <StatusBar
-                    barStyle="light-content"
-                    backgroundColor={paperTheme.colors.background}
-                  />
-                  <AppNavigator />
-                </NotificationHandler>
-              </BottomBarProvider>
-            </PrivacyProvider>
-          </SecurityProvider>
-        </AuthProvider>
-      </PaperProvider>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

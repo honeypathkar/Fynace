@@ -1,13 +1,15 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TouchableOpacity, View } from 'react-native';
-import { Card, Text } from 'react-native-paper';
+import { Card, Text, useTheme } from 'react-native-paper';
 import { Pencil, Trash2 } from 'lucide-react-native';
-import styles from './styles';
+import { getStyles } from './styles';
 import { usePrivacy } from '../../context/PrivacyContext';
 import { useAuth } from '../../hooks/useAuth';
 
 const ExpenseCard = React.memo(
   ({ item, transformMonthLabel, formatItemTime, onEdit, onDelete }) => {
+    const theme = useTheme();
+    const styles = useMemo(() => getStyles(theme), [theme]);
     const { user } = useAuth();
     const { formatAmount, isPrivacyMode } = usePrivacy();
 
@@ -29,7 +31,7 @@ const ExpenseCard = React.memo(
       : `${transformMonthLabel(derivedMonth)}\n${formatItemTime(item.date)}`;
 
     return (
-      <Card style={styles.expenseItem}>
+      <Card style={styles.expenseItem} elevation={0}>
         <Card.Title
           title={titleText}
           subtitle={subtitleText}
@@ -59,7 +61,7 @@ const ExpenseCard = React.memo(
                 style={styles.editButton}
                 activeOpacity={0.7}
               >
-                <Pencil size={18} color="#808080" />
+                <Pencil size={18} color={theme.colors.onSurfaceVariant} />
               </TouchableOpacity>
               {onDelete && (
                 <TouchableOpacity
@@ -67,7 +69,7 @@ const ExpenseCard = React.memo(
                   style={styles.deleteButton}
                   activeOpacity={0.7}
                 >
-                  <Trash2 size={18} color="#EF4444" />
+                  <Trash2 size={18} color={theme.colors.error} />
                 </TouchableOpacity>
               )}
             </View>

@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   View,
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
+  StatusBar
 } from 'react-native';
-import { Text, Card, IconButton, Switch, Chip } from 'react-native-paper';
+import { Text, Card, IconButton, Switch, Chip, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import {
@@ -111,6 +112,139 @@ const RecurringTransactionsScreen = () => {
     }
   };
 
+  const theme = useTheme();
+  const styles = useMemo(() => StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    listContent: {
+      padding: 15,
+    },
+    center: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    card: {
+      backgroundColor: theme.colors.elevation.level1,
+      borderRadius: 10,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: theme.colors.outlineVariant,
+    },
+    cardHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 20,
+      backgroundColor: theme.colors.surfaceVariant + '33', // 20% opacity
+    },
+    headerLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 16,
+    },
+    iconBox: {
+      width: 48,
+      height: 48,
+      borderRadius: 16,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1.5,
+      backgroundColor: 'transparent',
+    },
+    title: {
+      fontSize: 17,
+      fontFamily: Fonts.bold,
+      color: theme.colors.text,
+      marginBottom: 2,
+    },
+    categorySub: {
+      fontSize: 13,
+      color: theme.colors.onSurfaceVariant,
+      fontFamily: Fonts.medium,
+    },
+    amount: {
+      fontSize: 18,
+      fontFamily: Fonts.bold,
+    },
+    divider: {
+      height: 1,
+      backgroundColor: theme.colors.outlineVariant,
+    },
+    cardBody: {
+      padding: 16,
+      paddingHorizontal: 20,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    detailsGrid: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      flex: 1,
+    },
+    detailItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    detailLabel: {
+      fontSize: 12,
+      color: theme.colors.onSurfaceVariant,
+      fontFamily: Fonts.medium,
+    },
+    detailValue: {
+      fontSize: 12,
+      color: theme.colors.secondary,
+      fontFamily: Fonts.bold,
+    },
+    detailSeparator: {
+      width: 1,
+      height: 16,
+      backgroundColor: theme.colors.outlineVariant,
+    },
+    statusBadge: {
+      fontSize: 10,
+      fontFamily: Fonts.bold,
+      letterSpacing: 0.5,
+    },
+    deleteBtn: {
+      margin: 0,
+      backgroundColor: theme.colors.errorContainer,
+    },
+    emptyContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 100,
+      paddingHorizontal: 40,
+    },
+    emptyIconBox: {
+      width: 80,
+      height: 80,
+      borderRadius: 24,
+      backgroundColor: theme.colors.surfaceVariant,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 20,
+    },
+    emptyTitle: {
+      fontSize: 20,
+      fontFamily: Fonts.bold,
+      color: theme.colors.text,
+      marginBottom: 8,
+    },
+    emptySubtitle: {
+      fontSize: 14,
+      color: theme.colors.onSurfaceVariant,
+      textAlign: 'center',
+      lineHeight: 22,
+      fontFamily: Fonts.regular,
+    },
+  }), [theme]);
+
   const renderItem = ({ item }) => (
     <Card style={styles.card}>
       <View style={styles.cardHeader}>
@@ -121,14 +255,14 @@ const RecurringTransactionsScreen = () => {
               {
                 borderColor:
                   item.type === 'expense'
-                    ? 'rgba(239, 68, 68, 0.2)'
-                    : 'rgba(34, 197, 94, 0.2)',
+                    ? theme.colors.error + '40' // 25% opacity
+                    : theme.colors.success + '40',
               },
             ]}
           >
             <Clock
               size={20}
-              color={item.type === 'expense' ? '#EF4444' : '#22C55E'}
+              color={item.type === 'expense' ? theme.colors.error : theme.colors.success}
             />
           </View>
           <View>
@@ -141,7 +275,7 @@ const RecurringTransactionsScreen = () => {
         <Text
           style={[
             styles.amount,
-            { color: item.type === 'expense' ? '#EF4444' : '#22C55E' },
+            { color: item.type === 'expense' ? theme.colors.error : theme.colors.success },
           ]}
         >
           {item.type === 'expense' ? '-' : '+'}
@@ -154,16 +288,16 @@ const RecurringTransactionsScreen = () => {
       <View style={styles.cardBody}>
         <View style={styles.detailsGrid}>
           <View style={styles.detailItem}>
-            <Calendar size={14} color="#808080" />
+            <Calendar size={14} color={theme.colors.onSurfaceVariant} />
             <Text style={styles.detailLabel}>Next</Text>
             <Text style={styles.detailValue}>
               {(() => {
                 const next = calculateNextDate(item.date, item.frequency);
                 return next
                   ? next.toLocaleDateString('en-IN', {
-                      day: '2-digit',
-                      month: 'short',
-                    })
+                    day: '2-digit',
+                    month: 'short',
+                  })
                   : 'N/A';
               })()}
             </Text>
@@ -172,7 +306,7 @@ const RecurringTransactionsScreen = () => {
           <View style={styles.detailSeparator} />
 
           <View style={styles.detailItem}>
-            <Clock size={14} color="#808080" />
+            <Clock size={14} color={theme.colors.onSurfaceVariant} />
             <Text style={styles.detailLabel}>Freq</Text>
             <Text style={[styles.detailValue, { textTransform: 'capitalize' }]}>
               {item.frequency || 'Monthly'}
@@ -185,7 +319,7 @@ const RecurringTransactionsScreen = () => {
             <Text
               style={[
                 styles.statusBadge,
-                { color: item.isActive ? '#22C55E' : '#808080' },
+                { color: item.isActive ? theme.colors.success : theme.colors.onSurfaceVariant },
               ]}
             >
               {item.isActive ? 'ACTIVE' : 'PAUSED'}
@@ -193,35 +327,31 @@ const RecurringTransactionsScreen = () => {
             <Switch
               value={item.isActive}
               onValueChange={val => toggleActive(item, val)}
-              color="#d3d3ff"
+              color="#6060FF"
               style={{ transform: [{ scale: 0.7 }], marginLeft: -4 }}
             />
           </View>
         </View>
-        {/* 
-        <IconButton
-          icon={() => <Trash2 size={18} color="#EF4444" />}
-          onPress={() => deleteRecurring(item)}
-          style={styles.deleteBtn}
-        /> */}
       </View>
     </Card>
   );
 
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
+      <StatusBar
+        barStyle={theme.dark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.colors.background}
+      />
       <GlobalHeader
         title="Recurring Transactions"
         showLeftIcon
         leftIconName="arrow-left"
         onLeftIconPress={() => navigation.goBack()}
-        backgroundColor="transparent"
-        titleColor="#FFFFFF"
       />
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator color="#d3d3ff" size="large" />
+          <ActivityIndicator color={theme.colors.secondary} size="large" />
         </View>
       ) : (
         <FlatList
@@ -232,7 +362,7 @@ const RecurringTransactionsScreen = () => {
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIconBox}>
-                <Clock size={48} color="#1A1A1A" />
+                <Clock size={48} color={theme.colors.onSurfaceVariant} />
               </View>
               <Text style={styles.emptyTitle}>No recurring transactions</Text>
               <Text style={styles.emptySubtitle}>
@@ -252,136 +382,5 @@ export default RecurringTransactionsScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
-  },
-  listContent: {
-    padding: 15,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  card: {
-    backgroundColor: '#121212',
-    borderRadius: 24,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  iconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    backgroundColor: 'transparent',
-  },
-  title: {
-    fontSize: 17,
-    fontFamily: Fonts.bold,
-    color: '#FFFFFF',
-    marginBottom: 2,
-  },
-  categorySub: {
-    fontSize: 13,
-    color: '#808080',
-    fontFamily: Fonts.medium,
-  },
-  amount: {
-    fontSize: 18,
-    fontFamily: Fonts.bold,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  cardBody: {
-    padding: 16,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  detailsGrid: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  detailItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  detailLabel: {
-    fontSize: 12,
-    color: '#808080',
-    fontFamily: Fonts.medium,
-  },
-  detailValue: {
-    fontSize: 12,
-    color: '#d3d3ff',
-    fontFamily: Fonts.bold,
-  },
-  detailSeparator: {
-    width: 1,
-    height: 16,
-    backgroundColor: '#1A1A1A',
-  },
-  statusBadge: {
-    fontSize: 10,
-    fontFamily: Fonts.bold,
-    letterSpacing: 0.5,
-  },
-  deleteBtn: {
-    margin: 0,
-    backgroundColor: 'rgba(239, 68, 68, 0.05)',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 100,
-    paddingHorizontal: 40,
-  },
-  emptyIconBox: {
-    width: 80,
-    height: 80,
-    borderRadius: 24,
-    backgroundColor: '#121212',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontFamily: Fonts.bold,
-    color: '#FFFFFF',
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: '#808080',
-    textAlign: 'center',
-    lineHeight: 22,
-    fontFamily: Fonts.regular,
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -6,9 +6,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   ToastAndroid,
+  StatusBar,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Text } from 'react-native-paper';
+import { Text, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import GlobalHeader from '../../components/GlobalHeader';
 import { useAuth } from '../../hooks/useAuth';
@@ -88,8 +89,60 @@ const EditProfileScreen = () => {
     }
   };
 
+  const theme = useTheme();
+  const styles = useMemo(() => StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    keyboardView: {
+      flex: 1,
+    },
+    scrollContent: {
+      paddingHorizontal: 24,
+      paddingTop: 20,
+      paddingBottom: 40,
+    },
+    formContainer: {
+      width: '100%',
+    },
+    sectionTitle: {
+      fontSize: 20,
+      fontFamily: Fonts.bold,
+      color: theme.colors.text,
+      marginBottom: 24,
+    },
+    inputSection: {
+      marginBottom: 20,
+    },
+    errorText: {
+      color: theme.colors.error,
+      fontSize: 12,
+      marginTop: 4,
+      marginLeft: 4,
+    },
+    disabledHintText: {
+      color: theme.colors.onSurfaceVariant,
+      fontSize: 12,
+      marginTop: 4,
+      marginLeft: 4,
+      fontStyle: 'italic',
+    },
+    buttonContainer: {
+      marginTop: 32,
+      marginBottom: 20,
+    },
+    saveButton: {
+      width: '100%',
+    },
+  }), [theme]);
+
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
+      <StatusBar 
+        barStyle={theme.dark ? 'light-content' : 'dark-content'} 
+        backgroundColor={theme.colors.background} 
+      />
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -97,11 +150,11 @@ const EditProfileScreen = () => {
       >
         <GlobalHeader
           title="Edit Profile"
-          titleColor="#FFFFFF"
+          titleColor={theme.colors.text}
           backgroundColor="transparent"
           showLeftIcon
           leftIconName="arrow-left"
-          leftIconColor="#FFFFFF"
+          leftIconColor={theme.colors.text}
           onLeftIconPress={() => navigation.goBack()}
         />
 
@@ -133,9 +186,12 @@ const EditProfileScreen = () => {
                 placeholder="Email cannot be changed"
                 keyboardType="email-address"
                 autoCapitalize="none"
+                containerStyle={{ opacity: 0.6 }}
               />
               <Text style={styles.disabledHintText}>
-                Email cannot be changed
+                {user?.googleId 
+                  ? 'Logged in using Google' 
+                  : 'Email cannot be changed'}
               </Text>
             </View>
 
@@ -144,7 +200,8 @@ const EditProfileScreen = () => {
                 title="Save Changes"
                 onPress={handleSave}
                 loading={loading}
-                buttonColor="#d3d3ff"
+                buttonColor={theme.colors.secondary}
+                textColor={theme.colors.onSecondary}
                 style={styles.saveButton}
               />
             </View>
@@ -156,50 +213,3 @@ const EditProfileScreen = () => {
 };
 
 export default EditProfileScreen;
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 40,
-  },
-  formContainer: {
-    width: '100%',
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontFamily: Fonts.bold,
-    color: '#FFFFFF',
-    marginBottom: 24,
-  },
-  inputSection: {
-    marginBottom: 20,
-  },
-  errorText: {
-    color: '#EF4444',
-    fontSize: 12,
-    marginTop: 4,
-    marginLeft: 4,
-  },
-  disabledHintText: {
-    color: '#808080',
-    fontSize: 12,
-    marginTop: 4,
-    marginLeft: 4,
-    fontStyle: 'italic',
-  },
-  buttonContainer: {
-    marginTop: 32,
-    marginBottom: 20,
-  },
-  saveButton: {
-    width: '100%',
-  },
-});

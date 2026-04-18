@@ -1,6 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, View, StyleSheet } from 'react-native';
-import { Text } from 'react-native-paper';
+import { Text, useTheme } from 'react-native-paper';
 import LinearGradient from 'react-native-linear-gradient';
 import { ArrowUpRight, ArrowDownRight } from 'lucide-react-native';
 import { usePrivacy } from '../../context/PrivacyContext';
@@ -16,36 +16,45 @@ const StatCard = ({
   onPress,
   style,
 }) => {
+  const theme = useTheme();
   const { user } = useAuth();
   const { formatAmount } = usePrivacy();
   const isMoneyIn = type === 'in';
-  const accentColor = isMoneyIn ? '#22C55E' : '#EF4444';
+  const accentColor = isMoneyIn ? theme.colors.success : theme.colors.error;
   const TrendIcon = isMoneyIn ? ArrowUpRight : ArrowDownRight;
 
   const content = (
     <LinearGradient
-      colors={['#111111', '#050505']}
-      style={[styles.card, style]}
+      colors={theme.dark
+        ? [theme.colors.surface, theme.colors.elevation.level1]
+        : [theme.colors.outlineVariant, theme.colors.surfaceVariant]}
+      style={[
+        styles.card,
+        {
+          borderColor: theme.colors.outlineVariant,
+        },
+        style
+      ]}
     >
       <View style={styles.header}>
         <View style={[styles.iconBox, { backgroundColor: `${accentColor}12` }]}>
           <TrendIcon size={14} color={accentColor} strokeWidth={3} />
         </View>
-        <Text style={styles.label}>{label}</Text>
+        <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>{label}</Text>
       </View>
-
-      <Text style={styles.amount} numberOfLines={1} adjustsFontSizeToFit>
+ 
+      <Text style={[styles.amount, { color: theme.colors.text }]} numberOfLines={1} adjustsFontSizeToFit>
         {formatAmount(value, user?.currency)}
       </Text>
-
+ 
       <View style={styles.footer}>
         {trend && trendValue ? (
           <View style={styles.trendRow}>
             <Text style={[styles.trendValue, { color: accentColor }]}>{trendValue}</Text>
-            <Text style={styles.trendLabel}>vs last</Text>
+            <Text style={[styles.trendLabel, { color: theme.colors.onSurfaceVariant }]}>vs last</Text>
           </View>
         ) : (
-          <Text style={styles.trendLabel}>This month</Text>
+          <Text style={[styles.trendLabel, { color: theme.colors.onSurfaceVariant }]}>This month</Text>
         )}
       </View>
     </LinearGradient>
@@ -67,7 +76,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
     minHeight: 110,
     justifyContent: 'space-between',
   },
@@ -86,13 +94,11 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 12,
     fontFamily: Fonts.medium,
-    color: '#999999',
     letterSpacing: 0.3,
   },
   amount: {
     fontSize: 22,
     fontFamily: Fonts.bold,
-    color: '#FFFFFF',
     marginVertical: 4,
   },
   footer: {
@@ -109,7 +115,6 @@ const styles = StyleSheet.create({
   },
   trendLabel: {
     fontSize: 11,
-    color: '#444444',
     fontFamily: Fonts.medium,
   },
 });

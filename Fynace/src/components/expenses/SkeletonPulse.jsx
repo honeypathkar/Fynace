@@ -1,7 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, View } from 'react-native';
+import { useTheme } from 'react-native-paper';
 
 const SkeletonPulse = ({ style }) => {
+  const theme = useTheme();
   const animation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -28,9 +30,12 @@ const SkeletonPulse = ({ style }) => {
     };
   }, [animation]);
 
+  const isDark = theme.dark;
   const backgroundColor = animation.interpolate({
     inputRange: [0, 1],
-    outputRange: ['#121212', '#1A1A1A'],
+    outputRange: isDark 
+      ? ['#121212', '#1A1A1A'] 
+      : ['#F0F0F0', '#E0E0E0'],
   });
 
   return (
@@ -41,7 +46,6 @@ const SkeletonPulse = ({ style }) => {
 const styles = StyleSheet.create({
   skeletonBase: {
     borderRadius: 12,
-    backgroundColor: '#121212',
   },
 });
 

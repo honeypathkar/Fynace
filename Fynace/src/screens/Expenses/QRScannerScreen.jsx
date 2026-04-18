@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -9,7 +9,7 @@ import {
   StatusBar,
   PermissionsAndroid,
 } from 'react-native';
-import { Text, ActivityIndicator } from 'react-native-paper';
+import { Text, ActivityIndicator, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ChevronLeft,
@@ -28,6 +28,7 @@ import RNQRGenerator from 'rn-qr-generator';
 import Fonts from '../../../assets/fonts';
 
 const QRScannerScreen = () => {
+  const theme = useTheme();
   const navigation = useNavigation();
   const isFocused = useIsFocused();
   const [hasPermission, setHasPermission] = useState(false);
@@ -64,7 +65,6 @@ const QRScannerScreen = () => {
   const handleScannedData = useCallback(
     data => {
       console.log('🔍 Raw Scanned QR Data:', data);
-      // Prevent multiple navigations
       setIsActive(false);
 
       let initialValues = {
@@ -76,7 +76,6 @@ const QRScannerScreen = () => {
 
       if (data.includes('upi://pay')) {
         try {
-          // Parse all query parameters to ensure merchant static QRs work
           const queryString = data.split('?')[1];
           const params = {};
           if (queryString) {
@@ -89,7 +88,7 @@ const QRScannerScreen = () => {
           initialValues.upiId = params.pa || '';
           initialValues.name = params.pn || '';
           initialValues.price = params.am || '';
-          initialValues.allParams = params; // Pass everything back
+          initialValues.allParams = params;
 
           console.log('✅ Parsed UPI Parameters:', params);
         } catch (e) {
@@ -119,9 +118,6 @@ const QRScannerScreen = () => {
   const handleGalleryUpload = async () => {
     try {
       setLoading(true);
-
-      setLoading(true);
-
       const result = await launchImageLibrary({
         mediaType: 'photo',
         quality: 1,
@@ -134,7 +130,6 @@ const QRScannerScreen = () => {
 
       if (result.assets && result.assets.length > 0) {
         const imageUri = result.assets[0].uri;
-        // Use RNQRGenerator to detect QR code from the selected image
         RNQRGenerator.detect({
           uri: imageUri,
         })
@@ -161,10 +156,12 @@ const QRScannerScreen = () => {
     }
   };
 
+  const styles = useMemo(() => getStyles(theme), [theme]);
+
   if (!hasPermission) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator color="#d3d3ff" />
+        <ActivityIndicator color={theme.colors.secondary} />
         <Text style={styles.permissionText}>
           Waiting for camera permission...
         </Text>
@@ -182,20 +179,20 @@ const QRScannerScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar backgroundColor="#000000" barStyle="light-content" />
+      <StatusBar backgroundColor={theme.colors.background} barStyle={theme.dark ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <ChevronLeft size={28} color="#FFFFFF" />
+          <ChevronLeft size={28} color={theme.colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Scan QR Code</Text>
+        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Scan QR Code</Text>
         <TouchableOpacity
           style={styles.galleryButton}
           onPress={handleGalleryUpload}
         >
-          <ImageIcon size={24} color="#FFFFFF" />
+          <ImageIcon size={24} color={theme.colors.text} />
         </TouchableOpacity>
       </View>
 
@@ -208,7 +205,6 @@ const QRScannerScreen = () => {
           torch={torchOn ? 'on' : 'off'}
         />
 
-        {/* Overlay Mask */}
         <View style={styles.overlay}>
           <View style={[styles.unfocusedContainer, { flex: 0.4 }]}></View>
           <View style={styles.focusedRow}>
@@ -236,9 +232,9 @@ const QRScannerScreen = () => {
                   torchOn && styles.torchIconBgActive,
                 ]}
               >
-                <Flashlight size={24} color={torchOn ? '#FFF' : '#FFFFFF'} />
+                <Flashlight size={24} color={torchOn ? '#FFF' : theme.colors.text} />
               </View>
-              <Text style={[styles.torchText, torchOn && { color: '#d3d3ff' }]}>
+              <Text style={[styles.torchText, torchOn && { color: theme.colors.secondary }]}>
                 {torchOn ? 'Flash On' : 'Flash Off'}
               </Text>
             </TouchableOpacity>
@@ -247,7 +243,7 @@ const QRScannerScreen = () => {
 
         {loading && (
           <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color="#d3d3ff" />
+            <ActivityIndicator size="large" color={theme.colors.secondary} />
           </View>
         )}
       </View>
@@ -255,10 +251,10 @@ const QRScannerScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000', // Match header for status bar
+    backgroundColor: theme.colors.background,
   },
   centered: {
     justifyContent: 'center',
@@ -266,7 +262,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   permissionText: {
-    color: '#808080',
+    color: theme.colors.onSurfaceVariant,
     fontFamily: Fonts.medium,
   },
   header: {
@@ -275,11 +271,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#000000',
+    backgroundColor: theme.colors.background,
     zIndex: 10,
   },
   headerTitle: {
-    color: '#FFFFFF',
     fontSize: 20,
     fontFamily: Fonts.semibold,
   },
@@ -287,7 +282,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: theme.colors.surfaceVariant,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -326,7 +321,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 30,
     height: 30,
-    borderColor: '#d3d3ff',
+    borderColor: theme.colors.chartSecondary,
   },
   cornerTopLeft: {
     top: 0,
@@ -375,7 +370,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   torchIconBgActive: {
-    backgroundColor: '#d3d3ff',
+    backgroundColor: theme.colors.secondary,
   },
   torchText: {
     color: '#FFFFFF',

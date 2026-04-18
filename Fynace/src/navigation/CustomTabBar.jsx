@@ -9,7 +9,7 @@ import {
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { CommonActions } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { themeAssets } from '../theme';
+import { useTheme } from 'react-native-paper';
 import Fonts from '../../assets/fonts';
 import { QrCode, Plus } from 'lucide-react-native';
 import { useBottomBar } from '../context/BottomBarContext';
@@ -18,14 +18,15 @@ const Tab = createBottomTabNavigator();
 
 const CustomTabBar = ({ state, descriptors, navigation }) => {
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
   const { setActionMenuOpen } = useBottomBar();
 
-  const activeIconColor = themeAssets.palette.secondary;
-  const inactiveColor = themeAssets.palette.subtext;
+  const activeIconColor = theme.colors.secondary;
+  const inactiveColor = theme.colors.onSurfaceVariant;
 
   const currentRouteName = state.routes[state.index].name;
 
-  const renderTab = (route, index) => {
+  const renderTab = (route, index, theme) => {
     const { options } = descriptors[route.key];
     const isFocused = state.index === index;
 
@@ -66,7 +67,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
         activeOpacity={0.7}
       >
         <View style={styles.tabContent}>
-          {isFocused && <View style={styles.activeIndicator} />}
+          {isFocused && <View style={[styles.activeIndicator, { backgroundColor: theme.colors.secondary }]} />}
           <View style={styles.iconContainer}>
             {IconComponent && (
               <IconComponent focused={isFocused} color={iconColor} size={24} />
@@ -88,7 +89,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
     );
   };
 
-  const renderMiddleButton = () => {
+  const renderMiddleButton = (theme) => {
     if (currentRouteName === 'Home') {
       return (
         <TouchableOpacity
@@ -96,8 +97,11 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
           style={styles.middleButtonContainer}
           activeOpacity={0.8}
         >
-          <View style={styles.middleButton}>
-            <QrCode color="#000000" size={24} />
+          <View style={[styles.middleButton, { 
+            backgroundColor: theme.colors.secondary,
+            shadowColor: theme.colors.secondary 
+          }]}>
+            <QrCode color={theme.colors.onSecondary} size={24} />
           </View>
         </TouchableOpacity>
       );
@@ -110,8 +114,11 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
         style={styles.middleButtonContainer}
         activeOpacity={0.8}
       >
-        <View style={styles.middleButton}>
-          <Plus color="#000000" size={24} />
+        <View style={[styles.middleButton, { 
+          backgroundColor: theme.colors.secondary,
+          shadowColor: theme.colors.secondary 
+        }]}>
+          <Plus color={theme.colors.onSecondary} size={24} />
         </View>
       </TouchableOpacity>
     );
@@ -120,11 +127,14 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
   return (
     <View style={styles.floatingContainer}>
       <View
-        style={[styles.barStyle, { paddingBottom: Math.max(insets.bottom, 8) }]}
+        style={[styles.barStyle, { 
+          backgroundColor: theme.colors.surface,
+          paddingBottom: Math.max(insets.bottom, 8) 
+        }]}
       >
-        {renderTab(state.routes[0], 0)}
-        {renderMiddleButton()}
-        {renderTab(state.routes[1], 1)}
+        {renderTab(state.routes[0], 0, theme)}
+        {renderMiddleButton(theme)}
+        {renderTab(state.routes[1], 1, theme)}
       </View>
     </View>
   );
@@ -139,7 +149,6 @@ const styles = StyleSheet.create({
   },
   barStyle: {
     flexDirection: 'row',
-    backgroundColor: themeAssets.palette.surface,
     borderTopWidth: 0,
     elevation: 8,
     shadowColor: '#000',
@@ -170,7 +179,6 @@ const styles = StyleSheet.create({
     marginLeft: -30,
     width: 60,
     height: 3,
-    backgroundColor: themeAssets.palette.secondary,
     borderRadius: 1.5,
   },
   iconContainer: {
@@ -197,11 +205,9 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 16,
-    backgroundColor: themeAssets.palette.secondary,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 8,
-    shadowColor: themeAssets.palette.secondary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.5,
     shadowRadius: 10,

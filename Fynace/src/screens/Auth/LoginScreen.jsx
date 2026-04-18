@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
-import { Text, ActivityIndicator } from 'react-native-paper';
+import { Text, ActivityIndicator, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import TextInputField from '../../components/TextInputField';
@@ -31,6 +31,7 @@ import Fonts from '../../../assets/fonts';
 const GOOGLE_ICON = require('../../../assets/images/google.png');
 
 const LoginScreen = () => {
+  const theme = useTheme();
   const navigation = useNavigation();
   const { checkUser, requestOtp, verifyOtp, googleLogin, loading } = useAuth();
   const [email, setEmail] = useState('');
@@ -158,11 +159,118 @@ const LoginScreen = () => {
     }
   };
 
+  const styles = useMemo(() => StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    scrollContent: {
+      flexGrow: 1,
+      paddingHorizontal: 30,
+      paddingTop: 40,
+      paddingBottom: 40,
+    },
+    headerBackBtn: {
+      width: 44,
+      height: 44,
+      justifyContent: 'center',
+      marginBottom: 20,
+    },
+    backBtnText: {
+      color: theme.colors.text,
+      fontSize: 28,
+      fontFamily: Fonts.bold,
+    },
+    header: {
+      alignItems: 'center',
+      marginBottom: 60,
+    },
+    title: {
+      fontSize: 40,
+      fontFamily: Fonts.bold,
+      color: theme.colors.text,
+      marginBottom: 12,
+    },
+    subtitle: {
+      fontSize: 18,
+      fontFamily: Fonts.medium,
+      color: theme.colors.onSurfaceVariant,
+      textAlign: 'center',
+      lineHeight: 28,
+    },
+    formContainer: {
+      width: '100%',
+    },
+    footerNoteContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: 32,
+    },
+    footerNote: {
+      fontSize: 13,
+      color: theme.colors.outline,
+      fontFamily: Fonts.medium,
+    },
+    footerLink: {
+      fontSize: 13,
+      color: theme.colors.onSurfaceVariant,
+      fontFamily: Fonts.bold,
+      textDecorationLine: 'underline',
+    },
+    errorText: {
+      color: theme.colors.error,
+      fontSize: 14,
+      fontFamily: Fonts.medium,
+      marginTop: 8,
+      textAlign: 'center',
+    },
+    actionWrapper: {
+      marginTop: 30,
+    },
+    divider: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginVertical: 40,
+    },
+    dividerLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: theme.colors.outlineVariant,
+    },
+    dividerText: {
+      color: theme.colors.outline,
+      fontFamily: Fonts.bold,
+      fontSize: 12,
+      marginHorizontal: 20,
+      letterSpacing: 2,
+    },
+    googleIcon: {
+      width: 22,
+      height: 22,
+      marginRight: 12,
+    },
+    backLink: {
+      marginTop: 24,
+      alignItems: 'center',
+    },
+    backLinkText: {
+      color: theme.colors.secondary,
+      fontFamily: Fonts.medium,
+      fontSize: 14,
+    },
+  }), [theme]);
+
+  const isDark = theme.dark;
+
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000000" translucent />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor="transparent" translucent />
       <LinearGradient
-        colors={['#000000', '#050505', '#000000']}
+        colors={isDark 
+          ? ['#000000', '#050505', '#000000'] 
+          : [theme.colors.background, theme.colors.surfaceVariant, theme.colors.background]}
         style={StyleSheet.absoluteFill}
       />
       
@@ -224,8 +332,8 @@ const LoginScreen = () => {
                       title={userExists === false && !fullName ? 'Continue' : 'Send Code'}
                       onPress={handleSendOtp}
                       loading={sendingOtp || checkingUser}
-                      buttonColor="#FFFFFF"
-                      textColor="#000000"
+                      buttonColor={theme.colors.primary}
+                      textColor={theme.colors.onPrimary}
                       disabled={!isValidEmail(email)}
                     />
                   </View>
@@ -240,7 +348,8 @@ const LoginScreen = () => {
                     title="Continue with Google"
                     onPress={handleGoogleSignIn}
                     loading={googleSigningIn}
-                    buttonColor="#121212"
+                    buttonColor={theme.colors.surfaceVariant}
+                    textColor={theme.colors.text}
                     leftIcon={
                       <Image source={GOOGLE_ICON} style={styles.googleIcon} resizeMode="contain" />
                     }
@@ -273,8 +382,8 @@ const LoginScreen = () => {
                       title="Verify Code"
                       onPress={handleVerifyOtp}
                       loading={verifyingOtp}
-                      buttonColor="#FFFFFF"
-                      textColor="#000000"
+                      buttonColor={theme.colors.primary}
+                      textColor={theme.colors.onPrimary}
                       disabled={otp.length !== 4}
                     />
                   </View>
@@ -296,106 +405,3 @@ const LoginScreen = () => {
 };
 
 export default LoginScreen;
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 30,
-    paddingTop: 40,
-    paddingBottom: 40,
-  },
-  headerBackBtn: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
-  backBtnText: {
-    color: '#FFFFFF',
-    fontSize: 28,
-    fontFamily: Fonts.bold,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 60,
-  },
-  title: {
-    fontSize: 40,
-    fontFamily: Fonts.bold,
-    color: '#FFFFFF',
-    marginBottom: 12,
-  },
-  subtitle: {
-    fontSize: 18,
-    fontFamily: Fonts.medium,
-    color: '#808080',
-    textAlign: 'center',
-    lineHeight: 28,
-  },
-  formContainer: {
-    width: '100%',
-  },
-  footerNoteContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 32,
-  },
-  footerNote: {
-    fontSize: 13,
-    color: '#404040',
-    fontFamily: Fonts.medium,
-  },
-  footerLink: {
-    fontSize: 13,
-    color: '#808080',
-    fontFamily: Fonts.bold,
-    textDecorationLine: 'underline',
-  },
-  errorText: {
-    color: '#EF4444',
-    fontSize: 14,
-    fontFamily: Fonts.medium,
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  actionWrapper: {
-    marginTop: 30,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 40,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  dividerText: {
-    color: '#333333',
-    fontFamily: Fonts.bold,
-    fontSize: 12,
-    marginHorizontal: 20,
-    letterSpacing: 2,
-  },
-  googleIcon: {
-    width: 22,
-    height: 22,
-    marginRight: 12,
-  },
-  backLink: {
-    marginTop: 24,
-    alignItems: 'center',
-  },
-  backLinkText: {
-    color: '#d3d3ff',
-    fontFamily: Fonts.medium,
-    fontSize: 14,
-  },
-});

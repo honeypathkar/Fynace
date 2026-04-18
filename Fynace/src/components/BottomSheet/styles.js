@@ -12,12 +12,12 @@ export const normalize = size => {
 };
 
 // Map provided logic to project theme
-export const themeColors = {
-  primaryText2: palette.subtext,
-  accentPrimary: palette.primary,
-  text: palette.text,
-  primaryBackground: '#000000',
-};
+export const getThemeColors = (theme) => ({
+  primaryText2: theme.colors.onSurfaceVariant,
+  accentPrimary: theme.colors.primary,
+  text: theme.colors.text,
+  primaryBackground: theme.colors.background,
+});
 
 export const spacing = {
   xs: 4,
@@ -33,18 +33,18 @@ export const radius = {
   xxl: 24,
 };
 
-export const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'transparent', // Make overlay transparent
+    backgroundColor: 'transparent',
   },
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)', // Put color here instead
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   modalContainer: {
-    backgroundColor: '#0A0A0A', // Premium slightly-lighter-than-black
+    backgroundColor: theme.colors.elevation.level1,
     borderTopLeftRadius: radius.xxl,
     borderTopRightRadius: radius.xxl,
     paddingTop: spacing.s,
@@ -60,7 +60,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   modalTitle: {
-    color: palette.text,
+    color: theme.colors.text,
     fontSize: normalize(18),
     fontFamily: Fonts.semibold,
   },
@@ -70,7 +70,7 @@ export const styles = StyleSheet.create({
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: theme.colors.surfaceVariant,
   },
   modalContent: {
     gap: 0,
@@ -102,7 +102,7 @@ export const styles = StyleSheet.create({
     width: 80,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+    backgroundColor: theme.colors.outlineVariant,
   },
   sheetFooter: {
     marginTop: spacing.xl,
@@ -113,30 +113,30 @@ export const styles = StyleSheet.create({
     paddingHorizontal: spacing.m,
     borderRadius: radius.m,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: theme.colors.outlineVariant,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    backgroundColor: theme.colors.surfaceVariant,
   },
   sheetOptionActive: {
-    borderColor: '#d3d3ff',
-    backgroundColor: 'rgba(211, 211, 255, 0.1)', // 10% opacity of Lavender
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.dark ? 'rgba(211, 211, 255, 0.1)' : 'rgba(103, 80, 164, 0.08)',
   },
   sheetOptionActionRow: {
-    backgroundColor: '#d3d3ff',
-    borderColor: '#d3d3ff',
+    backgroundColor: theme.colors.primaryContainer,
+    borderColor: theme.colors.primaryContainer,
   },
   sheetOptionLabel: {
-    color: palette.text,
+    color: theme.colors.text,
     fontSize: normalize(16),
     fontFamily: Fonts.medium,
   },
   sheetOptionLabelMuted: {
-    color: palette.subtext,
+    color: theme.colors.onSurfaceVariant,
   },
   sheetOptionLabelAction: {
-    color: '#000000',
+    color: theme.colors.onPrimaryContainer,
     fontFamily: Fonts.bold,
   },
   sheetOptionIcon: {
@@ -151,7 +151,7 @@ export const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: palette.success,
+    backgroundColor: theme.colors.success,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.xl,
@@ -159,7 +159,7 @@ export const styles = StyleSheet.create({
   successTitle: {
     fontSize: normalize(20),
     fontFamily: Fonts.bold,
-    color: palette.text,
+    color: theme.colors.text,
     textAlign: 'center',
     marginBottom: spacing.s,
     lineHeight: normalize(28),
@@ -167,22 +167,20 @@ export const styles = StyleSheet.create({
   successSubtitle: {
     fontSize: normalize(14),
     fontFamily: Fonts.regular,
-    color: palette.subtext,
+    color: theme.colors.onSurfaceVariant,
     textAlign: 'center',
     marginBottom: spacing.xxl,
   },
   continueButton: {
     width: '100%',
-    backgroundColor: palette.primary,
+    backgroundColor: theme.colors.primary,
     paddingVertical: spacing.l,
     borderRadius: radius.m,
     alignItems: 'center',
   },
   continueButtonText: {
-    color: '#000000',
+    color: theme.colors.onPrimary,
     fontSize: normalize(16),
     fontFamily: Fonts.bold,
   },
 });
-
-export default styles;

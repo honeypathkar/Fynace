@@ -1,14 +1,7 @@
 import React from 'react';
-import {
-  ScrollView,
-  TouchableOpacity,
-  View,
-  ActivityIndicator,
-} from 'react-native';
-import { Button, Text } from 'react-native-paper';
+import { ScrollView, TouchableOpacity, View } from 'react-native';
+import { Text, ActivityIndicator, useTheme } from 'react-native-paper';
 import BottomSheet from '../BottomSheet';
-import styles from './styles';
-import Fonts from '../../../assets/fonts';
 
 const FilterSheet = ({
   sheetRef,
@@ -22,45 +15,33 @@ const FilterSheet = ({
   transformMonthLabel,
   onSelectMonth,
   onSelectCategory,
-  loading = false,
+  loading,
+  styles: propStyles,
 }) => {
+  const theme = useTheme();
+  const styles = propStyles || require('./styles').getStyles(theme);
+
   return (
     <BottomSheet
       ref={sheetRef}
       title="Filters"
       onClose={onClose}
-      initialHeight={0.8}
+      initialHeight={0.7}
     >
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[
-          styles.filterSheetScrollContent,
-          loading && {
-            justifyContent: 'center',
-            alignItems: 'center',
-            minHeight: 200,
-          },
-        ]}
-      >
+      <View style={styles.filterSheetContent}>
         {loading ? (
-          <View style={{ paddingVertical: 40 }}>
-            <ActivityIndicator color="#d3d3ff" size="large" />
-            <Text
-              style={{
-                marginTop: 12,
-                color: '#808080',
-                fontFamily: Fonts.medium,
-              }}
-            >
-              Loading filters...
-            </Text>
+          <View style={{ padding: 40, alignItems: 'center' }}>
+            <ActivityIndicator color={theme.colors.secondary} />
           </View>
         ) : (
-          <>
-            {/* Type Filter Section */}
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.filterSheetScrollContent}
+          >
+            {/* Transaction Type */}
             <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>Transaction Type</Text>
-              <View style={{ flexDirection: 'row', gap: 10 }}>
+              <Text style={styles.filterSectionTitle}>TYPE</Text>
+              <View style={{ flexDirection: 'row', gap: 12 }}>
                 {['All', 'expense', 'income'].map(type => (
                   <TouchableOpacity
                     key={type}
@@ -69,45 +50,38 @@ const FilterSheet = ({
                       selectedType === type && styles.filterSheetItemSelected,
                     ]}
                     onPress={() => onSelectType(type)}
-                    activeOpacity={0.7}
                   >
                     <Text
                       style={[
                         styles.filterSheetItemText,
-                        selectedType === type &&
-                          styles.filterSheetItemTextSelected,
-                        { textTransform: 'capitalize' },
+                        selectedType === type && styles.filterSheetItemTextSelected,
+                        { textTransform: 'capitalize' }
                       ]}
                     >
-                      {type === 'All'
-                        ? 'All'
-                        : type === 'expense'
-                        ? 'Expenses'
-                        : 'Income'}
+                      {type}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
             </View>
-            {/* Month Filter Section */}
+
+            {/* Time Period */}
             <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>Month</Text>
+              <Text style={styles.filterSectionTitle}>MONTH</Text>
               <TouchableOpacity
                 style={[
                   styles.filterSheetItem,
                   selectedMonth === 'All' && styles.filterSheetItemSelected,
                 ]}
                 onPress={() => onSelectMonth('All')}
-                activeOpacity={0.7}
               >
                 <Text
                   style={[
                     styles.filterSheetItemText,
-                    selectedMonth === 'All' &&
-                      styles.filterSheetItemTextSelected,
+                    selectedMonth === 'All' && styles.filterSheetItemTextSelected,
                   ]}
                 >
-                  All Months
+                  All Time
                 </Text>
                 {selectedMonth === 'All' && (
                   <View style={styles.filterSheetCheckmark}>
@@ -115,6 +89,7 @@ const FilterSheet = ({
                   </View>
                 )}
               </TouchableOpacity>
+
               {months.map(month => (
                 <TouchableOpacity
                   key={month}
@@ -123,7 +98,6 @@ const FilterSheet = ({
                     selectedMonth === month && styles.filterSheetItemSelected,
                   ]}
                   onPress={() => onSelectMonth(month)}
-                  activeOpacity={0.7}
                 >
                   <Text
                     style={[
@@ -143,9 +117,9 @@ const FilterSheet = ({
               ))}
             </View>
 
-            {/* Category Filter Section */}
+            {/* Category */}
             <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>Category</Text>
+              <Text style={styles.filterSectionTitle}>CATEGORY</Text>
               {categories.map(category => (
                 <TouchableOpacity
                   key={category}
@@ -155,7 +129,6 @@ const FilterSheet = ({
                       styles.filterSheetItemSelected,
                   ]}
                   onPress={() => onSelectCategory(category)}
-                  activeOpacity={0.7}
                 >
                   <Text
                     style={[
@@ -174,11 +147,11 @@ const FilterSheet = ({
                 </TouchableOpacity>
               ))}
             </View>
-          </>
+          </ScrollView>
         )}
-      </ScrollView>
+      </View>
     </BottomSheet>
   );
 };
 
-export default FilterSheet;
+export default React.memo(FilterSheet);

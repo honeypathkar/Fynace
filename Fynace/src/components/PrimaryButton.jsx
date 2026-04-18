@@ -18,9 +18,10 @@ const PrimaryButton = ({
   textStyle = {},
   gradientColors = DEFAULT_GRADIENT,
   buttonColor,
+  textColor,
 }) => {
   const isLightBackground = buttonColor === '#d3d3ff' || buttonColor === 'secondary';
-  const contentColor = isLightBackground ? '#000000' : themeAssets.palette.onPrimary;
+  const contentColor = textColor || (isLightBackground ? '#000000' : themeAssets.palette.onPrimary);
   
   const colors = disabled
     ? DISABLED_GRADIENT

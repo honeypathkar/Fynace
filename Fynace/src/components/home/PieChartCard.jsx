@@ -3,7 +3,7 @@ import { View, ScrollView } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import { PieChart } from 'react-native-chart-kit';
 import LinearGradient from 'react-native-linear-gradient';
-import styles from './styles';
+import { getStyles } from './styles';
 import { usePrivacy } from '../../context/PrivacyContext';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -16,6 +16,7 @@ const PieChartCard = ({
   chartConfig,
 }) => {
   const theme = useTheme();
+  const styles = useMemo(() => getStyles(theme), [theme]);
   const { user } = useAuth();
   const { formatAmount } = usePrivacy();
   const hasValidPieData =

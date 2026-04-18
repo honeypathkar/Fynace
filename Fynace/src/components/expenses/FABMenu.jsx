@@ -1,14 +1,8 @@
 import React from 'react';
 import { TouchableOpacity, View } from 'react-native';
-import { Button, Text } from 'react-native-paper';
+import { Text, ActivityIndicator, useTheme } from 'react-native-paper';
+import { Plus, FileText, FileSpreadsheet, MessageSquare, ChevronDown } from 'lucide-react-native';
 import BottomSheet from '../BottomSheet';
-import {
-  FileText,
-  FileSpreadsheet,
-  MessageSquare,
-  ChevronDown,
-} from 'lucide-react-native';
-import styles from './styles';
 
 const FABMenu = ({
   sheetRef,
@@ -17,7 +11,11 @@ const FABMenu = ({
   onImportExcel,
   onSmsFetch,
   uploading = false,
+  styles: propStyles,
 }) => {
+  const theme = useTheme();
+  const styles = propStyles || require('./styles').getStyles(theme);
+
   return (
     <BottomSheet
       ref={sheetRef}

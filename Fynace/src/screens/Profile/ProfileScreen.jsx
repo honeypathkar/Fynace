@@ -5,6 +5,7 @@ import {
   StyleSheet,
   View,
   ScrollView,
+  StatusBar,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Text, useTheme } from 'react-native-paper';
@@ -21,14 +22,20 @@ import {
   ChevronRight,
   Target,
   Clock,
+  Palette,
 } from 'lucide-react-native';
 import Fonts from '../../../assets/fonts';
 import { FRONTEND_URL } from '../../utils/BASE_URL';
+import { useAppTheme } from '../../context/ThemeContext';
+import BottomSheet from '../../components/BottomSheet';
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
   const { user, logout } = useAuth();
   const theme = useTheme();
+  const { themeMode, setThemeMode } = useAppTheme();
+
+  const themeSheetRef = useRef(null);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -50,24 +57,33 @@ const ProfileScreen = () => {
     }
   };
 
+  const themeOptions = [
+    { label: 'Light Mode', value: 'light' },
+    { label: 'Dark Mode', value: 'dark' },
+    { label: 'System Default', value: 'system' },
+  ];
+
   const MenuItem = ({ icon: Icon, label, onPress, isDestructive = false, right }) => (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: '#0F0F0F' }]}
+      style={({ pressed }) => [
+        styles.menuItem, 
+        pressed && { backgroundColor: theme.colors.elevation.level1 }
+      ]}
     >
       <View style={styles.menuItemLeft}>
         <View
           style={[
             styles.iconContainer,
-            { backgroundColor: isDestructive ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.07)' },
+            { backgroundColor: isDestructive ? `${theme.colors.error}1F` : theme.colors.elevation.level1 },
           ]}
         >
-          <Icon size={20} color={isDestructive ? '#EF4444' : '#FFFFFF'} />
+          <Icon size={20} color={isDestructive ? theme.colors.error : theme.colors.text} />
         </View>
         <Text
           style={[
             styles.menuItemLabel,
-            isDestructive && { color: '#EF4444' },
+            isDestructive && { color: theme.colors.error },
           ]}
         >
           {label}
@@ -76,7 +92,7 @@ const ProfileScreen = () => {
       <View style={styles.menuItemRight}>
         {right
           ? right
-          : !isDestructive && <ChevronRight size={18} color="#404040" />}
+          : !isDestructive && <ChevronRight size={18} color={theme.colors.onSurfaceVariant} />}
       </View>
     </Pressable>
   );
@@ -89,13 +105,14 @@ const ProfileScreen = () => {
     .slice(0, 2);
 
   return (
-    <SafeAreaView edges={['top']} style={styles.container}>
+    <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <StatusBar 
+        barStyle={theme.dark ? 'light-content' : 'dark-content'} 
+        backgroundColor={theme.colors.background} 
+      />
       <GlobalHeader
         title="Profile"
-        titleColor="#FFFFFF"
-        backgroundColor="transparent"
         showLeftIcon
-        leftIconColor="#FFFFFF"
         onLeftIconPress={() => navigation.goBack()}
       />
 
@@ -104,11 +121,17 @@ const ProfileScreen = () => {
 
           {/* Avatar Card */}
           <View style={styles.profileCard}>
-            <View style={styles.avatarContainer}>
+            <View style={[
+              styles.avatarContainer, 
+              { 
+                backgroundColor: theme.colors.elevation.level1,
+                borderColor: theme.colors.outlineVariant,
+              }
+            ]}>
               <User size={52} color={theme.colors.secondary} />
             </View>
-            <Text style={styles.userName}>{user?.fullName || 'User Name'}</Text>
-            <Text style={styles.userEmail}>{user?.email || 'user@example.com'}</Text>
+            <Text style={[styles.userName, { color: theme.colors.text }]}>{user?.fullName || 'User Name'}</Text>
+            <Text style={[styles.userEmail, { color: theme.colors.onSurfaceVariant }]}>{user?.email || 'user@example.com'}</Text>
           </View>
 
           {/* Menu */}
@@ -120,7 +143,7 @@ const ProfileScreen = () => {
               onPress={() => navigation.navigate('EditProfile')}
             />
 
-            <Text style={styles.sectionLabel}>Tools & Preferences</Text>
+            <Text style={[styles.sectionLabel, { color: theme.colors.primary }]}>Tools & Preferences</Text>
 
             <MenuItem
               icon={Wrench}
@@ -137,8 +160,23 @@ const ProfileScreen = () => {
               label="Recurring Transactions"
               onPress={() => navigation.navigate('RecurringTransactions')}
             />
+            <MenuItem
+              icon={Palette}
+              label="Appearance"
+              onPress={() => themeSheetRef.current?.open()}
+              right={
+                <Text style={{ 
+                  color: theme.colors.onSurfaceVariant, 
+                  fontSize: 14, 
+                  fontFamily: Fonts.medium,
+                  textTransform: 'capitalize' 
+                }}>
+                  {themeMode}
+                </Text>
+              }
+            />
 
-            <Text style={styles.sectionLabel}>More</Text>
+            <Text style={[styles.sectionLabel, { color: theme.colors.primary }]}>More</Text>
 
             <MenuItem
               icon={Shield}
@@ -161,7 +199,7 @@ const ProfileScreen = () => {
               }
             />
 
-            <View style={styles.menuDivider} />
+            <View style={[styles.menuDivider, { backgroundColor: theme.colors.outlineVariant }]} />
 
             <MenuItem
               icon={LogOut}
@@ -172,6 +210,16 @@ const ProfileScreen = () => {
           </View>
         </Animated.View>
       </ScrollView>
+
+      <BottomSheet
+        ref={themeSheetRef}
+        title="App Appearance"
+        options={themeOptions}
+        selectedValue={themeMode}
+        onSelect={(val) => {
+          setThemeMode(val);
+        }}
+      />
     </SafeAreaView>
   );
 };
@@ -181,7 +229,6 @@ export default ProfileScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
   },
   scrollContent: {
     paddingBottom: 60,
@@ -199,28 +246,23 @@ const styles = StyleSheet.create({
     width: 110,
     height: 110,
     borderRadius: 55,
-    backgroundColor: '#0D0D0D',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
     borderWidth: 1.5,
-    borderColor: 'rgba(211,211,255,0.25)',
   },
   userName: {
     fontSize: 22,
     fontFamily: Fonts.bold,
-    color: '#FFFFFF',
     marginBottom: 4,
   },
   userEmail: {
     fontSize: 14,
-    color: '#808080',
     fontFamily: Fonts.regular,
   },
   sectionLabel: {
     fontSize: 11,
     fontFamily: Fonts.bold,
-    color: '#404040',
     textTransform: 'uppercase',
     letterSpacing: 1.2,
     marginTop: 28,
@@ -254,7 +296,6 @@ const styles = StyleSheet.create({
   menuItemLabel: {
     fontSize: 16,
     fontFamily: Fonts.medium,
-    color: '#FFFFFF',
   },
   menuItemRight: {
     flexDirection: 'row',
@@ -262,7 +303,6 @@ const styles = StyleSheet.create({
   },
   menuDivider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.06)',
     marginVertical: 8,
     marginHorizontal: 8,
   },

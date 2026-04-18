@@ -336,6 +336,72 @@ const AddExpenseScreen = () => {
     }
   };
 
+  const styles = useMemo(() => StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    headerTitle: {
+      color: theme.colors.text,
+      fontSize: 20,
+      fontFamily: Fonts.semibold,
+    },
+    backButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: theme.colors.surfaceVariant,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    content: {
+      flex: 1,
+      paddingHorizontal: 20,
+      paddingTop: 20,
+    },
+    inputWrapper: {
+      marginBottom: 16,
+    },
+    inputLabel: {
+      color: theme.colors.onSurfaceVariant,
+      fontSize: 14,
+      fontFamily: Fonts.semibold,
+      marginBottom: 8,
+    },
+    pickerButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: theme.colors.elevation.level1,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.colors.outline,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      minHeight: 48,
+    },
+    pickerText: {
+      color: theme.colors.text,
+      fontSize: 16,
+    },
+    pickerPlaceholder: {
+      color: theme.colors.onSurfaceVariant,
+    },
+    footer: {
+      padding: 20,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.outlineVariant,
+      backgroundColor: theme.colors.background,
+    },
+  }), [theme]);
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
@@ -348,7 +414,7 @@ const AddExpenseScreen = () => {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <ChevronLeft size={28} color="#FFFFFF" />
+            <ChevronLeft size={28} color={theme.colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>
             {editingExpenseId ? 'Edit Expense' : 'Add Expense'}
@@ -372,7 +438,7 @@ const AddExpenseScreen = () => {
               <Text style={styles.pickerText}>
                 {transformMonthLabel(formValues.month)}
               </Text>
-              <ChevronDown size={20} color="#808080" />
+              <ChevronDown size={20} color={theme.colors.onSurfaceVariant} />
             </TouchableOpacity>
           </View>
 
@@ -398,7 +464,7 @@ const AddExpenseScreen = () => {
               >
                 {formValues.category || 'Select a category'}
               </Text>
-              <ChevronDown size={20} color="#808080" />
+              <ChevronDown size={20} color={theme.colors.onSurfaceVariant} />
             </TouchableOpacity>
           </View>
 
@@ -429,8 +495,8 @@ const AddExpenseScreen = () => {
                     styles.pickerButton,
                     { flex: 1, justifyContent: 'center' },
                     formValues.type === t && {
-                      borderColor: '#d3d3ff',
-                      backgroundColor: 'rgba(58, 111, 248, 0.1)',
+                      borderColor: theme.colors.secondary,
+                      backgroundColor: theme.colors.surfaceVariant,
                     },
                   ]}
                   onPress={() => updateFormValue('type', t)}
@@ -439,7 +505,7 @@ const AddExpenseScreen = () => {
                     style={[
                       styles.pickerText,
                       { textTransform: 'capitalize' },
-                      formValues.type === t && { color: '#d3d3ff' },
+                      formValues.type === t && { color: theme.colors.secondary },
                     ]}
                   >
                     {t}
@@ -461,7 +527,7 @@ const AddExpenseScreen = () => {
           >
             <View>
               <Text style={styles.inputLabel}>Is Recurring?</Text>
-              <Text style={{ color: '#808080', fontSize: 12 }}>
+              <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12 }}>
                 Automatically repeat this transaction
               </Text>
             </View>
@@ -473,7 +539,7 @@ const AddExpenseScreen = () => {
                 width: 50,
                 height: 26,
                 borderRadius: 13,
-                backgroundColor: formValues.isRecurring ? '#d3d3ff' : '#1A1A1A',
+                backgroundColor: formValues.isRecurring ? theme.colors.secondary : theme.colors.surfaceVariant,
                 justifyContent: 'center',
                 paddingHorizontal: 2,
               }}
@@ -501,8 +567,8 @@ const AddExpenseScreen = () => {
                       styles.pickerButton,
                       { paddingVertical: 8, paddingHorizontal: 12 },
                       formValues.frequency === f && {
-                        borderColor: '#d3d3ff',
-                        backgroundColor: 'rgba(58, 111, 248, 0.1)',
+                        borderColor: theme.colors.secondary,
+                        backgroundColor: theme.colors.surfaceVariant,
                       },
                     ]}
                     onPress={() => updateFormValue('frequency', f)}
@@ -511,7 +577,7 @@ const AddExpenseScreen = () => {
                       style={[
                         styles.pickerText,
                         { fontSize: 14, textTransform: 'capitalize' },
-                        formValues.frequency === f && { color: '#d3d3ff' },
+                        formValues.frequency === f && { color: theme.colors.secondary },
                       ]}
                     >
                       {f}
@@ -528,7 +594,7 @@ const AddExpenseScreen = () => {
             title={editingExpenseId ? 'Update Expense' : 'Save Expense'}
             onPress={handleSave}
             loading={savingExpense}
-            buttonColor="#d3d3ff"
+            buttonColor={theme.colors.secondary}
           />
         </View>
       </KeyboardAvoidingView>
@@ -568,71 +634,5 @@ const AddExpenseScreen = () => {
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontFamily: Fonts.semibold,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-  },
-  inputWrapper: {
-    marginBottom: 16,
-  },
-  inputLabel: {
-    color: '#808080',
-    fontSize: 14,
-    fontFamily: Fonts.semibold,
-    marginBottom: 8,
-  },
-  pickerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#121212',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#1A1A1A',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    minHeight: 48,
-  },
-  pickerText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-  },
-  pickerPlaceholder: {
-    color: '#808080',
-  },
-  footer: {
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.05)',
-    backgroundColor: '#000000',
-  },
-});
 
 export default AddExpenseScreen;

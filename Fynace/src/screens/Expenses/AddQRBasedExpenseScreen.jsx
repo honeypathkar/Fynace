@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -188,6 +188,68 @@ const AddQRBasedExpenseScreen = () => {
     }
   };
 
+  const styles = useMemo(() => StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    headerTitle: {
+      color: theme.colors.text,
+      fontSize: 20,
+      fontFamily: Fonts.semibold,
+    },
+    backButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: theme.colors.surfaceVariant,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    content: {
+      flex: 1,
+      paddingHorizontal: 20,
+      paddingTop: 10,
+    },
+    infoCard: {
+      backgroundColor: theme.colors.success + '1A', // 10% opacity
+      marginBottom: 24,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.colors.success + '33', // 20% opacity
+    },
+    qrInfoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 4,
+    },
+    qrInfoText: {
+      color: theme.colors.success,
+      fontFamily: Fonts.semibold,
+      fontSize: 14,
+    },
+    upiText: {
+      color: theme.colors.onSurfaceVariant,
+      fontSize: 12,
+      fontFamily: Fonts.medium,
+      marginLeft: 28,
+    },
+    footer: {
+      padding: 20,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.outlineVariant,
+      backgroundColor: theme.colors.background,
+    },
+  }), [theme]);
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
@@ -199,7 +261,7 @@ const AddQRBasedExpenseScreen = () => {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <ChevronLeft size={28} color="#FFFFFF" />
+            <ChevronLeft size={28} color={theme.colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Expense Details</Text>
           <View style={{ width: 40 }} />
@@ -212,7 +274,7 @@ const AddQRBasedExpenseScreen = () => {
           <Card style={styles.infoCard}>
             <Card.Content>
               <View style={styles.qrInfoRow}>
-                <CheckCircle2 size={20} color="#22C55E" />
+                <CheckCircle2 size={20} color={theme.colors.success} />
                 <Text style={styles.qrInfoText}>QR Scanned Successfully</Text>
               </View>
               {formValues.upiId ? (
@@ -251,12 +313,13 @@ const AddQRBasedExpenseScreen = () => {
             title={formValues.upiId ? 'Pay & Record' : 'Record Expense'}
             onPress={handlePayAndSave}
             loading={saving}
-            buttonColor="#d3d3ff"
+            buttonColor={theme.colors.primary}
+            textColor={theme.colors.onPrimary}
             leftIcon={
               formValues.upiId ? (
-                <Send size={20} color="#000" />
+                <Send size={20} color={theme.colors.onPrimary} />
               ) : (
-                <CreditCard size={20} color="#000" />
+                <CreditCard size={20} color={theme.colors.onPrimary} />
               )
             }
           />
@@ -265,66 +328,5 @@ const AddQRBasedExpenseScreen = () => {
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontFamily: Fonts.semibold,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 10,
-  },
-  infoCard: {
-    backgroundColor: 'rgba(34, 197, 94, 0.1)',
-    marginBottom: 24,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(34, 197, 94, 0.2)',
-  },
-  qrInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-  },
-  qrInfoText: {
-    color: '#22C55E',
-    fontFamily: Fonts.semibold,
-    fontSize: 14,
-  },
-  upiText: {
-    color: '#808080',
-    fontSize: 12,
-    fontFamily: Fonts.medium,
-    marginLeft: 28,
-  },
-  footer: {
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.05)',
-  },
-});
 
 export default AddQRBasedExpenseScreen;

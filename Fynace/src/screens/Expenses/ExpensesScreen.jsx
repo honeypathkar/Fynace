@@ -19,6 +19,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   Pressable,
+  RefreshControl,
+  StatusBar
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import {
@@ -66,7 +68,7 @@ import {
   FABMenu,
   FilterSheet,
 } from '../../components/expenses';
-import expenseStyles from '../../components/expenses/styles';
+import { getStyles as getExpenseStyles } from '../../components/expenses/styles';
 import { database } from '../../database';
 import { Q } from '@nozbe/watermelondb';
 import { syncManager } from '../../sync/SyncManager';
@@ -121,6 +123,8 @@ const ExpensesScreen = () => {
   const [expenseToDelete, setExpenseToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const expenseStyles = useMemo(() => getExpenseStyles(theme), [theme]);
+
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearch(searchQuery);
@@ -135,6 +139,17 @@ const ExpensesScreen = () => {
       fabMenuSheetRef.current?.close();
     }
   }, [actionMenuOpen]);
+
+  useEffect(() => {
+    const unsubscribe = syncManager.subscribe(status => {
+      if (status === 'idle') {
+        // Quietly refresh the list when sync finishes
+        fetchExpenses(selectedMonth, null, false, selectedCategory, selectedType, debouncedSearch, 0);
+        fetchFilters();
+      }
+    });
+    return unsubscribe;
+  }, [fetchExpenses, fetchFilters, selectedMonth, selectedCategory, selectedType, debouncedSearch]);
 
   const [loadingFilters, setLoadingFilters] = useState(false);
   const fabMenuSheetRef = useRef(null);
@@ -187,7 +202,7 @@ const ExpensesScreen = () => {
 
     try {
       setLoadingFilters(true);
-      
+
       // ─── Step 1: Load EVERYTHING from Local DB first ───
       const [allLocalExpenses, allLocalMoneyIn, allLocalCategories] =
         await Promise.all([
@@ -228,7 +243,7 @@ const ExpensesScreen = () => {
       apiClient.get('transactions/monthly-totals').then(res => {
         const remoteMonths = res.data?.data?.map(item => item.month) || [];
         setMonths(prev => [...new Set([...prev, ...remoteMonths])].sort((a, b) => b.localeCompare(a)));
-      }).catch(() => {});
+      }).catch(() => { });
 
     } catch (err) {
       console.warn('Failed to fetch local filters', err);
@@ -294,14 +309,14 @@ const ExpensesScreen = () => {
           append
             ? Promise.resolve(0)
             : database
-                .get('transactions')
-                .query(
-                  ...(typeSelection !== 'All'
-                    ? [Q.where('type', typeSelection)]
-                    : []),
-                  ...clauses,
-                )
-                .fetchCount(),
+              .get('transactions')
+              .query(
+                ...(typeSelection !== 'All'
+                  ? [Q.where('type', typeSelection)]
+                  : []),
+                ...clauses,
+              )
+              .fetchCount(),
         ]);
 
         if (!append) {
@@ -446,7 +461,7 @@ const ExpensesScreen = () => {
       setHasMore(true);
       lastCreatedAtRef.current = null;
       hasMoreRef.current = true;
-      
+
       await fetchExpenses(
         initialLoad ? 'All' : selectedMonth,
         null,
@@ -844,295 +859,281 @@ const ExpensesScreen = () => {
 
   return (
     <SafeAreaView edges={['top']} style={expenseStyles.container}>
-      <View style={expenseStyles.keyboardView}>
-        <GlobalHeader
-          title="Expenses"
-          titleColor="#FFFFFF"
-          backgroundColor="transparent"
-          renderRightComponent={() => (
-            <View
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
-            >
-              <Pressable
-                onPress={togglePrivacyMode}
-                style={({ pressed }) => [
-                  {
-                    padding: 8,
-                    borderRadius: 12,
-                    backgroundColor: isPrivacyMode ? '#121212' : 'transparent',
-                  },
-                  pressed && { opacity: 0.7 },
-                ]}
-              >
-                {isPrivacyMode ? (
-                  <Eye size={20} color="#d3d3ff" />
-                ) : (
-                  <EyeOff size={20} color="#808080" />
-                )}
-              </Pressable>
-              <TouchableOpacity
-                onPress={handleOpenFilters}
-                style={{
-                  paddingHorizontal: 12,
-                  paddingVertical: 8,
+      <StatusBar
+        barStyle={theme.dark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.colors.background}
+      />
+      <GlobalHeader
+        title="Expenses"
+        titleColor={theme.colors.text}
+        renderRightComponent={() => (
+          <View
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
+          >
+            <Pressable
+              onPress={togglePrivacyMode}
+              style={({ pressed }) => [
+                {
+                  padding: 8,
                   borderRadius: 12,
-                  backgroundColor: '#121212',
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 8,
+                  backgroundColor: isPrivacyMode
+                    ? theme.colors.surfaceVariant
+                    : 'transparent',
+                },
+                pressed && { opacity: 0.7 },
+              ]}
+            >
+              {isPrivacyMode ? (
+                <Eye size={20} color={theme.colors.primary} />
+              ) : (
+                <EyeOff size={20} color={theme.colors.onSurfaceVariant} />
+              )}
+            </Pressable>
+            <TouchableOpacity
+              onPress={handleOpenFilters}
+              style={{
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                borderRadius: 12,
+                backgroundColor: '#121212',
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <Filter size={18} color="#FFFFFF" />
+              <Text
+                style={{
+                  color: '#FFFFFF',
+                  fontFamily: Fonts.semibold,
+                  fontSize: 13,
                 }}
               >
-                <Filter size={18} color="#FFFFFF" />
-                <Text
-                  style={{
-                    color: '#FFFFFF',
-                    fontFamily: Fonts.semibold,
-                    fontSize: 13,
-                  }}
-                >
-                  Filters
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        />
+                Filters
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      />
 
-        {initialLoad && expenses.length === 0 ? (
-          <ScrollView contentContainerStyle={expenseStyles.skeletonContainer}>
-            <Card style={expenseStyles.summaryCard}>
-              <Card.Content>
-                <View style={expenseStyles.summaryHeader}>
-                  <SkeletonPulse style={expenseStyles.skeletonTitleShort} />
-                  <SkeletonPulse style={expenseStyles.skeletonButton} />
-                </View>
-                <View style={expenseStyles.summaryGrid}>
-                  {[0, 1, 2, 3].map(index => (
-                    <View
-                      key={`summary-skeleton-${index}`}
-                      style={expenseStyles.summaryItem}
-                    >
-                      <SkeletonPulse style={expenseStyles.skeletonLabel} />
-                      <SkeletonPulse style={expenseStyles.skeletonValue} />
-                    </View>
-                  ))}
-                </View>
-              </Card.Content>
-            </Card>
-            <Card style={expenseStyles.comparisonCard}>
-              <Card.Content>
-                {[0, 1, 2].map(index => (
+      {initialLoad && expenses.length === 0 ? (
+        <ScrollView contentContainerStyle={expenseStyles.skeletonContainer}>
+          <Card style={expenseStyles.summaryCard}>
+            <Card.Content>
+              <View style={expenseStyles.summaryHeader}>
+                <SkeletonPulse style={expenseStyles.skeletonTitleShort} />
+                <SkeletonPulse style={expenseStyles.skeletonButton} />
+              </View>
+              <View style={expenseStyles.summaryGrid}>
+                {[0, 1, 2, 3].map(index => (
                   <View
-                    key={`comparison-skeleton-${index}`}
-                    style={expenseStyles.comparisonRow}
+                    key={`summary-skeleton-${index}`}
+                    style={expenseStyles.summaryItem}
                   >
-                    <SkeletonPulse style={expenseStyles.skeletonLabelWide} />
-                    <View style={expenseStyles.comparisonValues}>
-                      <SkeletonPulse style={expenseStyles.skeletonChipValue} />
-                      <SkeletonPulse style={expenseStyles.skeletonChip} />
-                    </View>
+                    <SkeletonPulse style={expenseStyles.skeletonLabel} />
+                    <SkeletonPulse style={expenseStyles.skeletonValue} />
                   </View>
                 ))}
+              </View>
+            </Card.Content>
+          </Card>
+          <Card style={expenseStyles.comparisonCard}>
+            <Card.Content>
+              {[0, 1, 2].map(index => (
+                <View
+                  key={`comparison-skeleton-${index}`}
+                  style={expenseStyles.comparisonRow}
+                >
+                  <SkeletonPulse style={expenseStyles.skeletonLabelWide} />
+                  <View style={expenseStyles.comparisonValues}>
+                    <SkeletonPulse style={expenseStyles.skeletonChipValue} />
+                    <SkeletonPulse style={expenseStyles.skeletonChip} />
+                  </View>
+                </View>
+              ))}
+            </Card.Content>
+          </Card>
+          {[0, 1, 2].map(index => (
+            <Card
+              key={`list-skeleton-${index}`}
+              style={expenseStyles.expenseItem}
+            >
+              <Card.Content>
+                <SkeletonPulse style={expenseStyles.skeletonLabelWide} />
+                <SkeletonPulse style={expenseStyles.skeletonNotes} />
               </Card.Content>
             </Card>
-            {[0, 1, 2].map(index => (
-              <Card
-                key={`list-skeleton-${index}`}
-                style={expenseStyles.expenseItem}
-              >
-                <Card.Content>
-                  <SkeletonPulse style={expenseStyles.skeletonLabelWide} />
-                  <SkeletonPulse style={expenseStyles.skeletonNotes} />
-                </Card.Content>
-              </Card>
-            ))}
-          </ScrollView>
-        ) : (
-          <FlashList
-            contentContainerStyle={expenseStyles.listContent}
-            data={filteredExpenses}
-            keyExtractor={item => item.id || item._id}
-            onEndReached={loadMoreExpenses}
-            onEndReachedThreshold={0.5}
-            estimatedItemSize={100}
-            scrollEventThrottle={16}
-            ListFooterComponent={
-              loadingMore ? (
-                <View style={expenseStyles.loadMoreContainer}>
-                  <Text style={expenseStyles.loadMoreText}>
-                    Loading more...
-                  </Text>
-                </View>
-              ) : null
-            }
-            ListHeaderComponent={
-              <View style={expenseStyles.listHeader}>
-                {error ? (
-                  <Card style={expenseStyles.errorCard}>
-                    <Card.Content>
-                      <Text
-                        variant="titleSmall"
-                        style={expenseStyles.errorTitle}
-                      >
-                        Something went wrong
-                      </Text>
-                      <Text
-                        variant="bodyMedium"
-                        style={expenseStyles.errorText}
-                      >
-                        {error}
-                      </Text>
-                      <Button onPress={fetchMonthsAndData}>Retry</Button>
-                    </Card.Content>
-                  </Card>
-                ) : null}
-
-                <ExpenseSummary
-                  allTimeSummary={displaySummary}
-                  onAddPress={openForm}
-                />
-
-                <ExpenseComparison comparison={comparison} />
-
-                <ExpenseSearch
-                  searchQuery={searchQuery}
-                  onSearchChange={setSearchQuery}
-                />
-
-                {/* <TouchableOpacity
-                  style={expenseStyles.filterButton}
-                  onPress={() => {
-                  filterSheetRef.current?.open();
-                  fetchFilters();
-                }}
-  activeOpacity={0.7}
-                >
-                  <Filter size={20} color="#808080" />
-                  <Text style={expenseStyles.filterButtonText}>Filters</Text>
-                  <ChevronDown size={18} color="#808080" />
-                </TouchableOpacity> */}
-              </View>
-            }
-            renderItem={renderItem}
-            ListEmptyComponent={
-              <View style={expenseStyles.emptyState}>
-                <Text variant="titleMedium" style={expenseStyles.emptyTitle}>
-                  No expenses yet
-                </Text>
-                <Text variant="bodyMedium" style={expenseStyles.emptySubtitle}>
-                  Add your first expense or import from a spreadsheet to begin
-                  tracking.
-                </Text>
-                <TouchableOpacity
-                  style={expenseStyles.emptyButton}
-                  onPress={openForm}
-                  activeOpacity={0.8}
-                >
-                  <Plus size={20} color="#FFFFFF" />
-                  <Text style={expenseStyles.emptyButtonText}>Add expense</Text>
-                </TouchableOpacity>
-              </View>
-            }
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-          />
-        )}
-
-        {/* Action Menu Bottom Sheet */}
-        <FABMenu
-          sheetRef={fabMenuSheetRef}
-          onClose={() => setActionMenuOpen(false)}
-          onAddManually={handleAddManually}
-          onImportExcel={handleImportExcel}
-          onSmsFetch={handleSmsFetch}
-          uploading={uploading}
-        />
-
-        <FilterSheet
-          sheetRef={filterSheetRef}
-          onClose={() => {}}
-          selectedMonth={selectedMonth}
-          months={months}
-          selectedCategory={selectedCategory}
-          categories={['All', ...categories.all]}
-          selectedType={selectedType}
-          onSelectType={type => {
-            setSelectedType(type);
-            fetchExpenses(selectedMonth, null, false, selectedCategory, type);
-          }}
-          transformMonthLabel={transformMonthLabel}
-          onSelectMonth={handleFilterMonth}
-          onSelectCategory={handleFilterCategory}
-          loading={loadingFilters}
-        />
-
-        {/* Delete Confirmation Sheet */}
-        <BottomSheet
-          ref={deleteSheetRef}
-          title="Delete Expense"
-          initialHeight={0.5}
-          onClose={() => setExpenseToDelete(null)}
-        >
-          <View style={expenseStyles.deleteContent}>
-            <View style={expenseStyles.deleteHeader}>
-              <View style={expenseStyles.deleteIconContainer}>
-                <AlertTriangle size={24} color="#EF4444" />
-              </View>
-              <Text style={expenseStyles.deleteTitle}>Confirm Deletion</Text>
-            </View>
-
-            <Text style={expenseStyles.deleteMessage}>
-              Are you sure you want to delete "
-              {expenseToDelete?.itemName || expenseToDelete?.category}"?
-            </Text>
-
-            <View style={expenseStyles.deleteDetails}>
-              <Text style={expenseStyles.deleteAmount}>
-                ₹
-                {(
-                  expenseToDelete?.amountRupees ||
-                  (expenseToDelete?.amount || 0) / 100
-                ).toLocaleString()}
-              </Text>
-              {expenseToDelete?.category && (
-                <Chip
-                  style={expenseStyles.deleteCategoryChip}
-                  textStyle={expenseStyles.deleteCategoryText}
-                >
-                  {expenseToDelete.category}
-                </Chip>
+          ))}
+        </ScrollView>
+      ) : (
+        <FlashList
+          contentContainerStyle={expenseStyles.listContent}
+          data={filteredExpenses}
+          keyExtractor={item => item.id || item._id}
+          onEndReached={loadMoreExpenses}
+          onEndReachedThreshold={0.5}
+          estimatedItemSize={100}
+          scrollEventThrottle={16}
+          ListHeaderComponent={
+            <View style={expenseStyles.listHeader}>
+              {error && (
+                <Card style={expenseStyles.errorCard}>
+                  <Card.Content>
+                    <Text
+                      variant="titleMedium"
+                      style={expenseStyles.errorTitle}
+                    >
+                      Oops!
+                    </Text>
+                    <Text variant="bodyMedium" style={expenseStyles.errorText}>
+                      {error}
+                    </Text>
+                    <Button
+                      mode="contained"
+                      onPress={() => fetchMonthsAndData()}
+                      style={{ marginTop: 8 }}
+                    >
+                      Retry
+                    </Button>
+                  </Card.Content>
+                </Card>
               )}
-            </View>
 
-            <Text style={expenseStyles.deleteWarning}>
-              This action cannot be undone.
-            </Text>
+              <ExpenseSummary
+                allTimeSummary={displaySummary}
+                onAddPress={openForm}
+                styles={expenseStyles}
+              />
 
-            <View style={expenseStyles.deleteActions}>
-              <Button
-                mode="outlined"
-                onPress={() => deleteSheetRef.current?.close()}
-                style={expenseStyles.deleteCancelButton}
-                contentStyle={{ height: 48 }}
-                textColor="#808080"
-                disabled={isDeleting}
-              >
-                Cancel
-              </Button>
-              <Button
-                mode="contained"
-                onPress={confirmDeleteExpense}
-                style={expenseStyles.deleteConfirmButton}
-                contentStyle={{ height: 48 }}
-                buttonColor="#EF4444"
-                loading={isDeleting}
-                disabled={isDeleting}
-              >
-                Delete
-              </Button>
+              <ExpenseComparison comparison={comparison} styles={expenseStyles} />
+
+              <ExpenseSearch
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                styles={expenseStyles}
+              />
             </View>
+          }
+          renderItem={renderItem}
+          ListEmptyComponent={
+            <View style={expenseStyles.emptyState}>
+              <Text variant="titleMedium" style={expenseStyles.emptyTitle}>
+                No expenses yet
+              </Text>
+              <Text variant="bodyMedium" style={expenseStyles.emptySubtitle}>
+                Add your first expense or import from a spreadsheet to begin
+                tracking.
+              </Text>
+              <TouchableOpacity
+                style={expenseStyles.emptyButton}
+                onPress={openForm}
+                activeOpacity={0.8}
+              >
+                <Plus size={20} color={theme.colors.onSecondary} />
+                <Text style={expenseStyles.emptyButtonText}>Add expense</Text>
+              </TouchableOpacity>
+            </View>
+          }
+          refreshing={isRefreshing}
+          onRefresh={handleRefresh}
+        />
+      )}
+
+      <FABMenu
+        sheetRef={fabMenuSheetRef}
+        onClose={() => setActionMenuOpen(false)}
+        onAddManually={handleAddManually}
+        onImportExcel={handleImportExcel}
+        onSmsFetch={handleSmsFetch}
+        uploading={uploading}
+        styles={expenseStyles}
+      />
+
+      <FilterSheet
+        sheetRef={filterSheetRef}
+        onClose={() => { }}
+        selectedMonth={selectedMonth}
+        months={months}
+        selectedCategory={selectedCategory}
+        categories={['All', ...categories.all]}
+        selectedType={selectedType}
+        onSelectType={type => {
+          setSelectedType(type);
+          fetchExpenses(selectedMonth, null, false, selectedCategory, type);
+        }}
+        transformMonthLabel={transformMonthLabel}
+        onSelectMonth={handleFilterMonth}
+        onSelectCategory={handleFilterCategory}
+        loading={loadingFilters}
+        styles={expenseStyles}
+      />
+
+      <BottomSheet
+        ref={deleteSheetRef}
+        title="Delete Expense"
+        initialHeight={0.55}
+        onClose={() => setExpenseToDelete(null)}
+      >
+        <View style={expenseStyles.deleteContent}>
+          <View style={expenseStyles.deleteHeader}>
+            <View style={expenseStyles.deleteIconContainer}>
+              <AlertTriangle size={24} color={theme.colors.error} />
+            </View>
+            <Text style={expenseStyles.deleteTitle}>Confirm Deletion</Text>
           </View>
-        </BottomSheet>
-      </View>
+
+          <Text style={expenseStyles.deleteMessage}>
+            Are you sure you want to delete "
+            {expenseToDelete?.name || expenseToDelete?.category}"?
+          </Text>
+
+          <View style={expenseStyles.deleteDetails}>
+            <Text style={expenseStyles.deleteAmount}>
+              ₹
+              {(
+                expenseToDelete?.amountRupees ||
+                (expenseToDelete?.amount || 0) / 100
+              ).toLocaleString()}
+            </Text>
+            {expenseToDelete?.category && (
+              <Chip
+                style={expenseStyles.deleteCategoryChip}
+                textStyle={expenseStyles.deleteCategoryText}
+              >
+                {expenseToDelete.category}
+              </Chip>
+            )}
+          </View>
+
+          <Text style={expenseStyles.deleteWarning}>
+            This action cannot be undone.
+          </Text>
+
+          <View style={expenseStyles.deleteActions}>
+            <Button
+              mode="outlined"
+              onPress={() => deleteSheetRef.current?.close()}
+              style={expenseStyles.deleteCancelButton}
+              contentStyle={{ height: 48 }}
+              textColor={theme.colors.onSurfaceVariant}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              mode="contained"
+              onPress={confirmDeleteExpense}
+              style={expenseStyles.deleteConfirmButton}
+              contentStyle={{ height: 48 }}
+              buttonColor={theme.colors.error}
+              loading={isDeleting}
+              disabled={isDeleting}
+            >
+              Delete
+            </Button>
+          </View>
+        </View>
+      </BottomSheet>
     </SafeAreaView>
   );
 };

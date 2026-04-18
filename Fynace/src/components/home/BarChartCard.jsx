@@ -4,6 +4,9 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Animated,
+  Easing,
+  InteractionManager,
 } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import LinearGradient from 'react-native-linear-gradient';
@@ -30,17 +33,41 @@ const getCategoryConfig = (name, index) => {
   return { emoji: '💰', color: paletteColors[index % paletteColors.length] };
 };
 
-const BarChartCard = ({ title, rawExpenses = [], categories = [], totalIncome = 0, onFilterPress, granularity = 'monthly', filterType, filterValue }) => {
+const BarChartCard = ({ 
+  title, 
+  rawExpenses = [], 
+  rawMoneyIn = [],
+  categories = [], 
+  totalIncome = 0, 
+  onFilterPress, 
+  granularity = 'monthly', 
+  filterType, 
+  filterValue,
+  activeType = 'expense',
+  onTypeChange,
+  onSelectPeriod,
+  onCategoryPress
+}) => {
   const { user } = useAuth();
-  const { formatAmount } = usePrivacy();
+  const { formatAmount, isPrivacyMode } = usePrivacy();
   const theme = useTheme();
   const scrollRef = useRef(null);
   
   const now = new Date();
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const currentDayKey = now.toISOString().split('T')[0];
 
+  const getLocalDayKey = (date) => {
+    const d = new Date(date);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  const currentDayKey = getLocalDayKey(now);
   const [localSelectedKey, setLocalSelectedKey] = useState(granularity === 'daily' ? currentDayKey : currentMonthKey);
+
+  // Notify parent of initial selection
+  useEffect(() => {
+    if (onSelectPeriod) onSelectPeriod(localSelectedKey);
+  }, []);
 
   const barWidth = 30;
   const barMargin = (granularity === 'daily' || filterType?.includes('week')) ? 6 : 14;
@@ -91,7 +118,11 @@ const BarChartCard = ({ title, rawExpenses = [], categories = [], totalIncome = 
       }
       let curr = new Date(startDate);
       while (curr <= endDate) {
-        items.push({ label: curr.getDate().toString(), fullLabel: `${curr.getDate()} ${MONTH_NAMES[curr.getMonth()]}`, key: curr.toISOString().split('T')[0] });
+        items.push({ 
+          label: curr.getDate().toString(), 
+          fullLabel: `${curr.getDate()} ${MONTH_NAMES[curr.getMonth()]}`, 
+          key: getLocalDayKey(curr) 
+        });
         curr.setDate(curr.getDate() + 1);
       }
     } else {
@@ -120,51 +151,194 @@ const BarChartCard = ({ title, rawExpenses = [], categories = [], totalIncome = 
       if (items.length > 12 && filterType === 'all_time') items.splice(0, items.length - 12);
     }
     const totals = {};
-    rawExpenses.forEach(exp => {
-      const d = new Date(exp.date);
-      const k = (granularity === 'daily' || filterType?.includes('week')) ? d.toISOString().split('T')[0] : exp.month;
+    const incomeTotals = {};
+    const sourceData = activeType === 'expense' ? rawExpenses : rawMoneyIn;
+    const targetRefData = activeType === 'expense' ? rawMoneyIn : rawExpenses; // For percentage base
+    
+    sourceData.forEach(exp => {
+      const k = (granularity === 'daily' || filterType?.includes('week')) ? getLocalDayKey(exp.date) : exp.month;
       totals[k] = (totals[k] || 0) + (exp.amountRupees || 0);
     });
-    const values = items.map(item => totals[item.key] || 0);
+
+    targetRefData.forEach(exp => {
+      const k = (granularity === 'daily' || filterType?.includes('week')) ? getLocalDayKey(exp.date) : exp.month;
+      // Only include in refTotals if this key is part of the current items range
+      if (items.some(item => item.key === k)) {
+        incomeTotals[k] = (incomeTotals[k] || 0) + (exp.amountRupees || 0);
+      }
+    });
+
+    // Filter items to only show those with data
+    const filteredItems = items.filter(item => {
+      return (totals[item.key] || 0) > 0 || (incomeTotals[item.key] || 0) > 0;
+    });
+
+    const values = filteredItems.map(item => totals[item.key] || 0);
     const max = Math.max(...values, 1);
-    const avg = values.reduce((a, b) => a + b, 0) / (values.length || 1);
-    return { items, values, max, avg };
-  }, [rawExpenses, granularity, filterType, filterValue]);
+    
+    // Calculate average only from non-zero values to reflect actual spending days
+    const nonZeroValues = values.filter(v => v > 0);
+    const avg = nonZeroValues.reduce((a, b) => a + b, 0) / (nonZeroValues.length || 1);
+    
+    return { 
+      items: filteredItems, 
+      values, 
+      max, 
+      avg, 
+      periodIncome: totals,
+      refTotals: incomeTotals
+    };
+  }, [rawExpenses, rawMoneyIn, granularity, filterType, filterValue, activeType]);
 
   const activeIdx = processedData.items.findIndex(item => item.key === localSelectedKey);
   const displayIdx = activeIdx >= 0 ? activeIdx : (processedData.items.length - 1);
   const displayItem = processedData.items[displayIdx];
   const displayAmount = processedData.values[displayIdx];
+  
+  // Percentage base logic:
+  // If granularity is 'daily', we want the base to be the WHOLE MONTH's total, not just that day.
+  const periodBaseTotal = useMemo(() => {
+    if (!displayItem) return 0;
+    if (granularity === 'daily' || filterType?.includes('week')) {
+      // Sum up all refTotals for this view
+      return Object.values(processedData.refTotals).reduce((sum, v) => sum + v, 0);
+    }
+    return processedData.refTotals[displayItem.key] || 0;
+  }, [displayItem, granularity, filterType, processedData.refTotals]);
+
+  // Auto-select last bar when data changes
+  useEffect(() => {
+    if (processedData.items.length > 0) {
+      const lastKey = processedData.items[processedData.items.length - 1].key;
+      setLocalSelectedKey(lastKey);
+      if (onSelectPeriod) onSelectPeriod(lastKey);
+    }
+  }, [processedData.items]);
 
   useEffect(() => {
     if (displayIdx >= 0 && scrollRef.current) {
-      setTimeout(() => {
-        scrollRef.current?.scrollTo({
-          x: displayIdx * fullColumnWidth - 60,
-          animated: true,
-        });
-      }, 300);
+      scrollRef.current?.scrollTo({
+        x: displayIdx * fullColumnWidth - 60,
+        animated: true,
+      });
     }
-  }, [displayIdx, granularity]);
+  }, [displayIdx]); // Only when selection changes
+
+  const animations = useRef({}).current;
+  const categoryAnimations = useRef({}).current;
+
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => {
+      processedData.items.forEach((item, idx) => {
+        const val = processedData.values[idx];
+        const heightPercent = val === 0 ? 0 : Math.max((val / (processedData.max * 1.15)) * 100, 4);
+        
+        if (!animations[item.key]) {
+          animations[item.key] = new Animated.Value(0);
+        }
+        
+        Animated.timing(animations[item.key], {
+          toValue: heightPercent,
+          duration: 600,
+          easing: Easing.out(Easing.back(1.1)),
+          useNativeDriver: false,
+        }).start();
+      });
+    });
+    return () => task.cancel();
+  }, [processedData.items, processedData.values, activeType]);
+
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => {
+      categories.forEach((cat, idx) => {
+        const percent = periodBaseTotal > 0 ? (cat.totalMoneyOut / periodBaseTotal) * 100 : 0;
+        const targetWidth = Math.min(percent, 100);
+        
+        if (!categoryAnimations[cat.category]) {
+          categoryAnimations[cat.category] = new Animated.Value(0);
+        }
+        
+        Animated.timing(categoryAnimations[cat.category], {
+          toValue: targetWidth,
+          duration: 800,
+          easing: Easing.out(Easing.exp),
+          useNativeDriver: false,
+        }).start();
+      });
+    });
+    return () => task.cancel();
+  }, [categories, periodBaseTotal]);
+
+  const styles = useMemo(() => StyleSheet.create({
+    container: { padding: 12 },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, paddingHorizontal: 4 },
+    headerTitle: { fontSize: 20, fontFamily: Fonts.medium },
+    avgHeaderLabel: { fontSize: 13, fontFamily: Fonts.bold, marginTop: 2 },
+    filterBtn: { padding: 4 },
+    statsContainer: { alignItems: 'center', marginVertical: 24 },
+    monthText: { fontSize: 15, fontFamily: Fonts.medium, marginBottom: 8 },
+    amountText: { fontSize: 48, fontFamily: Fonts.bold },
+    chartArea: { height: 210, marginBottom: 32 },
+    barsScrollContent: { paddingHorizontal: 4 },
+    barsContainer: { flexDirection: 'row', alignItems: 'flex-end', height: '100%', position: 'relative', paddingBottom: 24 },
+    avgLine: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', alignItems: 'center', zIndex: 1 },
+    dashedLine: { flex: 1, height: 1, borderWidth: 0.5, borderStyle: 'dashed' },
+    barColumn: { alignItems: 'center', zIndex: 2 },
+    barTrack: { height: 130, borderRadius: 20, justifyContent: 'flex-end', overflow: 'hidden', position: 'relative' },
+    bar: { width: '100%', borderRadius: 20 },
+    barLabel: { fontSize: 11, marginTop: 12, fontFamily: Fonts.medium },
+    barValue: { fontSize: 10, fontFamily: Fonts.medium },
+    categoriesSection: { marginTop: 8 },
+    categoriesTitle: { fontSize: 24, fontFamily: Fonts.bold, marginBottom: 24 },
+    categoryItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 28, gap: 14 },
+    categoryIconContainer: { width: 50, height: 50, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+    categoryEmoji: { fontSize: 24 },
+    categoryInfo: { flex: 1 },
+    categoryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
+    categoryName: { fontSize: 17, fontFamily: Fonts.medium },
+    categoryPercent: { fontSize: 12, marginTop: 2 },
+    categoryAmount: { fontSize: 17, fontFamily: Fonts.bold },
+    progressTrack: { height: 8, borderRadius: 4, backgroundColor: theme.colors.surfaceVariant },
+    progressBar: { height: '100%', borderRadius: 4 },
+    noDataText: { textAlign: 'center', marginTop: 16, fontStyle: 'italic' },
+    typeSwitchContainer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 12,
+      marginBottom: 20,
+    },
+    typeTab: {
+      paddingVertical: 6,
+      paddingHorizontal: 16,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: theme.colors.outlineVariant,
+      backgroundColor: theme.colors.elevation.level1,
+    },
+    typeTabText: {
+      fontSize: 13,
+      fontFamily: Fonts.medium,
+    },
+  }), [theme]);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors?.background || '#000000' }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.headerTitle, { color: theme.colors?.text || '#FFFFFF' }]}>{title}</Text>
-          <Text style={[styles.avgHeaderLabel, { color: theme.colors?.secondary || '#d3d3ff' }]}>
+          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>{title}</Text>
+          <Text style={[styles.avgHeaderLabel, { color: theme.colors.secondary }]}>
             Average: {formatAmount(processedData.avg, user?.currency, { compact: true })}
           </Text>
         </View>
         <TouchableOpacity onPress={onFilterPress} style={styles.filterBtn}>
-          <FilterIcon size={20} color={theme.colors?.subtext || '#808080'} />
+          <FilterIcon size={20} color={theme.colors.onSurfaceVariant} />
         </TouchableOpacity>
       </View>
 
       <View style={styles.statsContainer}>
-        <Text style={[styles.monthText, { color: theme.colors?.subtext || '#808080' }]}>{displayItem?.fullLabel}</Text>
-        <Text style={[styles.amountText, { color: theme.colors?.text || '#FFFFFF' }]}>
-          {formatAmount(displayAmount, user?.currency)}
+        <Text style={[styles.monthText, { color: theme.colors.onSurfaceVariant }]}>{displayItem?.fullLabel}</Text>
+        <Text style={[styles.amountText, { color: theme.colors.text }]}>
+          {isPrivacyMode ? '******' : formatAmount(displayAmount, user?.currency)}
         </Text>
       </View>
 
@@ -179,31 +353,37 @@ const BarChartCard = ({ title, rawExpenses = [], categories = [], totalIncome = 
             <View
               style={[
                 styles.avgLine,
-                { bottom: 20 + (processedData.avg / (processedData.max * 1.15)) * 140 },
+                { bottom: 50 + (processedData.avg / (processedData.max * 1.15)) * 130 },
               ]}
             >
-              <View style={[styles.dashedLine, { borderColor: 'rgba(211,211,255,0.15)' }]} />
+              <View style={[styles.dashedLine, { borderColor: theme.colors.secondary }]} />
             </View>
 
             {processedData.items.map((item, index) => {
               const val = processedData.values[index];
               const isSelected = item.key === localSelectedKey;
-              const heightPercent = val === 0 ? 0 : Math.max((val / (processedData.max * 1.15)) * 100, 4);
+              const heightAnim = animations[item.key] || new Animated.Value(0);
 
               return (
                 <TouchableOpacity
                   key={item.key}
                   activeOpacity={0.7}
-                  onPress={() => setLocalSelectedKey(item.key)}
+                  onPress={() => {
+                    setLocalSelectedKey(item.key);
+                    if (onSelectPeriod) onSelectPeriod(item.key);
+                  }}
                   style={[styles.barColumn, { width: barWidth, marginHorizontal: barMargin }]}
                 >
                   <View style={[styles.barTrack, { width: barWidth, backgroundColor: 'transparent' }]}>
-                    <Text 
+                    <Animated.Text 
                       style={[
                         styles.barValue, 
                         { 
-                          color: isSelected ? (theme.colors?.text || '#FFFFFF') : '#333333',
-                          bottom: `${heightPercent + 2}%`,
+                          color: isSelected ? theme.colors.text : theme.colors.onSurfaceVariant,
+                          bottom: heightAnim.interpolate({
+                            inputRange: [0, 100],
+                            outputRange: ['2%', '102%']
+                          }),
                           position: 'absolute',
                           width: 80,
                           textAlign: 'center',
@@ -211,21 +391,33 @@ const BarChartCard = ({ title, rawExpenses = [], categories = [], totalIncome = 
                         }
                       ]}
                     >
-                      {formatK(val)}
-                    </Text>
+                      {isPrivacyMode ? '***' : formatK(val)}
+                    </Animated.Text>
                     
-                    <LinearGradient
-                      colors={isSelected 
-                        ? ['#9B9BFF', theme.colors?.secondary || '#d3d3ff'] 
-                        : ['rgba(255,255,255,0.15)', 'rgba(255,255,255,0.02)']}
-                      style={[styles.bar, { height: `${heightPercent}%` }]}
-                    />
+                    <Animated.View style={{ 
+                      height: heightAnim.interpolate({
+                        inputRange: [0, 100],
+                        outputRange: ['0%', '100%']
+                      }),
+                      width: '100%',
+                      overflow: 'hidden',
+                      borderRadius: 20,
+                    }}>
+                      <LinearGradient
+                        colors={isSelected 
+                          ? [theme.colors.chartPrimary, theme.colors.chartSecondary] 
+                          : theme.dark 
+                            ? [theme.colors.placeholder, theme.colors.outlineVariant]
+                            : [theme.colors.surfaceVariant, theme.colors.outline]}
+                        style={{ flex: 1 }}
+                      />
+                    </Animated.View>
                   </View>
 
                   <Text
                     style={[
                       styles.barLabel,
-                      { color: isSelected ? (theme.colors?.text || '#FFFFFF') : (theme.colors?.subtext || '#808080') },
+                      { color: isSelected ? theme.colors.text : theme.colors.onSurfaceVariant },
                       isSelected && { fontFamily: Fonts.bold },
                     ]}
                   >
@@ -238,75 +430,82 @@ const BarChartCard = ({ title, rawExpenses = [], categories = [], totalIncome = 
         </ScrollView>
       </View>
 
+      <View style={styles.typeSwitchContainer}>
+        {granularity !== 'daily' && !filterType?.includes('week') && ['expense', 'income'].map((t) => (
+          <TouchableOpacity
+            key={t}
+            onPress={() => onTypeChange && onTypeChange(t)}
+            style={[
+              styles.typeTab,
+              activeType === t && { backgroundColor: theme.colors.secondary, borderColor: theme.colors.secondary }
+            ]}
+          >
+            <Text style={[
+              styles.typeTabText, 
+              { color: activeType === t ? theme.colors.onSecondary : theme.colors.onSurfaceVariant },
+              activeType === t && { color: theme.colors.onSecondary, fontFamily: Fonts.bold }
+            ]}>
+              {t.charAt(0).toUpperCase() + t.slice(1)}s
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       <View style={styles.categoriesSection}>
-        <Text style={[styles.categoriesTitle, { color: theme.colors?.text || '#FFFFFF' }]}>Categories</Text>
+        <Text style={[styles.categoriesTitle, { color: theme.colors.text }]}>
+          {activeType === 'expense' ? 'Spend Categories' : 'Income Categories'}
+        </Text>
         {categories.length > 0 ? (
           categories.map((cat, index) => {
-            const percent = totalIncome > 0 ? (cat.totalMoneyOut / totalIncome) * 100 : 0;
+            // Using total income (or total expense if activeType is income) for the percentage
+            const percent = periodBaseTotal > 0 ? (cat.totalMoneyOut / periodBaseTotal) * 100 : 0;
             const { emoji, color } = getCategoryConfig(cat.category, index);
+            const widthAnim = categoryAnimations[cat.category] || new Animated.Value(0);
 
             return (
-              <View key={index} style={styles.categoryItem}>
-                <View style={[styles.categoryIconContainer, { backgroundColor: theme.colors?.surfaceVariant || '#111111' }]}>
+              <TouchableOpacity 
+                key={index} 
+                style={styles.categoryItem}
+                onPress={() => onCategoryPress && onCategoryPress(cat.category)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.categoryIconContainer, { backgroundColor: theme.colors.surfaceVariant }]}>
                   <Text style={styles.categoryEmoji}>{emoji}</Text>
                 </View>
                 <View style={styles.categoryInfo}>
                   <View style={styles.categoryHeader}>
                     <View style={{ flex: 1, marginRight: 8 }}>
-                      <Text style={[styles.categoryName, { color: theme.colors?.text || '#FFFFFF' }]}>{cat.category}</Text>
-                      <Text style={[styles.categoryPercent, { color: theme.colors?.subtext || '#808080' }]}>
-                        {percent.toFixed(1)}% of income
+                      <Text style={[styles.categoryName, { color: theme.colors.text }]}>{cat.category}</Text>
+                      <Text style={[styles.categoryPercent, { color: theme.colors.onSurfaceVariant }]}>
+                        {percent.toFixed(1)}% of {activeType === 'expense' ? 'income' : 'expenses'}
                       </Text>
                     </View>
-                    <Text style={[styles.categoryAmount, { color: theme.colors?.text || '#FFFFFF' }]}>{formatAmount(cat.totalMoneyOut, user?.currency)}</Text>
+                    <Text style={[styles.categoryAmount, { color: theme.colors.text }]}>{formatAmount(cat.totalMoneyOut, user?.currency)}</Text>
                   </View>
-                  <View style={[styles.progressTrack, { backgroundColor: theme.colors?.outline || '#1A1A1A' }]}>
-                    <View style={[styles.progressBar, { width: `${Math.min(percent, 100)}%`, backgroundColor: color }]} />
+                  <View style={styles.progressTrack}>
+                    <Animated.View style={[
+                      styles.progressBar, 
+                      { 
+                        width: widthAnim.interpolate({
+                          inputRange: [0, 100],
+                          outputRange: ['0%', '100%']
+                        }), 
+                        backgroundColor: color 
+                      }
+                    ]} />
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             );
           })
         ) : (
-          <Text style={[styles.noDataText, { color: theme.colors?.subtext || '#808080' }]}>No expenses this month</Text>
+          <Text style={[styles.noDataText, { color: theme.colors.onSurfaceVariant }]}>
+            No {activeType}s for this period
+          </Text>
         )}
       </View>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  container: { padding: 12 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, paddingHorizontal: 4 },
-  headerTitle: { fontSize: 20, fontFamily: Fonts.medium },
-  avgHeaderLabel: { fontSize: 13, fontFamily: Fonts.bold, marginTop: 2 },
-  filterBtn: { padding: 4 },
-  statsContainer: { alignItems: 'center', marginVertical: 24 },
-  monthText: { fontSize: 15, fontFamily: Fonts.medium, marginBottom: 8 },
-  amountText: { fontSize: 48, fontFamily: Fonts.bold },
-  chartArea: { height: 210, marginBottom: 32 },
-  barsScrollContent: { paddingHorizontal: 4 },
-  barsContainer: { flexDirection: 'row', alignItems: 'flex-end', height: '100%', position: 'relative', paddingBottom: 24 },
-  avgLine: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', alignItems: 'center', zIndex: 1 },
-  dashedLine: { flex: 1, height: 1, borderWidth: 0.5, borderStyle: 'dashed' },
-  barColumn: { alignItems: 'center', zIndex: 2 },
-  barTrack: { height: 130, borderRadius: 20, justifyContent: 'flex-end', overflow: 'hidden', position: 'relative' },
-  bar: { width: '100%', borderRadius: 20 },
-  barLabel: { fontSize: 11, marginTop: 12, fontFamily: Fonts.medium },
-  barValue: { fontSize: 10, fontFamily: Fonts.medium },
-  categoriesSection: { marginTop: 8 },
-  categoriesTitle: { fontSize: 24, fontFamily: Fonts.bold, marginBottom: 24 },
-  categoryItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 28, gap: 14 },
-  categoryIconContainer: { width: 50, height: 50, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-  categoryEmoji: { fontSize: 24 },
-  categoryInfo: { flex: 1 },
-  categoryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
-  categoryName: { fontSize: 17, fontFamily: Fonts.medium },
-  categoryPercent: { fontSize: 12, marginTop: 2 },
-  categoryAmount: { fontSize: 17, fontFamily: Fonts.bold },
-  progressTrack: { height: 8, borderRadius: 4 },
-  progressBar: { height: '100%', borderRadius: 4 },
-  noDataText: { textAlign: 'center', marginTop: 16, fontStyle: 'italic' },
-});
-
-export default BarChartCard;
+export default React.memo(BarChartCard);

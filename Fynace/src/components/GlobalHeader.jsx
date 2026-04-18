@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View, TouchableOpacity } from 'react-native';
-import { Surface, Text } from 'react-native-paper';
+import { Surface, Text, useTheme } from 'react-native-paper';
 import { ArrowLeft, ChevronLeft, MoreVertical, X, Settings, Bell, Search } from 'lucide-react-native';
 import { themeAssets } from '../theme';
 import Fonts from '../../assets/fonts';
@@ -31,11 +31,12 @@ const GlobalHeader = ({
   renderLeftComponent = null,
   renderRightComponent = null,
 }) => {
+  const theme = useTheme();
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(-16)).current;
 
   const renderLucideIcon = (name, size, color) => {
-    const props = { size, color };
+    const props = { size, color: color || theme.colors.text };
     switch ((name || '').toLowerCase()) {
       case 'arrow-back':
       case 'arrow-left':
@@ -84,7 +85,7 @@ const GlobalHeader = ({
       elevation={0}
       style={[
         styles.container,
-        backgroundColor ? { backgroundColor } : null,
+        { backgroundColor: backgroundColor || theme.colors.background },
         containerStyle,
       ]}>
       {renderLeftComponent ? (
@@ -94,7 +95,7 @@ const GlobalHeader = ({
           style={styles.iconButton}
           onPress={onLeftIconPress}
           activeOpacity={0.7}>
-          {renderLucideIcon(leftIconName, leftIconSize, leftIconColor || themeAssets.palette.text)}
+          {renderLucideIcon(leftIconName, leftIconSize, leftIconColor)}
         </TouchableOpacity>
       ) : (
         leftElement
@@ -114,7 +115,7 @@ const GlobalHeader = ({
             variant="headlineSmall"
             style={[
               styles.title,
-              titleColor ? { color: titleColor } : null,
+              { color: titleColor || theme.colors.text },
               titleStyle,
             ]}>
             {title}
@@ -125,7 +126,7 @@ const GlobalHeader = ({
             variant="bodyMedium"
             style={[
               styles.subtitle,
-              subtitleColor ? { color: subtitleColor } : null,
+              { color: subtitleColor || theme.colors.onSurfaceVariant },
               subtitleStyle,
             ]}>
             {subtitle}
@@ -140,7 +141,7 @@ const GlobalHeader = ({
           style={styles.iconButton}
           onPress={onRightIconPress}
           activeOpacity={0.7}>
-          {renderLucideIcon(rightIconName, rightIconSize, rightIconColor || themeAssets.palette.text)}
+          {renderLucideIcon(rightIconName, rightIconSize, rightIconColor)}
         </TouchableOpacity>
       ) : (
         rightElement
@@ -151,25 +152,22 @@ const GlobalHeader = ({
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: themeAssets.spacing[5],
-    paddingTop: themeAssets.spacing[5],
-    paddingBottom: themeAssets.spacing[3],
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: themeAssets.palette.surface,
   },
   textContainer: {
     flex: 1,
-    marginHorizontal: themeAssets.spacing[3],
+    marginHorizontal: 12,
   },
   title: {
-    color: themeAssets.palette.text,
     fontFamily: Fonts.medium,
   },
   subtitle: {
-    marginTop: themeAssets.spacing[1],
-    color: themeAssets.palette.subtext,
+    marginTop: 4,
     fontFamily: Fonts.regular
   },
   iconButton: {

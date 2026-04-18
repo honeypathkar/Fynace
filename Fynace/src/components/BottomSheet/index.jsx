@@ -5,6 +5,7 @@ import React, {
   useState,
   useEffect,
   useRef,
+  useMemo,
 } from 'react';
 import {
   View,
@@ -31,7 +32,8 @@ import Animated, {
   withTiming,
   runOnJS,
 } from 'react-native-reanimated';
-import styles, { themeColors, spacing } from './styles';
+import { useTheme } from 'react-native-paper';
+import { getStyles, getThemeColors, spacing } from './styles';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -57,6 +59,9 @@ const BottomSheet = forwardRef(
     },
     ref,
   ) => {
+    const theme = useTheme();
+    const styles = useMemo(() => getStyles(theme), [theme]);
+    const themeColors = useMemo(() => getThemeColors(theme), [theme]);
     const [isVisible, setIsVisible] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
 
@@ -67,8 +72,10 @@ const BottomSheet = forwardRef(
     };
 
     const translateY = useSharedValue(SNAP_POINTS.CLOSED);
+    const backdropOpacity = useSharedValue(0);
 
     const close = useCallback(() => {
+      backdropOpacity.value = withTiming(0, { duration: 200 });
       translateY.value = withTiming(
         SNAP_POINTS.CLOSED,
         { duration: 250 },
@@ -82,10 +89,11 @@ const BottomSheet = forwardRef(
           }
         },
       );
-    }, [translateY, SNAP_POINTS.CLOSED, onClose]);
+    }, [translateY, backdropOpacity, SNAP_POINTS.CLOSED, onClose]);
 
     const open = useCallback(() => {
       setIsVisible(true);
+      backdropOpacity.value = withTiming(1, { duration: 300 });
       if (onOpen) onOpen();
       requestAnimationFrame(() => {
         setTimeout(() => {
@@ -94,9 +102,9 @@ const BottomSheet = forwardRef(
             stiffness: 120,
             mass: 0.8,
           });
-        }, 100);
+        }, 50);
       });
-    }, [translateY, SNAP_POINTS.MID, onOpen]);
+    }, [translateY, backdropOpacity, SNAP_POINTS.MID, onOpen]);
 
     useImperativeHandle(ref, () => ({
       open,
@@ -202,6 +210,10 @@ const BottomSheet = forwardRef(
       height: SCREEN_HEIGHT,
     }));
 
+    const backdropAnimatedStyle = useAnimatedStyle(() => ({
+      opacity: backdropOpacity.value,
+    }));
+
     const contentAnimatedStyle = useAnimatedStyle(() => {
       const visibleHeight = SCREEN_HEIGHT - translateY.value;
       return {
@@ -285,7 +297,7 @@ const BottomSheet = forwardRef(
         <GestureHandlerRootView style={{ flex: 1 }}>
           <View style={styles.modalOverlay}>
             <TouchableWithoutFeedback onPress={close}>
-              <View style={styles.modalBackdrop} />
+              <Animated.View style={[styles.modalBackdrop, backdropAnimatedStyle]} />
             </TouchableWithoutFeedback>
 
             <Animated.View

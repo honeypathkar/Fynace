@@ -1,14 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { TextInput, Text, View, TouchableOpacity } from 'react-native';
+import { useTheme } from 'react-native-paper';
 import { Eye, EyeOff } from 'lucide-react-native';
-import styles from './styles';
-
-const theme = {
-  colors: {
-    textSubtle: '#808080',
-    textMuted: '#808080',
-  },
-};
+import { getStyles } from './styles';
 
 const TextInputField = ({
   label,
@@ -24,6 +18,8 @@ const TextInputField = ({
   onRightIconPress,
   ...rest
 }) => {
+  const theme = useTheme();
+  const styles = useMemo(() => getStyles(theme), [theme]);
   const [isFocused, setIsFocused] = useState(false);
   const [internalSecureVisible, setInternalSecureVisible] = useState(false);
   
@@ -45,7 +41,7 @@ const TextInputField = ({
           ref={inputRef}
           style={styles.inputField}
           secureTextEntry={secureTextEntry && !secureVisible}
-          placeholderTextColor={theme.colors.textMuted}
+          placeholderTextColor={theme.colors.onSurfaceVariant}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           {...rest}
@@ -57,9 +53,9 @@ const TextInputField = ({
             style={styles.inputToggle}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             {secureVisible ? (
-              <EyeOff size={20} color={theme.colors.textSubtle} />
+              <EyeOff size={20} color={theme.colors.onSurfaceVariant} />
             ) : (
-              <Eye size={20} color={theme.colors.textSubtle} />
+              <Eye size={20} color={theme.colors.onSurfaceVariant} />
             )}
           </TouchableOpacity>
         ) : null}
@@ -69,9 +65,9 @@ const TextInputField = ({
             style={styles.inputToggle}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             {rightIcon === 'eye' ? (
-              <Eye size={20} color={theme.colors.textSubtle} />
+              <Eye size={20} color={theme.colors.onSurfaceVariant} />
             ) : rightIcon === 'eye-off' ? (
-              <EyeOff size={20} color={theme.colors.textSubtle} />
+              <EyeOff size={20} color={theme.colors.onSurfaceVariant} />
             ) : null}
           </TouchableOpacity>
         ) : null}

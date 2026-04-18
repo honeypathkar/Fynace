@@ -6,22 +6,27 @@ import styles from './styles';
 import { usePrivacy } from '../../context/PrivacyContext';
 import { useAuth } from '../../hooks/useAuth';
 
-const ExpenseSummary = ({ allTimeSummary, onAddPress }) => {
+import { useTheme } from 'react-native-paper';
+
+const ExpenseSummary = ({ allTimeSummary, onAddPress, styles: propStyles }) => {
   const { user } = useAuth();
   const { formatAmount } = usePrivacy();
+  const theme = useTheme();
+  const styles = propStyles || require('./styles').getStyles(theme);
+
   return (
     <Card style={styles.summaryCard}>
       <Card.Content>
         <View style={styles.summaryHeader}>
           <Text variant="titleMedium" style={styles.summaryTitle}>
-            Summarry
+            Summary
           </Text>
           <TouchableOpacity
             style={styles.summaryAddButton}
             onPress={onAddPress}
             activeOpacity={0.7}
           >
-            <Plus size={18} color="#d3d3ff" />
+            <Plus size={18} color={theme.colors.secondary} />
             <Text style={styles.summaryAddButtonText}>Add</Text>
           </TouchableOpacity>
         </View>

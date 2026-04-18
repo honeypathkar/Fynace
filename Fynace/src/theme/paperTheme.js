@@ -1,40 +1,44 @@
 import { MD3DarkTheme, MD3LightTheme } from 'react-native-paper';
-import themeConfig, { palette, spacing, typography } from './theme.js';
+import themeConfig, { darkPalette, lightPalette, spacing, typography } from './theme.js';
 
 const buildTheme = (scheme = 'dark') => {
-  // Always use DarkTheme base for the "True Black" experience requested by user
-  const baseTheme = MD3DarkTheme;
+  const isDark = scheme === 'dark';
+  const baseTheme = isDark ? MD3DarkTheme : MD3LightTheme;
+  const activePalette = isDark ? darkPalette : lightPalette;
 
   return {
     ...baseTheme,
     roundness: 14,
     colors: {
       ...baseTheme.colors,
-      primary: palette.primary,
-      onPrimary: palette.onPrimary,
-      primaryContainer: palette.primaryContainer,
-      onPrimaryContainer: palette.onPrimaryContainer,
-      secondary: palette.secondary,
-      onSecondary: palette.onSecondary,
-      background: palette.background,
-      surface: palette.surface,
-      surfaceVariant: palette.surfaceVariant,
-      onSurface: palette.text, // Map standard onSurface to our text color
-      onSurfaceVariant: palette.subtext,
-      outline: palette.outline,
-      error: palette.error,
-      success: palette.success,
-      warning: palette.warning,
-      info: palette.primary,
-      text: palette.text,
-      subtext: palette.subtext,
-      chartActive: palette.chartActive || palette.secondary,
-      chartInactive: palette.chartInactive || 'rgba(255,255,255,0.15)',
-      outlineVariant: palette.outline,
+      primary: activePalette.primary,
+      onPrimary: activePalette.onPrimary,
+      primaryContainer: activePalette.primaryContainer,
+      onPrimaryContainer: activePalette.onPrimaryContainer,
+      secondary: activePalette.secondary,
+      onSecondary: activePalette.onSecondary,
+      background: activePalette.background,
+      surface: activePalette.surface,
+      surfaceVariant: activePalette.surfaceVariant,
+      onSurface: activePalette.text, 
+      onSurfaceVariant: activePalette.subtext,
+      outline: activePalette.outline,
+      error: activePalette.error,
+      success: activePalette.success,
+      warning: activePalette.warning,
+      info: activePalette.primary,
+      text: activePalette.text,
+      subtext: activePalette.subtext,
+      chartActive: activePalette.chartActive || activePalette.secondary,
+      chartInactive: activePalette.chartInactive || (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'),
+      chartPrimary: activePalette.chartPrimary,
+      chartSecondary: activePalette.chartSecondary,
+      outlineVariant: activePalette.outline,
+      placeholder: activePalette.placeholder,
       elevation: {
         ...baseTheme.colors.elevation,
-        level1: palette.surfaceVariant,
-        level2: palette.border,
+        level1: activePalette.surfaceVariant,
+        level2: activePalette.border,
       },
     },
     fonts: {
@@ -58,7 +62,7 @@ const buildTheme = (scheme = 'dark') => {
 export const buildPaperTheme = buildTheme;
 
 export const themeAssets = {
-  palette,
+  palette: darkPalette,
   spacing,
   typography,
   config: themeConfig,
