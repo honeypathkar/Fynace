@@ -1,4 +1,4 @@
-package com.fynace
+package com.fynace.app
 
 import android.content.ContentResolver
 import android.database.Cursor

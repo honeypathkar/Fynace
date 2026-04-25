@@ -14,6 +14,43 @@
       },
       "oauth_client": [
         {
+          "client_id": "961710140472-90ogd1qfusogip90f3hgekm5n33r7453.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.fynace",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "961710140472-6cf3egc21b906e4acs7cqs4lnqtphcep.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAxyhC0t8wpDPWBDB-Vs0yqr2bINAAVdbI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "961710140472-6cf3egc21b906e4acs7cqs4lnqtphcep.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:961710140472:android:c314b7b3a1db1a172c8acd",
+        "android_client_info": {
+          "package_name": "com.fynace.app"
+        }
+      },
+      "oauth_client": [
+        {
           "client_id": "961710140472-6cf3egc21b906e4acs7cqs4lnqtphcep.apps.googleusercontent.com",
           "client_type": 3
         }
