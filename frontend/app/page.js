@@ -25,7 +25,7 @@ export default function Home() {
         <Hero onCtaClick={openModal} />
         <FeaturesSection />
         <InteractiveDemo />
-        <HowItWorks />
+        {/* <HowItWorks /> */}
         <Testimonials />
 
         <section className="px-5 py-24 sm:px-6">

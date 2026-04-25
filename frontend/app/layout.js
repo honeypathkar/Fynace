@@ -10,7 +10,7 @@ const bricolage = Bricolage_Grotesque({
 });
 
 export const metadata = {
-  title: "Fynace · Smart money tracking",
+  title: "Fynace - Knows your money",
   description:
     "Track expenses, scan receipts, and understand your finances with Fynace.",
   icons: {
