@@ -40,6 +40,14 @@ const sendOTPForLogin = async (req, res) => {
       });
     }
 
+    // Support Test Account
+    if (process.env.TEST_EMAIL && email === process.env.TEST_EMAIL) {
+      return res.status(200).json({
+        success: true,
+        message: "OTP sent successfully (Test)",
+      });
+    }
+
     // Generate 4-digit OTP
     const otp = generateOTP();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
@@ -111,6 +119,41 @@ const verifyOTP = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Email is required",
+      });
+    }
+
+    // Support Test Account Login
+    if (
+      process.env.TEST_EMAIL &&
+      process.env.OTP &&
+      email === process.env.TEST_EMAIL &&
+      otp === process.env.OTP
+    ) {
+      let testUser = await User.findOne({ email });
+      if (!testUser) {
+        testUser = await User.create({
+          email,
+          fullName: "Test Account",
+          authMethod: "otp",
+          isVerified: true,
+        });
+      }
+
+      const { accessToken, refreshToken } = generateToken(testUser._id);
+      return res.status(200).json({
+        success: true,
+        message: "OTP verified successfully (Test)",
+        token: accessToken,
+        refreshToken,
+        user: {
+          id: testUser._id,
+          fullName: testUser.fullName,
+          email: testUser.email,
+          phone: testUser.phone,
+          currency: testUser.currency,
+          notificationSettings: testUser.notificationSettings,
+          authMethod: testUser.authMethod,
+        },
       });
     }
 

@@ -1,10 +1,9 @@
 import React from 'react';
 import { View, TouchableOpacity } from 'react-native';
-import { Card, Text, Button } from 'react-native-paper';
+import { Card, Text, Button, useTheme } from 'react-native-paper';
 import { Edit2, X } from 'lucide-react-native';
 import TextInputField from '../TextInputField';
 import PrimaryButton from '../PrimaryButton';
-import styles from './styles';
 
 const ExpenseRow = ({
   item,
@@ -18,7 +17,9 @@ const ExpenseRow = ({
   onCancel,
   onDelete,
   onEditDataChange,
+  styles,
 }) => {
+  const theme = useTheme();
   const isEditing = editingIndex === index;
 
   return (
@@ -74,7 +75,7 @@ const ExpenseRow = ({
               <Button
                 mode="outlined"
                 onPress={onCancel}
-                textColor="#808080"
+                textColor={theme.colors.onSurfaceVariant}
                 style={styles.editButton}
               >
                 Cancel
@@ -113,13 +114,13 @@ const ExpenseRow = ({
                 onPress={() => onEdit(index)}
                 style={styles.actionButton}
               >
-                <Edit2 size={18} color="#d3d3ff" />
+                <Edit2 size={18} color={theme.colors.secondary} />
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => onDelete(index)}
                 style={styles.actionButton}
               >
-                <X size={18} color="#EF4444" />
+                <X size={18} color={theme.colors.error} />
               </TouchableOpacity>
             </View>
           </View>

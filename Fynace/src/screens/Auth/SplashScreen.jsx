@@ -13,12 +13,14 @@ import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSecurity } from '../../context/SecurityContext';
 
+import { useTheme } from 'react-native-paper';
+
 const { width, height } = Dimensions.get('window');
 const CIRCLE_SIZE = Math.sqrt(width ** 2 + height ** 2);
-const STORAGE_KEY = '@spendo/access-token';
-const PRIMARY_COLOR = '#121212';
+const STORAGE_KEY = '@fynace/access-token';
 
 const SplashScreen = () => {
+  const theme = useTheme();
   const scale = useRef(new Animated.Value(0)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const navigation = useNavigation();
@@ -38,7 +40,7 @@ const SplashScreen = () => {
   const checkOnboarding = useCallback(async () => {
     try {
       const onboardingCompleted = await AsyncStorage.getItem(
-        '@spendo/onboarding-completed',
+        '@fynace/onboarding-completed',
       );
       return onboardingCompleted === 'true';
     } catch (error) {
@@ -112,17 +114,29 @@ const SplashScreen = () => {
     checkOnboarding,
   ]);
 
+  const logoSource = theme.dark
+    ? require('../../../assets/images/logo.png')
+    : require('../../../assets/images/light.png');
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.dark ? '#121212' : theme.colors.surfaceVariant }]}>
       <StatusBar
-        barStyle="light-content"
-        backgroundColor={PRIMARY_COLOR}
+        barStyle={theme.dark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.dark ? '#121212' : theme.colors.surfaceVariant}
         translucent={false}
       />
-      <Animated.View style={[styles.dot, { transform: [{ scale }] }]} />
+      <Animated.View 
+        style={[
+          styles.dot, 
+          { 
+            transform: [{ scale }],
+            backgroundColor: theme.colors.background
+          } 
+        ]} 
+      />
       <Animated.View style={[styles.logoContainer, { opacity: logoOpacity }]}>
         <Image
-          source={require('../../../assets/images/logo.png')}
+          source={logoSource}
           style={styles.logo}
           onError={e => console.log('Error loading logo:', e.nativeEvent.error)}
         />
@@ -136,7 +150,6 @@ export default SplashScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: PRIMARY_COLOR,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -144,7 +157,6 @@ const styles = StyleSheet.create({
     width: CIRCLE_SIZE,
     height: CIRCLE_SIZE,
     borderRadius: CIRCLE_SIZE / 2,
-    backgroundColor: 'black',
     position: 'absolute',
   },
   logoContainer: {

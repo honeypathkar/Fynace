@@ -1,4 +1,4 @@
-// export const BASE_URL = 'http://192.168.68.100:3000/api/';
+// export const BASE_URL = 'http://192.168.68.105:3000/api/';
 export const BASE_URL = 'https://api.fynace.in/api/';
 export const FRONTEND_URL = 'https://www.fynace.in';
 

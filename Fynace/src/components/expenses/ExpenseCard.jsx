@@ -56,13 +56,15 @@ const ExpenseCard = React.memo(
                   {formatAmount(amountVal, user?.currency)}
                 </Text>
               )}
-              <TouchableOpacity
-                onPress={() => onEdit(item)}
-                style={styles.editButton}
-                activeOpacity={0.7}
-              >
-                <Pencil size={18} color={theme.colors.onSurfaceVariant} />
-              </TouchableOpacity>
+              {onEdit && (
+                <TouchableOpacity
+                  onPress={() => onEdit(item)}
+                  style={styles.editButton}
+                  activeOpacity={0.7}
+                >
+                  <Pencil size={18} color={theme.colors.onSurfaceVariant} />
+                </TouchableOpacity>
+              )}
               {onDelete && (
                 <TouchableOpacity
                   onPress={() => onDelete(item)}

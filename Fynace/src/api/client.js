@@ -7,14 +7,14 @@ const DEFAULT_BASE_URL = BASE_URL;
 const resolveBaseUrl = () => {
   const envFromProcess =
     (typeof process !== 'undefined' &&
-      (process.env?.SPENDO_API_URL ||
+      (process.env?.FYNACE_API_URL ||
         process.env?.EXPO_PUBLIC_API_URL ||
         process.env?.API_URL)) ||
     '';
 
   const envFromGlobal =
-    typeof global !== 'undefined' && global.SPENDO_API_URL
-      ? global.SPENDO_API_URL
+    typeof global !== 'undefined' && global.FYNACE_API_URL
+      ? global.FYNACE_API_URL
       : '';
 
   return envFromProcess || envFromGlobal || DEFAULT_BASE_URL;

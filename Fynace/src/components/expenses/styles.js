@@ -42,16 +42,17 @@ export const getStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: themeAssets.spacing[3],
+    marginBottom: themeAssets.spacing[2],
   },
   summaryTitle: {
     color: theme.colors.text,
+    fontFamily: Fonts.medium,
   },
   summaryAddButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingVertical: 8,
+    paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 20,
     borderWidth: 1,
@@ -117,6 +118,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   comparisonTitle: {
     color: theme.colors.text,
+    fontFamily: Fonts.medium,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -600,7 +602,7 @@ export const getStyles = (theme) => StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 4,
     backgroundColor: 'transparent',
-    marginTop: themeAssets.spacing[2],
+    // marginTop: themeAssets.spacing[2],
   },
   dateHeaderText: {
     color: theme.colors.onSurfaceVariant,

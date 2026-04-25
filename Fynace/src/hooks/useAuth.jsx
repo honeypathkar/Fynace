@@ -14,12 +14,16 @@ import {
   setUnauthorizedHandler,
 } from '../api/client';
 import axios from 'axios';
+import messaging from '@react-native-firebase/messaging';
+import DeviceInfo from 'react-native-device-info';
+import { syncManager } from '../sync/SyncManager';
+import { database } from '../database';
 
 const AuthContext = createContext(undefined);
 
-const ACCESS_TOKEN_KEY = '@spendo/access-token';
-const REFRESH_TOKEN_KEY = '@spendo/refresh-token';
-const USER_KEY = '@spendo/user-data';
+const ACCESS_TOKEN_KEY = '@fynace/access-token';
+const REFRESH_TOKEN_KEY = '@fynace/refresh-token';
+const USER_KEY = '@fynace/user-data';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState();
@@ -174,6 +178,8 @@ export const AuthProvider = ({ children }) => {
         if (accessToken) {
           await persistAuth(accessToken, refreshToken, userData);
           setOtpRequestId(undefined);
+          // Trigger initial sync after login
+          syncManager.sync(true).catch(err => console.error('Initial sync failed:', err));
         }
       } catch (error) {
         const apiError = parseApiError(error);
@@ -197,6 +203,8 @@ export const AuthProvider = ({ children }) => {
 
         if (accessToken) {
           await persistAuth(accessToken, refreshToken, userData);
+          // Trigger initial sync after login
+          syncManager.sync(true).catch(err => console.error('Initial sync failed:', err));
         }
       } catch (error) {
         const apiError = parseApiError(error);
@@ -210,8 +218,35 @@ export const AuthProvider = ({ children }) => {
 
   const logout = useCallback(async () => {
     try {
+      // 1. Unregister FCM token from backend if possible
+      try {
+        const deviceId = await DeviceInfo.getUniqueId();
+        await apiClient.delete(`/auth/fcm-token/${deviceId}`);
+        console.log('🚀 FCM Token unregistered from backend');
+      } catch (fcmErr) {
+        console.warn('Failed to unregister FCM from backend:', fcmErr.message);
+      }
+
+      // 2. Clear Firebase token locally
+      try {
+        await messaging().deleteToken();
+      } catch (fbErr) {
+        console.warn('Failed to delete Firebase token:', fbErr.message);
+      }
+
       await persistAuth(undefined);
       setOtpRequestId(undefined);
+      
+      // Clear local database on logout to prevent cross-account data leakage
+      await database.write(async () => {
+        await database.unsafeResetDatabase();
+      });
+      
+      // Clear sync metadata so the next user starts fresh
+      await Promise.all([
+        AsyncStorage.removeItem('@fynace/last-sync-time'),
+        AsyncStorage.removeItem('@fynace/last-sync-attempt'),
+      ]);
     } catch (err) {
       console.error('Logout failed', err);
     }

@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import LinearGradient from 'react-native-linear-gradient';
 import Fonts from '../../../assets/fonts';
 import { FRONTEND_URL } from '../../utils/BASE_URL';
@@ -40,8 +41,13 @@ const OnboardingScreen = () => {
     ]).start();
   }, [fadeAnim, slideAnim]);
 
-  const handleGetStarted = () => {
-    navigation.navigate('Login');
+  const handleGetStarted = async () => {
+    try {
+      await AsyncStorage.setItem('@fynace/onboarding-completed', 'true');
+      navigation.navigate('Login');
+    } catch (e) {
+      navigation.navigate('Login');
+    }
   };
 
   const isDark = theme.dark;

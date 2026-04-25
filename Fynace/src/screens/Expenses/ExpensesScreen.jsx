@@ -20,7 +20,7 @@ import {
   TouchableOpacity,
   Pressable,
   RefreshControl,
-  StatusBar
+  StatusBar,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import {
@@ -144,12 +144,27 @@ const ExpensesScreen = () => {
     const unsubscribe = syncManager.subscribe(status => {
       if (status === 'idle') {
         // Quietly refresh the list when sync finishes
-        fetchExpenses(selectedMonth, null, false, selectedCategory, selectedType, debouncedSearch, 0);
+        fetchExpenses(
+          selectedMonth,
+          null,
+          false,
+          selectedCategory,
+          selectedType,
+          debouncedSearch,
+          0,
+        );
         fetchFilters();
       }
     });
     return unsubscribe;
-  }, [fetchExpenses, fetchFilters, selectedMonth, selectedCategory, selectedType, debouncedSearch]);
+  }, [
+    fetchExpenses,
+    fetchFilters,
+    selectedMonth,
+    selectedCategory,
+    selectedType,
+    debouncedSearch,
+  ]);
 
   const [loadingFilters, setLoadingFilters] = useState(false);
   const fabMenuSheetRef = useRef(null);
@@ -240,11 +255,17 @@ const ExpensesScreen = () => {
       }));
 
       // ─── Step 2: Sync in the background (Non-blocking) ───
-      apiClient.get('transactions/monthly-totals').then(res => {
-        const remoteMonths = res.data?.data?.map(item => item.month) || [];
-        setMonths(prev => [...new Set([...prev, ...remoteMonths])].sort((a, b) => b.localeCompare(a)));
-      }).catch(() => { });
-
+      apiClient
+        .get('transactions/monthly-totals')
+        .then(res => {
+          const remoteMonths = res.data?.data?.map(item => item.month) || [];
+          setMonths(prev =>
+            [...new Set([...prev, ...remoteMonths])].sort((a, b) =>
+              b.localeCompare(a),
+            ),
+          );
+        })
+        .catch(() => {});
     } catch (err) {
       console.warn('Failed to fetch local filters', err);
     } finally {
@@ -309,14 +330,14 @@ const ExpensesScreen = () => {
           append
             ? Promise.resolve(0)
             : database
-              .get('transactions')
-              .query(
-                ...(typeSelection !== 'All'
-                  ? [Q.where('type', typeSelection)]
-                  : []),
-                ...clauses,
-              )
-              .fetchCount(),
+                .get('transactions')
+                .query(
+                  ...(typeSelection !== 'All'
+                    ? [Q.where('type', typeSelection)]
+                    : []),
+                  ...clauses,
+                )
+                .fetchCount(),
         ]);
 
         if (!append) {
@@ -449,11 +470,19 @@ const ExpensesScreen = () => {
       // or use a more targeted query if possible.
       const recentTransactions = await database
         .get('transactions')
-        .query(Q.where('is_deleted', false), Q.sortBy('date', Q.desc), Q.take(500))
+        .query(
+          Q.where('is_deleted', false),
+          Q.sortBy('date', Q.desc),
+          Q.take(500),
+        )
         .fetch();
 
-      const localMonths = [...new Set(recentTransactions.map(t => t.month))].filter(Boolean);
-      const sortedLocalMonths = [...localMonths].sort((a, b) => b.localeCompare(a));
+      const localMonths = [
+        ...new Set(recentTransactions.map(t => t.month)),
+      ].filter(Boolean);
+      const sortedLocalMonths = [...localMonths].sort((a, b) =>
+        b.localeCompare(a),
+      );
       setMonths(sortedLocalMonths);
 
       // ─── Step 2: Show initial list data ───
@@ -478,7 +507,15 @@ const ExpensesScreen = () => {
       setLoading(false);
       setInitialLoad(false);
     }
-  }, [token, fetchExpenses, initialLoad, selectedMonth, selectedCategory, selectedType, debouncedSearch]);
+  }, [
+    token,
+    fetchExpenses,
+    initialLoad,
+    selectedMonth,
+    selectedCategory,
+    selectedType,
+    debouncedSearch,
+  ]);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -849,7 +886,7 @@ const ExpensesScreen = () => {
       <View style={expenseStyles.container}>
         <SafeAreaView edges={['top']}>
           <GlobalHeader
-            title="Track expenses effortlessly"
+            title="Expenses"
             subtitle="Log in from the Profile tab to manage your spending"
           />
         </SafeAreaView>
@@ -867,11 +904,9 @@ const ExpensesScreen = () => {
         title="Expenses"
         titleColor={theme.colors.text}
         renderRightComponent={() => (
-          <View
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
-          >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Pressable
-              onPress={togglePrivacyMode}
+              onPress={() => togglePrivacyMode()}
               style={({ pressed }) => [
                 {
                   padding: 8,
@@ -890,21 +925,21 @@ const ExpensesScreen = () => {
               )}
             </Pressable>
             <TouchableOpacity
-              onPress={handleOpenFilters}
+              onPress={() => handleOpenFilters()}
               style={{
                 paddingHorizontal: 12,
                 paddingVertical: 8,
                 borderRadius: 12,
-                backgroundColor: '#121212',
+                backgroundColor: theme.dark ? '#121212' : theme.colors.surfaceVariant,
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: 8,
               }}
             >
-              <Filter size={18} color="#FFFFFF" />
+              <Filter size={18} color={theme.dark ? '#FFFFFF' : theme.colors.primary} />
               <Text
                 style={{
-                  color: '#FFFFFF',
+                  color: theme.dark ? '#FFFFFF' : theme.colors.primary,
                   fontFamily: Fonts.semibold,
                   fontSize: 13,
                 }}
@@ -1005,7 +1040,10 @@ const ExpensesScreen = () => {
                 styles={expenseStyles}
               />
 
-              <ExpenseComparison comparison={comparison} styles={expenseStyles} />
+              <ExpenseComparison
+                comparison={comparison}
+                styles={expenseStyles}
+              />
 
               <ExpenseSearch
                 searchQuery={searchQuery}
@@ -1051,7 +1089,7 @@ const ExpensesScreen = () => {
 
       <FilterSheet
         sheetRef={filterSheetRef}
-        onClose={() => { }}
+        onClose={() => {}}
         selectedMonth={selectedMonth}
         months={months}
         selectedCategory={selectedCategory}

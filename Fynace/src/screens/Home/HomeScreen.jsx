@@ -6,6 +6,7 @@ import {
   View,
   StyleSheet,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { ActivityIndicator, Text, useTheme, Divider } from 'react-native-paper';
@@ -128,6 +129,16 @@ const HomeScreen = () => {
       hour: '2-digit',
       minute: '2-digit',
       hour12: true,
+    });
+  };
+
+  const formatItemDate = (dateString) => {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
     });
   };
 
@@ -374,6 +385,30 @@ const HomeScreen = () => {
       .sort((a, b) => b.totalMoneyOut - a.totalMoneyOut);
   }, [filteredData, activeChartType, activeChartPeriod, filterType]);
 
+  const handleEditTransaction = useCallback((txn) => {
+    categorySheetRef.current?.close();
+    InteractionManager.runAfterInteractions(() => {
+      navigation.navigate('AddExpense', { expense: txn });
+    });
+  }, [navigation]);
+
+  const handleDeleteTransaction = useCallback(async (txn) => {
+    try {
+      await database.write(async () => {
+        const record = await database.get('transactions').find(txn.id);
+        await record.markAsDeleted();
+      });
+      // Refresh local data
+      await fetchDashboardData(true);
+      // If we are in the category sheet, we need to update the local categoryTxns state too
+      setCategoryTxns(prev => prev.filter(t => t.id !== txn.id));
+      
+      syncManager.sync().catch(console.error);
+    } catch (err) {
+      console.warn('Failed to delete transaction:', err);
+    }
+  }, [fetchDashboardData]);
+
   const handleCategoryPress = useCallback((categoryName) => {
     const isDaily = filterType === 'monthly' || filterType.includes('week');
     const sourceData = activeChartType === 'expense' ? filteredData.expenses : filteredData.moneyIn;
@@ -466,6 +501,32 @@ const HomeScreen = () => {
         userName={user?.fullName}
         onProfilePress={() => navigation.navigate('Profile')}
       />
+
+      {syncStatus === 'syncing' && (
+        <View
+          style={{
+            backgroundColor: theme.colors.elevation.level1,
+            paddingVertical: 8,
+            paddingHorizontal: 20,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 10,
+            borderBottomWidth: 1,
+            borderBottomColor: theme.colors.outlineVariant,
+          }}
+        >
+          <ActivityIndicator size={14} color={theme.colors.secondary} />
+          <Text
+            style={{
+              fontSize: 13,
+              color: theme.colors.onSurfaceVariant,
+              fontFamily: Fonts.medium,
+            }}
+          >
+            Syncing your data...
+          </Text>
+        </View>
+      )}
 
       <BottomSheet ref={bottomSheetRef} title="Filter Data" initialHeight={0.6}>
         <ScrollView
@@ -624,16 +685,28 @@ const HomeScreen = () => {
       >
         <View style={{ paddingBottom: 40 }}>
           {categoryTxns.length > 0 ? (
-            categoryTxns.map((item, index) => (
-              <ExpenseCard
-                key={item.id || item._id || index}
-                item={item}
-                formatItemTime={formatItemTime}
-                transformMonthLabel={transformMonthLabel}
-                onEdit={null}
-                onDelete={null} 
-              />
-            ))
+            categoryTxns.map((item, index) => {
+              const currentDate = formatItemDate(item.date);
+              const prevDate = index > 0 ? formatItemDate(categoryTxns[index - 1].date) : null;
+              const showDateHeader = currentDate && currentDate !== prevDate;
+
+              return (
+                <View key={item.id || item._id || index}>
+                  {showDateHeader && (
+                    <View style={homeStyles.dateHeader}>
+                      <Text style={homeStyles.dateHeaderText}>{currentDate}</Text>
+                    </View>
+                  )}
+                  <ExpenseCard
+                    item={item}
+                    formatItemTime={formatItemTime}
+                    transformMonthLabel={transformMonthLabel}
+                    onEdit={handleEditTransaction}
+                    onDelete={null} 
+                  />
+                </View>
+              );
+            })
           ) : (
             <Text style={{ textAlign: 'center', marginTop: 20, color: theme.colors.subtext }}>
               No transactions found

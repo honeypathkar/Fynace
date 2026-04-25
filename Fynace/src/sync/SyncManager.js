@@ -115,7 +115,7 @@ class SyncManager {
       }
     }
 
-    // Push new categories
+    // Push updated categories
     const unsyncedCategories = await database
       .get('categories')
       .query(Q.where('synced', false))
@@ -133,6 +133,45 @@ class SyncManager {
         console.error('Failed to push category:', cat.name, err);
       }
     }
+
+    // Push updated budgets
+    const unsyncedBudgets = await database
+      .get('budgets')
+      .query(Q.where('synced', false))
+      .fetch();
+
+    for (const budget of unsyncedBudgets) {
+      try {
+        const payload = {
+          categoryId: budget.categoryId,
+          month: budget.month,
+          monthlyLimit: budget.limitRupees,
+          notifiedThresholds: budget.thresholds,
+        };
+
+        let remoteId = budget.remoteId;
+
+        if (budget.isDeleted) {
+          if (remoteId) await apiClient.delete(`budgets/${remoteId}`);
+        } else {
+          if (remoteId) {
+            await apiClient.put(`budgets/${remoteId}`, payload);
+          } else {
+            const response = await apiClient.post('budgets', payload);
+            remoteId = response.data.data?._id;
+          }
+        }
+
+        await database.write(async () => {
+          await budget.update(record => {
+            record.synced = true;
+            if (remoteId) record.remoteId = remoteId;
+          });
+        });
+      } catch (err) {
+        console.error('Failed to push budget:', budget.id, err);
+      }
+    }
   }
 
   async pullChanges() {
@@ -142,7 +181,11 @@ class SyncManager {
         params: { lastSyncTime: lastSync || 0 },
       });
 
-      const { transactions = [], categories = [] } = response.data.data || {};
+      const {
+        transactions = [],
+        categories = [],
+        budgets = [],
+      } = response.data.data || {};
       const remoteTimestamp = response.data.timestamp || Date.now();
 
       await database.write(async () => {
@@ -166,6 +209,42 @@ class SyncManager {
               record.synced = true;
               record.updated_at = new Date(remote.updatedAt).getTime();
               record.isDeleted = !!remote.isDeleted;
+            });
+          }
+        }
+
+        // Sync Budgets
+        const budgetCollection = database.get('budgets');
+        for (const remote of budgets) {
+          let existing = await budgetCollection
+            .query(Q.where('remote_id', remote._id))
+            .fetch();
+
+          if (existing.length === 0) {
+            await budgetCollection.create(record => {
+              record.remoteId = remote._id;
+              record.categoryId = remote.categoryId;
+              record.month = remote.month;
+              record.monthlyLimit = Math.round((remote.monthlyLimit || 0) * 100);
+              record.notifiedThresholds = JSON.stringify(
+                remote.notifiedThresholds || [],
+              );
+              record.synced = true;
+              record.updated_at = new Date(remote.updatedAt).getTime();
+              record.isDeleted = !!remote.isDeleted;
+            });
+          } else {
+            const record = existing[0];
+            await record.update(r => {
+              r.categoryId = remote.categoryId;
+              r.month = remote.month;
+              r.monthlyLimit = Math.round((remote.monthlyLimit || 0) * 100);
+              r.notifiedThresholds = JSON.stringify(
+                remote.notifiedThresholds || [],
+              );
+              r.synced = true;
+              r.updated_at = new Date(remote.updatedAt).getTime();
+              r.isDeleted = !!remote.isDeleted;
             });
           }
         }

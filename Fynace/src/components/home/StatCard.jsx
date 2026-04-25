@@ -27,7 +27,7 @@ const StatCard = ({
     <LinearGradient
       colors={theme.dark
         ? [theme.colors.surface, theme.colors.elevation.level1]
-        : [theme.colors.outlineVariant, theme.colors.surfaceVariant]}
+        : [theme.colors.surface, theme.colors.surfaceVariant]}
       style={[
         styles.card,
         {
@@ -42,11 +42,11 @@ const StatCard = ({
         </View>
         <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>{label}</Text>
       </View>
- 
+
       <Text style={[styles.amount, { color: theme.colors.text }]} numberOfLines={1} adjustsFontSizeToFit>
         {formatAmount(value, user?.currency)}
       </Text>
- 
+
       <View style={styles.footer}>
         {trend && trendValue ? (
           <View style={styles.trendRow}>
@@ -74,10 +74,11 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     borderRadius: 20,
-    padding: 16,
+    paddingHorizontal: 16,
     borderWidth: 1,
     minHeight: 110,
     justifyContent: 'space-between',
+    paddingVertical: 10
   },
   header: {
     flexDirection: 'row',

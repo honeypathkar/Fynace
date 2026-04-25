@@ -91,7 +91,10 @@ const setBudget = async (req, res) => {
 
     const budget = await Budget.findOneAndUpdate(
       { userId, categoryId: finalCategoryId, month },
-      { monthlyLimit: toPaise(monthlyLimit) },
+      { 
+        monthlyLimit: toPaise(monthlyLimit),
+        notifiedThresholds: req.body.notifiedThresholds || []
+      },
       { upsert: true, new: true, runValidators: true },
     );
 

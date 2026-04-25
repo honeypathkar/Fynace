@@ -351,8 +351,8 @@ function PolicySection({ title, children }) {
       style={{
         padding: "40px",
         borderRadius: "20px",
-        background: "rgba(15,23,42,0.5)",
-        border: "1px solid var(--glass-border)",
+        background: "var(--card)",
+        border: "1px solid var(--border)",
         marginBottom: "16px",
       }}
     >
@@ -378,9 +378,9 @@ function InfoBlock({ label, items }) {
     <div
       style={{
         padding: "16px 20px",
-        background: "rgba(255,255,255,0.03)",
+        background: "var(--muted)",
         borderRadius: "12px",
-        border: "1px solid var(--glass-border)",
+        border: "1px solid var(--border)",
       }}
     >
       <p
@@ -418,9 +418,9 @@ function HighlightItem({ icon, text }) {
         gap: "14px",
         alignItems: "flex-start",
         padding: "14px 18px",
-        background: "rgba(255,255,255,0.03)",
+        background: "var(--muted)",
         borderRadius: "12px",
-        border: "1px solid var(--glass-border)",
+        border: "1px solid var(--border)",
       }}
     >
       <span style={{ fontSize: "1.1rem", flexShrink: 0 }}>{icon}</span>

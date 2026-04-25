@@ -5,13 +5,13 @@ import Image from "next/image";
 
 export default function TermsAndConditions() {
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
+    <div style={{ minHeight: "100vh", background: "var(--background)" }}>
       {/* Header */}
       <div
         style={{
-          background: "var(--glass)",
+          background: "rgba(var(--background-rgb), 0.8)",
           backdropFilter: "blur(12px)",
-          borderBottom: "1px solid var(--glass-border)",
+          borderBottom: "1px solid var(--border)",
           padding: "20px 0",
           position: "sticky",
           top: 0,
@@ -266,7 +266,7 @@ export default function TermsAndConditions() {
           style={{
             marginTop: "60px",
             paddingTop: "40px",
-            borderTop: "1px solid var(--glass-border)",
+            borderTop: "1px solid var(--border)",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
@@ -303,8 +303,8 @@ function PolicySection({ title, children }) {
       style={{
         padding: "40px",
         borderRadius: "20px",
-        background: "rgba(15,23,42,0.5)",
-        border: "1px solid var(--glass-border)",
+        background: "var(--card)",
+        border: "1px solid var(--border)",
         marginBottom: "16px",
       }}
     >
@@ -333,9 +333,9 @@ function HighlightItem({ icon, text }) {
         gap: "14px",
         alignItems: "flex-start",
         padding: "14px 18px",
-        background: "rgba(255,255,255,0.03)",
+        background: "var(--muted)",
         borderRadius: "12px",
-        border: "1px solid var(--glass-border)",
+        border: "1px solid var(--border)",
       }}
     >
       <span style={{ fontSize: "1.1rem", flexShrink: 0 }}>{icon}</span>

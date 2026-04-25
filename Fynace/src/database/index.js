@@ -7,6 +7,7 @@ import Category from './models/Category';
 import User from './models/User';
 import Bank from './models/Bank';
 import Transaction from './models/Transaction';
+import Budget from './models/Budget';
 
 const adapter = new SQLiteAdapter({
   schema,
@@ -23,5 +24,5 @@ const adapter = new SQLiteAdapter({
 
 export const database = new Database({
   adapter,
-  modelClasses: [Category, User, Bank, Transaction],
+  modelClasses: [Category, User, Bank, Transaction, Budget],
 });

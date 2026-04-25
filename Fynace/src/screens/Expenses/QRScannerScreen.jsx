@@ -35,6 +35,7 @@ const QRScannerScreen = () => {
   const [torchOn, setTorchOn] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isActive, setIsActive] = useState(true);
+  const [errorMsg, setErrorMsg] = useState(null);
 
   const device = useCameraDevice('back');
 
@@ -74,31 +75,43 @@ const QRScannerScreen = () => {
         upiId: '',
       };
 
-      if (data.includes('upi://pay')) {
+      // Strict UPI Validation: Must start with upi://pay and contain pa= (Payment Address)
+      const upiRegex = /^upi:\/\/pay\?.*pa=([^&]+).*/i;
+      
+      if (upiRegex.test(data)) {
         try {
           const queryString = data.split('?')[1];
           const params = {};
           if (queryString) {
             queryString.split('&').forEach(pair => {
               const [key, value] = pair.split('=');
-              params[key] = decodeURIComponent(value || '');
+              if (key && value) {
+                params[key] = decodeURIComponent(value);
+              }
             });
           }
 
-          initialValues.upiId = params.pa || '';
+          if (!params.pa) {
+            throw new Error('Missing payment address');
+          }
+
+          initialValues.upiId = params.pa;
           initialValues.name = params.pn || '';
           initialValues.price = params.am || '';
           initialValues.allParams = params;
 
           console.log('✅ Parsed UPI Parameters:', params);
+          navigation.navigate('AddQRBasedExpense', { initialValues });
         } catch (e) {
-          initialValues.notes = data;
+          setErrorMsg('Invalid Payment QR');
+          setIsActive(true);
+          setTimeout(() => setErrorMsg(null), 3000);
         }
       } else {
-        initialValues.notes = data;
+        setErrorMsg('Only UPI Payment QR is allowed');
+        setIsActive(true);
+        setTimeout(() => setErrorMsg(null), 3000);
       }
-
-      navigation.navigate('AddQRBasedExpense', { initialValues });
     },
     [navigation],
   );
@@ -218,9 +231,15 @@ const QRScannerScreen = () => {
             <View style={styles.unfocusedContainer}></View>
           </View>
           <View style={[styles.unfocusedContainer, { flex: 1.6 }]}>
-            <Text style={styles.topText}>
-              Center the QR code within the frame
-            </Text>
+            {errorMsg ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{errorMsg}</Text>
+              </View>
+            ) : (
+              <Text style={styles.topText}>
+                Center the QR code within the frame
+              </Text>
+            )}
 
             <TouchableOpacity
               style={styles.torchButton}
@@ -356,6 +375,18 @@ const getStyles = (theme) => StyleSheet.create({
     fontSize: 15,
     fontFamily: Fonts.medium,
     marginBottom: 40,
+  },
+  errorContainer: {
+    backgroundColor: theme.colors.error,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 25,
+    marginBottom: 40,
+  },
+  errorText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: Fonts.bold,
   },
   torchButton: {
     alignItems: 'center',

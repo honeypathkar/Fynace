@@ -15,7 +15,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import GlobalHeader from '../../components/GlobalHeader';
 import TextInputField from '../../components/TextInputField';
 import PrimaryButton from '../../components/PrimaryButton';
-import { MonthPicker, CategoryPicker } from '../../components/expenses';
+import { MonthPicker, CategoryPicker, DatePicker } from '../../components/expenses';
 import { apiClient, parseApiError } from '../../api/client';
 import { useAuth } from '../../hooks/useAuth';
 import { themeAssets } from '../../theme';
@@ -32,6 +32,7 @@ const defaultFormState = {
   categoryId: '',
   amount: '',
   notes: '',
+  date: '',
   type: 'expense',
   isRecurring: false,
   frequency: 'monthly',
@@ -49,6 +50,7 @@ const AddExpenseScreen = () => {
   const [formValues, setFormValues] = useState(defaultFormState);
   const [savingExpense, setSavingExpense] = useState(false);
   const [monthPickerVisible, setMonthPickerVisible] = useState(false);
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [categoryPickerVisible, setCategoryPickerVisible] = useState(false);
   const [categories, setCategories] = useState({
     default: [],
@@ -76,13 +78,19 @@ const AddExpenseScreen = () => {
         type: editingExpense.type || 'expense',
         isRecurring: editingExpense.isRecurring || false,
         frequency: editingExpense.frequency || 'monthly',
+        date: editingExpense.date ? new Date(editingExpense.date).toISOString().split('T')[0] : '',
       });
     } else {
-      // Auto-select current month for new expense
+      // Auto-select current month and date for new expense
       const now = new Date();
       const year = now.getFullYear();
       const month = String(now.getMonth() + 1).padStart(2, '0');
-      setFormValues(prev => ({ ...prev, month: `${year}-${month}` }));
+      const day = String(now.getDate()).padStart(2, '0');
+      setFormValues(prev => ({ 
+        ...prev, 
+        month: `${year}-${month}`,
+        date: `${year}-${month}-${day}`
+      }));
     }
   }, [editingExpense]);
 
@@ -122,8 +130,9 @@ const AddExpenseScreen = () => {
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
 
-    for (let i = 0; i <= 12; i++) {
-      const date = new Date(currentYear, currentMonth + i, 1);
+    // Show current month and previous 4 months
+    for (let i = 0; i < 5; i++) {
+      const date = new Date(currentYear, currentMonth - i, 1);
       const year = date.getFullYear();
       const month = date.getMonth() + 1;
       const monthKey = `${year}-${String(month).padStart(2, '0')}`;
@@ -237,6 +246,7 @@ const AddExpenseScreen = () => {
               ? formValues.frequency
               : null;
             record.isActive = true;
+            record.date = formValues.date ? new Date(formValues.date).getTime() : Date.now();
             record.synced = false; // will be marked true after API call if online
             record.updatedAt = Date.now();
           });
@@ -257,7 +267,7 @@ const AddExpenseScreen = () => {
               ? formValues.frequency
               : null;
             record.isActive = true;
-            record.date = new Date().getTime();
+            record.date = formValues.date ? new Date(formValues.date).getTime() : Date.now();
             record.synced = false;
             record.updatedAt = Date.now();
             record.isDeleted = false;
@@ -442,6 +452,20 @@ const AddExpenseScreen = () => {
             </TouchableOpacity>
           </View>
 
+          <View style={styles.inputWrapper}>
+            <Text style={styles.inputLabel}>Date</Text>
+            <TouchableOpacity
+              style={styles.pickerButton}
+              onPress={() => setDatePickerVisible(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.pickerText}>
+                {formValues.date || 'Select a date'}
+              </Text>
+              <ChevronDown size={20} color={theme.colors.onSurfaceVariant} />
+            </TouchableOpacity>
+          </View>
+
           <TextInputField
             label="Item Name"
             value={formValues.itemName}
@@ -549,7 +573,7 @@ const AddExpenseScreen = () => {
                   width: 22,
                   height: 22,
                   borderRadius: 11,
-                  backgroundColor: '#FFF',
+                  backgroundColor: theme.colors.surface,
                   alignSelf: formValues.isRecurring ? 'flex-end' : 'flex-start',
                 }}
               />
@@ -605,9 +629,34 @@ const AddExpenseScreen = () => {
         selectedMonth={formValues.month}
         onSelectMonth={month => {
           updateFormValue('month', month);
+          // When month changes, reset date to first day of that month (if it's not the current month)
+          // or current day (if it is current month)
+          const now = new Date();
+          const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+          
+          if (month === currentMonthKey) {
+            const day = String(now.getDate()).padStart(2, '0');
+            updateFormValue('date', `${month}-${day}`);
+          } else {
+            updateFormValue('date', `${month}-01`);
+          }
+          
           setMonthPickerVisible(false);
+          // Automatically show date picker after selecting month
+          setTimeout(() => setDatePickerVisible(true), 300);
         }}
         onClose={() => setMonthPickerVisible(false)}
+      />
+
+      <DatePicker
+        visible={datePickerVisible}
+        selectedMonth={formValues.month}
+        selectedDate={formValues.date}
+        onSelectDate={date => {
+          updateFormValue('date', date);
+          setDatePickerVisible(false);
+        }}
+        onClose={() => setDatePickerVisible(false)}
       />
 
       <CategoryPicker

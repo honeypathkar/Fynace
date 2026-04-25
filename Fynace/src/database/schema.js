@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 9,
+  version: 10,
   tables: [
     tableSchema({
       name: 'users',
@@ -35,6 +35,24 @@ export default appSchema({
         { name: 'name', type: 'string' },
         { name: 'type', type: 'string' }, // 'expense' or 'income'
         { name: 'icon', type: 'string', isOptional: true },
+        { name: 'synced', type: 'boolean' },
+        { name: 'updated_at', type: 'number' },
+        { name: 'is_deleted', type: 'boolean' },
+      ],
+    }),
+    tableSchema({
+      name: 'budgets',
+      columns: [
+        {
+          name: 'remote_id',
+          type: 'string',
+          isOptional: true,
+          isIndexed: true,
+        },
+        { name: 'category_id', type: 'string' }, // local or remote id
+        { name: 'month', type: 'string' }, // YYYY-MM
+        { name: 'monthly_limit', type: 'number' }, // integer paise
+        { name: 'notified_thresholds', type: 'string' }, // JSON stringified array [50, 70, 80]
         { name: 'synced', type: 'boolean' },
         { name: 'updated_at', type: 'number' },
         { name: 'is_deleted', type: 'boolean' },

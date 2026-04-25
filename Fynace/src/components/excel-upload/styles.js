@@ -2,10 +2,10 @@ import { StyleSheet } from 'react-native';
 import { themeAssets } from '../../theme';
 import Fonts from '../../../assets/fonts';
 
-const styles = StyleSheet.create({
+export const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: theme.colors.background,
   },
   keyboardView: {
     flex: 1,
@@ -21,7 +21,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   headerTitle: {
-    color: '#FFFFFF',
+    color: theme.colors.text,
     fontSize: 20,
     fontFamily: Fonts.semibold,
   },
@@ -29,7 +29,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: theme.colors.surfaceVariant,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -48,21 +48,21 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   centeredTitle: {
-    color: '#FFFFFF',
+    color: theme.colors.text,
     marginBottom: 8,
   },
   centeredSubtitle: {
-    color: '#808080',
+    color: theme.colors.onSurfaceVariant,
     textAlign: 'center',
   },
   uploadSection: {
     marginTop: themeAssets.spacing[4],
   },
   uploadCard: {
-    backgroundColor: '#121212',
+    backgroundColor: theme.colors.surface,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#1A1A1A',
+    borderColor: theme.colors.outlineVariant,
   },
   uploadCardContent: {
     alignItems: 'center',
@@ -70,16 +70,16 @@ const styles = StyleSheet.create({
     gap: themeAssets.spacing[3],
   },
   uploadTitle: {
-    color: '#FFFFFF',
+    color: theme.colors.text,
     fontFamily: Fonts.bold,
     marginTop: themeAssets.spacing[2],
   },
   uploadSubtitle: {
-    color: '#808080',
+    color: theme.colors.onSurfaceVariant,
     textAlign: 'center',
   },
   uploadNote: {
-    color: '#808080',
+    color: theme.colors.onSurfaceVariant,
     textAlign: 'center',
     fontStyle: 'italic',
   },
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
     gap: themeAssets.spacing[3],
   },
   pageTitle: {
-    color: '#FFFFFF',
+    color: theme.colors.text,
     fontFamily: Fonts.bold,
     fontSize: 24,
     marginBottom: themeAssets.spacing[3],
@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
     marginBottom: themeAssets.spacing[2],
   },
   dataTitle: {
-    color: '#808080',
+    color: theme.colors.onSurfaceVariant,
     fontFamily: Fonts.medium,
   },
   changeFileButton: {
@@ -112,24 +112,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   changeFileText: {
-    color: '#d3d3ff',
+    color: theme.colors.secondary,
     fontSize: 14,
     fontFamily: Fonts.semibold,
   },
   errorCard: {
-    backgroundColor: '#121212',
+    backgroundColor: theme.colors.errorContainer,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#EF4444',
+    borderColor: theme.colors.error,
   },
   errorText: {
-    color: '#EF4444',
+    color: theme.colors.error,
   },
   dataRow: {
-    backgroundColor: '#121212',
+    backgroundColor: theme.colors.surface,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#1A1A1A',
+    borderColor: theme.colors.outlineVariant,
     marginBottom: themeAssets.spacing[2],
   },
   rowContent: {
@@ -142,18 +142,18 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   rowItemName: {
-    color: '#FFFFFF',
+    color: theme.colors.text,
     fontFamily: Fonts.semibold,
   },
   rowDetails: {
-    color: '#808080',
+    color: theme.colors.onSurfaceVariant,
   },
   rowNotes: {
-    color: '#808080',
+    color: theme.colors.onSurfaceVariant,
     fontStyle: 'italic',
   },
   rowAmount: {
-    color: '#22C55E',
+    color: theme.colors.secondary,
     fontFamily: Fonts.bold,
     marginTop: 4,
   },
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#000000',
+    backgroundColor: theme.colors.surfaceVariant,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -187,9 +187,9 @@ const styles = StyleSheet.create({
     gap: themeAssets.spacing[2],
     paddingHorizontal: themeAssets.spacing[5],
     paddingVertical: themeAssets.spacing[4],
-    backgroundColor: '#000000',
+    backgroundColor: theme.colors.background,
     borderTopWidth: 1,
-    borderTopColor: '#1A1A1A',
+    borderTopColor: theme.colors.outlineVariant,
   },
   cancelButton: {
     flex: 1,
@@ -197,4 +197,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default styles;
+export default getStyles;

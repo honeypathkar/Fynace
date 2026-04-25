@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   ScrollView,
@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useNavigation } from '@react-navigation/native';
-import { Text, Card, Button, ActivityIndicator } from 'react-native-paper';
+import { Text, Card, Button, ActivityIndicator, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import GlobalHeader from '../../components/GlobalHeader';
 import { useAuth } from '../../hooks/useAuth';
@@ -19,7 +19,7 @@ import PrimaryButton from '../../components/PrimaryButton';
 import {
   UploadSection,
   ExpenseRow,
-  excelUploadStyles,
+  getStyles as getExcelUploadStyles,
 } from '../../components/excel-upload';
 import {
   errorCodes,
@@ -32,6 +32,8 @@ import RNFS from 'react-native-fs';
 import TextInputField from '../../components/TextInputField';
 
 const ExcelUploadScreen = () => {
+  const theme = useTheme();
+  const excelUploadStyles = useMemo(() => getExcelUploadStyles(theme), [theme]);
   const { token } = useAuth();
   const navigation = useNavigation();
   const [uploading, setUploading] = useState(false);
@@ -523,7 +525,7 @@ const ExcelUploadScreen = () => {
             style={excelUploadStyles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <ChevronLeft size={28} color="#FFFFFF" />
+            <ChevronLeft size={28} color={theme.colors.text} />
           </TouchableOpacity>
           <Text style={excelUploadStyles.headerTitle}>Upload Excel</Text>
           <View style={{ width: 40 }} />
@@ -551,7 +553,7 @@ const ExcelUploadScreen = () => {
             style={excelUploadStyles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <ChevronLeft size={28} color="#FFFFFF" />
+            <ChevronLeft size={28} color={theme.colors.text} />
           </TouchableOpacity>
           <Text style={excelUploadStyles.headerTitle}>Upload Excel</Text>
           <View style={{ width: 40 }} />
@@ -567,7 +569,7 @@ const ExcelUploadScreen = () => {
             showsVerticalScrollIndicator={false}
           >
             {!extractedData.length ? (
-              <UploadSection onFilePick={handleFilePick} parsing={parsing} />
+              <UploadSection onFilePick={handleFilePick} parsing={parsing} styles={excelUploadStyles} />
             ) : (
               <View style={excelUploadStyles.dataSection}>
                 <Text variant="titleLarge" style={excelUploadStyles.pageTitle}>
@@ -623,6 +625,7 @@ const ExcelUploadScreen = () => {
                         onCancel={handleCancelEdit}
                         onDelete={handleDeleteRow}
                         onEditDataChange={setEditedData}
+                        styles={excelUploadStyles}
                       />
                     )}
                   />
@@ -636,7 +639,7 @@ const ExcelUploadScreen = () => {
               <Button
                 mode="outlined"
                 onPress={() => navigation.goBack()}
-                textColor="#808080"
+                textColor={theme.colors.onSurfaceVariant}
                 style={excelUploadStyles.cancelButton}
               >
                 Cancel
@@ -646,9 +649,9 @@ const ExcelUploadScreen = () => {
                 onPress={handleBulkUpload}
                 loading={uploading}
                 disabled={uploading || extractedData.length === 0}
-                leftIcon={<Check size={20} color="#FFFFFF" />}
+                leftIcon={<Check size={20} color={theme.colors.onSecondary} />}
                 style={excelUploadStyles.uploadButton}
-                buttonColor="#22C55E"
+                buttonColor={theme.colors.secondary}
               />
             </View>
           )}

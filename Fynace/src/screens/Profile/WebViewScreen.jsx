@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -6,7 +6,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { Text } from 'react-native-paper';
+import { Text, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -14,32 +14,47 @@ import Fonts from '../../../assets/fonts';
 
 const WebViewScreen = () => {
   const navigation = useNavigation();
+  const theme = useTheme();
   const route = useRoute();
   const { url, title } = route.params;
 
+  // Append theme mode to URL for synchronization
+  const themedUrl = useMemo(() => {
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}theme=${theme.dark ? 'dark' : 'light'}`;
+  }, [url, theme.dark]);
+
+  const isLegalPage = title?.toLowerCase().includes('privacy') || 
+                      title?.toLowerCase().includes('terms');
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View style={[styles.header, { backgroundColor: theme.colors.background }]}>
         <TouchableOpacity
-          style={styles.backButton}
+          style={[styles.backButton, { backgroundColor: theme.colors.surfaceVariant }]}
           onPress={() => navigation.goBack()}
         >
-          <ChevronLeft size={28} color="#FFFFFF" />
+          <ChevronLeft size={28} color={theme.colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{title}</Text>
+        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>{title}</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <WebView
-        source={{ uri: url }}
-        style={styles.webview}
+        source={{ uri: themedUrl }}
+        style={[styles.webview, { backgroundColor: theme.colors.background }]}
         startInLoadingState={true}
         renderLoading={() => (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator color="#d3d3ff" size="large" />
+          <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
+            <ActivityIndicator color={theme.colors.secondary} size="large" />
           </View>
         )}
-        backgroundColor="#000000"
+        backgroundColor={theme.colors.background}
+        // Disable zooming for legal pages as requested
+        scalesPageToFit={!isLegalPage}
+        setSupportZoom={!isLegalPage}
+        builtInZoomControls={!isLegalPage}
+        displayZoomControls={false}
       />
     </SafeAreaView>
   );
@@ -48,7 +63,6 @@ const WebViewScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
   },
   header: {
     flexDirection: 'row',
@@ -56,10 +70,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#000000',
   },
   headerTitle: {
-    color: '#FFFFFF',
     fontSize: 18,
     fontFamily: Fonts.semibold,
   },
@@ -67,17 +79,14 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   webview: {
     flex: 1,
-    backgroundColor: '#000000',
   },
   loadingContainer: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#000000',
     justifyContent: 'center',
     alignItems: 'center',
   },

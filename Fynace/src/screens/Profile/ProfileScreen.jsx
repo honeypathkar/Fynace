@@ -36,7 +36,7 @@ const ProfileScreen = () => {
   const { themeMode, setThemeMode } = useAppTheme();
 
   const themeSheetRef = useRef(null);
-
+  const logoutSheetRef = useRef(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -47,8 +47,13 @@ const ProfileScreen = () => {
     }).start();
   }, [fadeAnim]);
 
-  const handleLogout = async () => {
+  const handleLogoutPress = () => {
+    logoutSheetRef.current?.open();
+  };
+
+  const handleLogoutConfirm = async () => {
     try {
+      logoutSheetRef.current?.close();
       await logout();
       navigation.reset({ index: 0, routes: [{ name: 'Splash' }] });
     } catch (error) {
@@ -56,6 +61,20 @@ const ProfileScreen = () => {
       navigation.reset({ index: 0, routes: [{ name: 'Splash' }] });
     }
   };
+
+  const logoutOptions = [
+    { 
+      label: 'Logout', 
+      value: 'confirm', 
+      color: theme.colors.error,
+      LeftIcon: LogOut 
+    },
+    { 
+      label: 'Cancel', 
+      value: 'cancel',
+      color: theme.colors.onSurfaceVariant 
+    },
+  ];
 
   const themeOptions = [
     { label: 'Light Mode', value: 'light' },
@@ -143,7 +162,7 @@ const ProfileScreen = () => {
               onPress={() => navigation.navigate('EditProfile')}
             />
 
-            <Text style={[styles.sectionLabel, { color: theme.colors.primary }]}>Tools & Preferences</Text>
+            <Text style={[styles.sectionLabel, { color: theme.colors.secondary }]}>Tools & Preferences</Text>
 
             <MenuItem
               icon={Wrench}
@@ -176,7 +195,7 @@ const ProfileScreen = () => {
               }
             />
 
-            <Text style={[styles.sectionLabel, { color: theme.colors.primary }]}>More</Text>
+            <Text style={[styles.sectionLabel, { color: theme.colors.secondary }]}>More</Text>
 
             <MenuItem
               icon={Shield}
@@ -204,7 +223,7 @@ const ProfileScreen = () => {
             <MenuItem
               icon={LogOut}
               label="Logout"
-              onPress={handleLogout}
+              onPress={handleLogoutPress}
               isDestructive
             />
           </View>
@@ -218,6 +237,17 @@ const ProfileScreen = () => {
         selectedValue={themeMode}
         onSelect={(val) => {
           setThemeMode(val);
+        }}
+      />
+
+      <BottomSheet
+        ref={logoutSheetRef}
+        title="Logout Confirmation"
+        options={logoutOptions}
+        onSelect={(val) => {
+          if (val === 'confirm') {
+            handleLogoutConfirm();
+          }
         }}
       />
     </SafeAreaView>

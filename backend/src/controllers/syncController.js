@@ -1,5 +1,6 @@
 const Transaction = require("../models/Transaction");
 const Category = require("../models/Category");
+const Budget = require("../models/Budget");
 
 const syncData = async (req, res) => {
   try {
@@ -8,7 +9,7 @@ const syncData = async (req, res) => {
 
     const since = lastSyncTime ? new Date(Number(lastSyncTime)) : new Date(0);
 
-    const [transactionsDocs, categories] = await Promise.all([
+    const [transactionsDocs, categories, budgetsDocs] = await Promise.all([
       Transaction.find({ userId, updatedAt: { $gt: since } })
         .populate("categoryId", "name")
         .lean(),
@@ -18,6 +19,7 @@ const syncData = async (req, res) => {
           { isDefault: true, updatedAt: { $gt: since } },
         ],
       }).lean(),
+      Budget.find({ userId, updatedAt: { $gt: since } }).lean(),
     ]);
 
     const transactions = transactionsDocs.map((t) => ({
@@ -27,9 +29,15 @@ const syncData = async (req, res) => {
       categoryId: t.categoryId ? t.categoryId._id : null,
     }));
 
+    const budgets = budgetsDocs.map((b) => ({
+      ...b,
+      monthlyLimit: b.monthlyLimit / 100, // Convert paise to rupees for sync response
+    }));
+
     const allUpdatedAt = [
       ...transactions.map((t) => t.updatedAt),
       ...categories.map((c) => c.updatedAt),
+      ...budgets.map((b) => b.updatedAt),
     ].filter(Boolean);
 
     const newTimestamp =
@@ -43,6 +51,7 @@ const syncData = async (req, res) => {
       data: {
         transactions,
         categories,
+        budgets,
       },
     });
   } catch (error) {

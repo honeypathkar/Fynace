@@ -35,10 +35,56 @@ import {
 } from 'lucide-react-native';
 import GlobalHeader from '../../components/GlobalHeader';
 import { apiClient } from '../../api/client';
+import { database } from '../../database';
+import { Q } from '@nozbe/watermelondb';
+import { syncManager } from '../../sync/SyncManager';
+import { SkeletonPulse } from '../../components/expenses';
 import Fonts from '../../../assets/fonts';
 import BottomSheet from '../../components/BottomSheet';
 
 const { width } = Dimensions.get('window');
+
+const BudgetSkeleton = () => {
+  const theme = useTheme();
+  return (
+    <View style={{ gap: 12 }}>
+      {[1, 2, 3].map(i => (
+        <View
+          key={i}
+          style={{
+            height: 120,
+            borderRadius: 20,
+            backgroundColor: theme.colors.elevation.level1,
+            padding: 16,
+            gap: 12,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <SkeletonPulse style={{ width: 120, height: 20 }} />
+            <SkeletonPulse style={{ width: 24, height: 24 }} />
+          </View>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'flex-end',
+            }}
+          >
+            <SkeletonPulse style={{ width: 80, height: 24 }} />
+            <SkeletonPulse style={{ width: 100, height: 16 }} />
+          </View>
+          <SkeletonPulse style={{ width: '100%', height: 6, borderRadius: 3 }} />
+        </View>
+      ))}
+    </View>
+  );
+};
 
 const BudgetScreen = () => {
   const navigation = useNavigation();
@@ -61,14 +107,47 @@ const BudgetScreen = () => {
   const fetchInitialData = useCallback(async () => {
     try {
       setLoading(true);
-      const [budgetRes, catRes] = await Promise.all([
-        apiClient.get('budgets').catch(() => ({ data: { data: [] } })),
-        apiClient
-          .get('categories')
-          .catch(() => ({ data: { data: { all: [] } } })),
-      ]);
-      setBudgets(budgetRes.data.data || []);
-      setCategories(catRes.data.data.all || []);
+      
+      // Fetch Categories
+      const localCats = await database.get('categories').query(Q.where('is_deleted', false)).fetch();
+      setCategories(localCats);
+
+      // Fetch Budgets
+      const localBudgets = await database.get('budgets').query(Q.where('is_deleted', false)).fetch();
+      
+      // For each budget, calculate total spent from transactions
+      const now = new Date();
+      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      
+      const budgetsWithSpent = await Promise.all(localBudgets.map(async (b) => {
+        // Query transactions for this category and month
+        const txns = await database.get('transactions').query(
+          Q.and(
+            Q.where('category_id', b.categoryId),
+            Q.where('month', b.month),
+            Q.where('type', 'expense'),
+            Q.where('is_deleted', false)
+          )
+        ).fetch();
+
+        const totalSpent = txns.reduce((sum, t) => sum + (t.amount || 0), 0) / 100;
+        
+        // Find category name
+        const cat = localCats.find(c => c.remoteId === b.categoryId || c.id === b.categoryId);
+
+        return {
+          _id: b.id,
+          remoteId: b.remoteId,
+          categoryId: b.categoryId,
+          categoryName: cat?.name || 'Unknown',
+          monthlyLimit: b.limitRupees,
+          totalSpent: totalSpent,
+          month: b.month
+        };
+      }));
+
+      // Filter for current month only (optional, but requested behavior for budget screen usually)
+      setBudgets(budgetsWithSpent.filter(b => b.month === currentMonth));
     } catch (error) {
       console.error('Fetch budget data error:', error);
     } finally {
@@ -84,6 +163,7 @@ const BudgetScreen = () => {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
+    await syncManager.sync(true);
     await fetchInitialData();
     setRefreshing(false);
   }, [fetchInitialData]);
@@ -99,16 +179,41 @@ const BudgetScreen = () => {
         '0',
       )}`;
 
-      await apiClient.post('budgets', {
-        categoryName: selectedCategory.name,
-        monthlyLimit: parseFloat(limitAmount),
-        month,
+      await database.write(async () => {
+        // Check if budget already exists for this category and month
+        const existing = await database.get('budgets').query(
+          Q.and(
+            Q.where('category_id', selectedCategory.remoteId || selectedCategory.id),
+            Q.where('month', month),
+            Q.where('is_deleted', false)
+          )
+        ).fetch();
+
+        if (existing.length > 0) {
+          await existing[0].update(record => {
+            record.monthlyLimit = Math.round(parseFloat(limitAmount) * 100);
+            record.synced = false;
+            record.updatedAt = Date.now();
+          });
+        } else {
+          await database.get('budgets').create(record => {
+            record.categoryId = selectedCategory.remoteId || selectedCategory.id;
+            record.month = month;
+            record.monthlyLimit = Math.round(parseFloat(limitAmount) * 100);
+            record.synced = false;
+            record.updatedAt = Date.now();
+            record.isDeleted = false;
+          });
+        }
       });
 
       setIsModalVisible(false);
       setLimitAmount('');
       setSelectedCategory(null);
       fetchInitialData();
+      
+      // Trigger sync in background
+      syncManager.sync().catch(console.error);
     } catch (error) {
       console.error('Save budget error:', error);
     } finally {
@@ -126,10 +231,22 @@ const BudgetScreen = () => {
 
     try {
       setIsSubmitting(true);
-      await apiClient.delete(`budgets/${budgetToDelete._id}`);
+      
+      await database.write(async () => {
+        const record = await database.get('budgets').find(budgetToDelete._id);
+        await record.update(r => {
+          r.isDeleted = true;
+          r.synced = false;
+          r.updatedAt = Date.now();
+        });
+      });
+
       deleteSheetRef.current?.close();
       setBudgetToDelete(null);
       fetchInitialData();
+      
+      // Trigger sync in background
+      syncManager.sync().catch(console.error);
     } catch (error) {
       console.error('Delete budget error:', error);
     } finally {
@@ -464,11 +581,7 @@ const BudgetScreen = () => {
         </View>
 
         {loading && !refreshing ? (
-          <ActivityIndicator
-            size="large"
-            color={theme.colors.secondary}
-            style={{ marginTop: 40 }}
-          />
+          <BudgetSkeleton />
         ) : budgets.length === 0 ? (
           <View style={styles.emptyState}>
             <Layout size={48} color={theme.colors.outline} />
@@ -665,9 +778,12 @@ const BudgetScreen = () => {
       <BottomSheet
         ref={categorySheetRef}
         title="Select Category"
-        options={categories.map(c => ({ label: c, value: c }))}
-        selectedValue={selectedCategory?.name}
-        onSelect={val => setSelectedCategory({ name: val, id: val })}
+        options={categories.map(c => ({ label: c.name, value: c.remoteId || c.id }))}
+        selectedValue={selectedCategory?.remoteId || selectedCategory?.id}
+        onSelect={val => {
+          const cat = categories.find(c => (c.remoteId || c.id) === val);
+          setSelectedCategory(cat);
+        }}
         initialHeight={0.5}
       />
     </SafeAreaView>

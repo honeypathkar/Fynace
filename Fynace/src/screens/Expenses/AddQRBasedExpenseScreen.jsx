@@ -22,9 +22,13 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import GlobalHeader from '../../components/GlobalHeader';
 import TextInputField from '../../components/TextInputField';
 import PrimaryButton from '../../components/PrimaryButton';
+import { CategoryPicker } from '../../components/expenses';
 import { apiClient, parseApiError } from '../../api/client';
 import { useAuth } from '../../hooks/useAuth';
 import Fonts from '../../../assets/fonts';
+import { database } from '../../database';
+import { Q } from '@nozbe/watermelondb';
+import { syncManager } from '../../sync/SyncManager';
 
 const AddQRBasedExpenseScreen = () => {
   const navigation = useNavigation();
@@ -40,10 +44,21 @@ const AddQRBasedExpenseScreen = () => {
     notes: initialValues?.notes || '',
     upiId: initialValues?.upiId || '',
     month: '',
+    category: '',
+    categoryId: '',
     allParams: initialValues?.allParams || {}, // Store original parameters
   });
 
   const [saving, setSaving] = useState(false);
+  const [categoryPickerVisible, setCategoryPickerVisible] = useState(false);
+  const [categories, setCategories] = useState({
+    default: [],
+    custom: [],
+    all: [],
+  });
+  const [creatingCategory, setCreatingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [showAddCategory, setShowAddCategory] = useState(false);
 
   useEffect(() => {
     // Auto-select current month
@@ -56,6 +71,78 @@ const AddQRBasedExpenseScreen = () => {
   const updateFormValue = (key, value) => {
     setFormValues(prev => ({ ...prev, [key]: value }));
   };
+
+  const fetchCategories = React.useCallback(async () => {
+    try {
+      const localCategories = await database
+        .get('categories')
+        .query(Q.where('is_deleted', false))
+        .fetch();
+      setCategories({
+        all: localCategories,
+        default: [],
+        custom: [],
+      });
+    } catch (err) {
+      console.warn('Failed to fetch local categories');
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
+  const createCategory = React.useCallback(
+    async categoryName => {
+      const trimmedName = categoryName.trim();
+      if (!trimmedName || creatingCategory) return;
+      
+      try {
+        setCreatingCategory(true);
+        
+        // Check if category already exists
+        const existing = await database
+          .get('categories')
+          .query(Q.where('name', trimmedName), Q.where('is_deleted', false))
+          .fetch();
+          
+        if (existing.length > 0) {
+          const existingCat = existing[0];
+          updateFormValue('category', existingCat.name);
+          updateFormValue('categoryId', existingCat.id);
+          return true;
+        }
+
+        await database.write(async () => {
+          const newCategory = await database.get('categories').create(record => {
+            record.name = trimmedName;
+            record.type = 'expense';
+            record.synced = false;
+            record.updatedAt = Date.now();
+            record.isDeleted = false;
+          });
+          
+          // Auto-select the newly created category
+          updateFormValue('category', newCategory.name);
+          updateFormValue('categoryId', newCategory.id);
+        });
+
+        await fetchCategories();
+        setNewCategoryName('');
+        setShowAddCategory(false);
+
+        // Background sync
+        syncManager.sync().catch(console.error);
+        return true;
+      } catch (err) {
+        console.error('Failed to create category', err);
+        return false;
+      } finally {
+        setCreatingCategory(false);
+      }
+    },
+    [fetchCategories, creatingCategory],
+  );
 
   const handlePayAndSave = async () => {
     if (!formValues.amount || !formValues.itemName) {
@@ -158,6 +245,8 @@ const AddQRBasedExpenseScreen = () => {
         type: 'expense',
         name: formValues.itemName.trim(),
         amount: Number(formValues.amount),
+        category: formValues.category || '',
+        categoryId: formValues.categoryId || '',
         note: formValues.notes || '',
         date: new Date().toISOString(),
         // UPI / QR metadata
@@ -219,11 +308,11 @@ const AddQRBasedExpenseScreen = () => {
       paddingTop: 10,
     },
     infoCard: {
-      backgroundColor: theme.colors.success + '1A', // 10% opacity
+      backgroundColor: theme.colors.secondaryContainer,
       marginBottom: 24,
       borderRadius: 16,
       borderWidth: 1,
-      borderColor: theme.colors.success + '33', // 20% opacity
+      borderColor: theme.colors.outline,
     },
     qrInfoRow: {
       flexDirection: 'row',
@@ -247,6 +336,36 @@ const AddQRBasedExpenseScreen = () => {
       borderTopWidth: 1,
       borderTopColor: theme.colors.outlineVariant,
       backgroundColor: theme.colors.background,
+    },
+    inputWrapper: {
+      marginBottom: 16,
+    },
+    inputLabel: {
+      color: theme.colors.onSurfaceVariant,
+      fontSize: 14,
+      fontFamily: Fonts.semibold,
+      marginBottom: 8,
+    },
+    pickerButton: {
+      backgroundColor: theme.colors.elevation.level1,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.colors.outline,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      minHeight: 48,
+    },
+    pickerContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    pickerText: {
+      color: theme.colors.text,
+      fontSize: 16,
+    },
+    pickerPlaceholder: {
+      color: theme.colors.onSurfaceVariant,
     },
   }), [theme]);
 
@@ -298,6 +417,29 @@ const AddQRBasedExpenseScreen = () => {
             placeholder="0.00"
           />
 
+          <View style={styles.inputWrapper}>
+            <Text style={styles.inputLabel}>Category (Optional)</Text>
+            <TouchableOpacity
+              style={styles.pickerButton}
+              onPress={() => setCategoryPickerVisible(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.pickerContent}>
+                <Text
+                  style={[
+                    styles.pickerText,
+                    !formValues.category && styles.pickerPlaceholder,
+                  ]}
+                >
+                  {formValues.category || 'Select a category'}
+                </Text>
+                <View style={{ transform: [{ rotate: '0deg' }] }}>
+                  <Text style={{ color: theme.colors.onSurfaceVariant }}>▼</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          </View>
+
           <TextInputField
             label="Notes"
             value={formValues.notes}
@@ -313,18 +455,40 @@ const AddQRBasedExpenseScreen = () => {
             title={formValues.upiId ? 'Pay & Record' : 'Record Expense'}
             onPress={handlePayAndSave}
             loading={saving}
-            buttonColor={theme.colors.primary}
-            textColor={theme.colors.onPrimary}
+            buttonColor={theme.colors.secondary}
+            textColor={theme.colors.onSecondary}
             leftIcon={
               formValues.upiId ? (
-                <Send size={20} color={theme.colors.onPrimary} />
+                <Send size={20} color={theme.colors.onSecondary} />
               ) : (
-                <CreditCard size={20} color={theme.colors.onPrimary} />
+                <CreditCard size={20} color={theme.colors.onSecondary} />
               )
             }
           />
         </View>
       </KeyboardAvoidingView>
+
+      <CategoryPicker
+        visible={categoryPickerVisible}
+        categories={categories.all}
+        selectedCategory={formValues.category}
+        onSelectCategory={category => {
+          updateFormValue('category', category.name);
+          updateFormValue('categoryId', category.remoteId || '');
+          setCategoryPickerVisible(false);
+        }}
+        onClose={() => setCategoryPickerVisible(false)}
+        showAddCategory={showAddCategory}
+        newCategoryName={newCategoryName}
+        creatingCategory={creatingCategory}
+        onCreateCategory={createCategory}
+        onShowAddCategory={() => setShowAddCategory(true)}
+        onHideAddCategory={() => {
+          setShowAddCategory(false);
+          setNewCategoryName('');
+        }}
+        onNewCategoryNameChange={setNewCategoryName}
+      />
     </SafeAreaView>
   );
 };

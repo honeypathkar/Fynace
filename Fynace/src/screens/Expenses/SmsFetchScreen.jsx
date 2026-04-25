@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   TextInput,
 } from 'react-native';
-import { Text, Chip, Button, IconButton } from 'react-native-paper';
+import { Text, Chip, Button, IconButton, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ChevronLeft,
@@ -44,6 +44,8 @@ const DATE_RANGES = [
 
 const SmsFetchScreen = () => {
   const navigation = useNavigation();
+  const theme = useTheme();
+  const styles = useMemo(() => getStyles(theme), [theme]);
   const { user } = useAuth();
   const [selectedRange, setSelectedRange] = useState('today');
   const [transactions, setTransactions] = useState([]);
@@ -518,11 +520,11 @@ const SmsFetchScreen = () => {
     <SafeAreaView edges={['top']} style={styles.container}>
       <GlobalHeader
         title="SMS Transaction Fetch"
-        titleColor="#FFFFFF"
+        titleColor={theme.colors.text}
         backgroundColor="transparent"
         showLeftIcon
         leftIconName="arrow-left"
-        leftIconColor="#FFFFFF"
+        leftIconColor={theme.colors.text}
         onLeftIconPress={() => navigation.goBack()}
       />
 
@@ -623,10 +625,10 @@ const SmsFetchScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: theme.colors.background,
   },
   content: {
     flex: 1,
@@ -639,7 +641,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 12,
     fontFamily: Fonts.bold,
-    color: '#808080',
+    color: theme.colors.onSurfaceVariant,
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginBottom: 12,
@@ -649,21 +651,21 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   chip: {
-    backgroundColor: '#121212',
-    borderColor: '#1A1A1A',
+    backgroundColor: theme.colors.surfaceVariant,
+    borderColor: theme.colors.outline,
     borderWidth: 1,
     borderRadius: 12,
   },
   chipSelected: {
-    backgroundColor: 'rgba(58, 111, 248, 0.15)',
-    borderColor: '#d3d3ff',
+    backgroundColor: theme.colors.secondaryContainer,
+    borderColor: theme.colors.secondary,
   },
   chipText: {
-    color: '#808080',
+    color: theme.colors.onSurfaceVariant,
     fontFamily: Fonts.medium,
   },
   chipTextSelected: {
-    color: '#d3d3ff',
+    color: theme.colors.onSecondaryContainer,
     fontFamily: Fonts.bold,
   },
   actionHeader: {
@@ -675,13 +677,13 @@ const styles = StyleSheet.create({
   resultsInfo: {
     fontSize: 14,
     fontFamily: Fonts.semibold,
-    color: '#FFFFFF',
+    color: theme.colors.text,
   },
   refreshButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(58, 111, 248, 0.1)',
+    backgroundColor: theme.colors.secondaryContainer,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
@@ -689,18 +691,18 @@ const styles = StyleSheet.create({
   refreshText: {
     fontSize: 13,
     fontFamily: Fonts.bold,
-    color: '#d3d3ff',
+    color: theme.colors.onSecondaryContainer,
   },
   listContent: {
     paddingBottom: 100,
   },
   transactionCard: {
-    backgroundColor: '#121212',
+    backgroundColor: theme.colors.elevation.level1,
     borderRadius: 20,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: theme.colors.outlineVariant,
   },
   fadedCard: {
     opacity: 0.6,
@@ -718,13 +720,13 @@ const styles = StyleSheet.create({
   currency: {
     fontSize: 16,
     fontFamily: Fonts.bold,
-    color: '#FFFFFF',
+    color: theme.colors.text,
     marginRight: 2,
   },
   amount: {
     fontSize: 22,
     fontFamily: Fonts.bold,
-    color: '#FFFFFF',
+    color: theme.colors.text,
   },
   cardBody: {
     marginBottom: 16,
@@ -737,19 +739,19 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: 16,
     fontFamily: Fonts.semibold,
-    color: '#FFFFFF',
+    color: theme.colors.text,
   },
   editContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: theme.colors.surfaceVariant,
     borderRadius: 8,
     paddingRight: 8,
     marginBottom: 6,
   },
   editInput: {
     flex: 1,
-    color: '#FFFFFF',
+    color: theme.colors.text,
     fontFamily: Fonts.medium,
     paddingVertical: 8,
     paddingHorizontal: 10,
@@ -768,7 +770,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   bankTag: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: theme.colors.surfaceVariant,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -776,7 +778,7 @@ const styles = StyleSheet.create({
   bankTagText: {
     fontSize: 10,
     fontFamily: Fonts.bold,
-    color: '#808080',
+    color: theme.colors.onSurfaceVariant,
   },
   dateInfo: {
     flexDirection: 'row',
@@ -786,11 +788,11 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: 12,
     fontFamily: Fonts.medium,
-    color: '#808080',
+    color: theme.colors.onSurfaceVariant,
   },
   addButton: {
     flexDirection: 'row',
-    backgroundColor: '#d3d3ff',
+    backgroundColor: theme.colors.secondary,
     height: 40,
     borderRadius: 10,
     justifyContent: 'center',
@@ -798,15 +800,15 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   addedButton: {
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    backgroundColor: theme.colors.surfaceVariant,
     borderWidth: 1,
     borderColor: '#10B981',
   },
   addingButton: {
-    backgroundColor: '#1A1A1A',
+    backgroundColor: theme.colors.surfaceVariant,
   },
   addButtonText: {
-    color: '#FFFFFF',
+    color: theme.colors.onSecondary,
     fontFamily: Fonts.bold,
     fontSize: 14,
   },
@@ -820,7 +822,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 24,
-    backgroundColor: '#121212',
+    backgroundColor: theme.colors.surfaceVariant,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
@@ -828,20 +830,20 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 18,
     fontFamily: Fonts.bold,
-    color: '#FFFFFF',
+    color: theme.colors.text,
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 14,
     fontFamily: Fonts.regular,
-    color: '#808080',
+    color: theme.colors.onSurfaceVariant,
     textAlign: 'center',
     paddingHorizontal: 40,
     lineHeight: 20,
     marginBottom: 24,
   },
   scanButton: {
-    backgroundColor: '#d3d3ff',
+    backgroundColor: theme.colors.secondary,
     borderRadius: 12,
   },
   scanButtonLabel: {
@@ -852,13 +854,13 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#000000',
+    backgroundColor: theme.colors.background,
     padding: 20,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.05)',
+    borderTopColor: theme.colors.outlineVariant,
   },
   bulkButton: {
-    backgroundColor: '#d3d3ff',
+    backgroundColor: theme.colors.secondary,
     borderRadius: 16,
     elevation: 4,
   },
@@ -867,26 +869,20 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bold,
   },
   editSection: {
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: theme.colors.surfaceVariant,
     borderRadius: 16,
     padding: 12,
     marginTop: 4,
   },
   editInputLine: {
     borderBottomWidth: 1,
-    borderBottomColor: '#1A1A1A',
+    borderBottomColor: theme.colors.outlineVariant,
     marginBottom: 12,
-  },
-  editInput: {
-    color: '#FFFFFF',
-    fontFamily: Fonts.semibold,
-    fontSize: 16,
-    paddingVertical: 8,
   },
   editLabel: {
     fontSize: 11,
     fontFamily: Fonts.bold,
-    color: '#808080',
+    color: theme.colors.onSurfaceVariant,
     textTransform: 'uppercase',
     marginBottom: 8,
   },
@@ -895,21 +891,21 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   catChip: {
-    backgroundColor: '#121212',
+    backgroundColor: theme.colors.elevation.level2,
     height: 32,
   },
   catChipSelected: {
-    backgroundColor: '#d3d3ff',
+    backgroundColor: theme.colors.secondary,
   },
   catChipText: {
     fontSize: 12,
     fontFamily: Fonts.medium,
   },
   notesInput: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: theme.colors.elevation.level1,
     borderRadius: 8,
     padding: 10,
-    color: '#FFFFFF',
+    color: theme.colors.text,
     fontFamily: Fonts.regular,
     fontSize: 14,
     minHeight: 60,
@@ -936,16 +932,16 @@ const styles = StyleSheet.create({
   itemCategory: {
     fontSize: 12,
     fontFamily: Fonts.medium,
-    color: '#d3d3ff',
+    color: theme.colors.secondary,
     marginTop: 2,
   },
   notesPreview: {
     fontSize: 12,
     fontFamily: Fonts.regular,
-    color: '#808080',
+    color: theme.colors.onSurfaceVariant,
     fontStyle: 'italic',
     marginTop: 8,
-    backgroundColor: 'rgba(255,255,255,0.02)',
+    backgroundColor: theme.colors.surfaceVariant,
     padding: 6,
     borderRadius: 4,
   },

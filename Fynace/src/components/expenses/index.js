@@ -6,5 +6,6 @@ export { default as ExpenseSearch } from './ExpenseSearch';
 export { default as ExpenseComparison } from './ExpenseComparison';
 export { default as FABMenu } from './FABMenu';
 export { default as FilterSheet } from './FilterSheet';
-export { default as CategoryPicker } from './CategoryPicker';
 export { default as MonthPicker } from './MonthPicker';
+export { default as DatePicker } from './DatePicker';
+export { default as CategoryPicker } from './CategoryPicker';

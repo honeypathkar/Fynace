@@ -1,5 +1,6 @@
 import "./globals.css";
 import { Bricolage_Grotesque } from "next/font/google";
+import { ThemeProvider } from "./ThemeProvider";
 
 const bricolage = Bricolage_Grotesque({
   subsets: ["latin"],
@@ -19,8 +20,17 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={bricolage.variable}>
-      <body>{children}</body>
+    <html lang="en" className={bricolage.variable} suppressHydrationWarning>
+      <body>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
+      </body>
     </html>
   );
 }
