@@ -1,7 +1,7 @@
 import { useEffect, useCallback } from 'react';
 import { Platform, PermissionsAndroid, Alert } from 'react-native';
 import messaging from '@react-native-firebase/messaging';
-import notifee, { AndroidImportance, EventType } from '@notifee/react-native';
+import notifee, { AndroidImportance, EventType, AndroidStyle } from '@notifee/react-native';
 import DeviceInfo from 'react-native-device-info';
 import { apiClient } from '../api/client';
 import { useAuth } from './useAuth';
@@ -46,7 +46,12 @@ export const useNotifications = () => {
         remoteMessage.notification?.body || 'New financial insight available',
       android: {
         channelId,
-        smallIcon: 'ic_launcher', // Ensure this exists or use a default
+        smallIcon: 'ic_stat_name', // Using the monochrome icon for Android
+        color: '#6060FF', // Tinting the icon with the app's primary color
+        style: {
+          type: AndroidStyle.BIGTEXT,
+          text: remoteMessage.notification?.body || 'New financial insight available',
+        },
         pressAction: {
           id: 'default',
         },

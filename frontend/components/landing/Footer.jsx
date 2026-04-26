@@ -21,7 +21,7 @@ export default function Footer() {
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
           <div className="lg:col-span-2">
             <Link href="/" className="flex items-center">
-              <div className="relative h-10 w-32 overflow-hidden">
+              <div className="relative h-10 w-32 overflow-hidden rounded-lg">
                 <Image
                   src={logoSrc}
                   alt="Fynace logo"

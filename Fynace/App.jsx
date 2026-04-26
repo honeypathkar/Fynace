@@ -17,11 +17,13 @@ import { PrivacyProvider } from './src/context/PrivacyContext';
 import { SecurityProvider } from './src/context/SecurityContext';
 import { ThemeProvider, useAppTheme } from './src/context/ThemeContext';
 import NotificationHandler from './src/components/NotificationHandler';
+import useQuickActions from './src/hooks/useQuickActions';
 
 import { syncManager } from './src/sync/SyncManager';
 
 function AppContent() {
   const { paperTheme, activeScheme } = useAppTheme();
+  useQuickActions();
 
   return (
     <PaperProvider theme={paperTheme}>

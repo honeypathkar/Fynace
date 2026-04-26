@@ -81,7 +81,7 @@ export default function Hero({ onCtaClick }) {
             src={previewSrc}
             alt="Fynace logo preview"
             fill
-            className="object-contain"
+            className="rounded-2xl object-contain"
             priority
           />
         </motion.div>

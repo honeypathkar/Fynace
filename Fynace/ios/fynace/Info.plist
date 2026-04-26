@@ -50,5 +50,32 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>UIApplicationShortcutItems</key>
+	<array>
+		<dict>
+			<key>UIApplicationShortcutItemIconType</key>
+			<string>UIApplicationShortcutIconTypeAdd</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Add Expense</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>add_expense</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemIconType</key>
+			<string>UIApplicationShortcutIconTypeCaptureVideo</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Scan QR</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>scan_qr</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemIconType</key>
+			<string>UIApplicationShortcutIconTypeDate</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Budgets</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>view_budgets</string>
+		</dict>
+	</array>
 </dict>
 </plist>

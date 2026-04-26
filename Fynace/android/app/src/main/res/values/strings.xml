@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">Fynace</string>
+    <string name="shortcut_add_expense_short">Add Expense</string>
+    <string name="shortcut_add_expense_long">Add a new expense</string>
+    <string name="shortcut_scan_qr_short">Scan QR</string>
+    <string name="shortcut_scan_qr_long">Scan QR to add expense</string>
+    <string name="shortcut_budgets_short">Budgets</string>
+    <string name="shortcut_budgets_long">View your budgets</string>
 </resources>

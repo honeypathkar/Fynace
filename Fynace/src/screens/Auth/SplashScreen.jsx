@@ -53,15 +53,15 @@ const SplashScreen = () => {
   useEffect(() => {
     Animated.timing(scale, {
       toValue: 1,
-      duration: 600,
-      delay: 150,
+      duration: 400,
+      delay: 100,
       useNativeDriver: true,
     }).start();
 
     Animated.timing(logoOpacity, {
       toValue: 1,
-      duration: 400,
-      delay: 800,
+      duration: 300,
+      delay: 500,
       useNativeDriver: true,
     }).start(({ finished }) => {
       if (finished) {

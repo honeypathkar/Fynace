@@ -34,16 +34,11 @@ const QRScannerScreen = () => {
   const [hasPermission, setHasPermission] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [isActive, setIsActive] = useState(true);
+  const isActive = isFocused && !loading;
   const [errorMsg, setErrorMsg] = useState(null);
 
   const device = useCameraDevice('back');
 
-  useEffect(() => {
-    if (isFocused) {
-      setIsActive(true);
-    }
-  }, [isFocused]);
 
   useEffect(() => {
     const requestPermission = async () => {
@@ -66,7 +61,6 @@ const QRScannerScreen = () => {
   const handleScannedData = useCallback(
     data => {
       console.log('🔍 Raw Scanned QR Data:', data);
-      setIsActive(false);
 
       let initialValues = {
         price: '',
@@ -104,12 +98,10 @@ const QRScannerScreen = () => {
           navigation.navigate('AddQRBasedExpense', { initialValues });
         } catch (e) {
           setErrorMsg('Invalid Payment QR');
-          setIsActive(true);
           setTimeout(() => setErrorMsg(null), 3000);
         }
       } else {
         setErrorMsg('Only UPI Payment QR is allowed');
-        setIsActive(true);
         setTimeout(() => setErrorMsg(null), 3000);
       }
     },
@@ -216,6 +208,9 @@ const QRScannerScreen = () => {
           isActive={isActive}
           codeScanner={codeScanner}
           torch={torchOn ? 'on' : 'off'}
+          photo={false}
+          video={false}
+          audio={false}
         />
 
         <View style={styles.overlay}>

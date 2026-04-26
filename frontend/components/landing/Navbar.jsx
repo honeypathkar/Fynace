@@ -52,7 +52,7 @@ export default function Navbar({ onGetStarted }) {
           )}
         >
           <Link href="/" className="group flex items-center">
-            <div className="relative h-10 w-32 overflow-hidden">
+            <div className="relative h-10 w-32 overflow-hidden rounded-lg">
               <Image
                 src={logoSrc}
                 alt="Fynace logo"
