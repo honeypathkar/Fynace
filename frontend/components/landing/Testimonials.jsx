@@ -22,7 +22,7 @@ const testimonials = [
   },
   {
     name: "Rohan Gupta",
-    role: "Founder",
+    role: "Influencer",
     quote:
       "Budget automation removed manual tracking from my routine. I finally feel in control of cash flow each month.",
     avatar: "RG",
