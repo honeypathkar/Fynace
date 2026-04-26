@@ -8,23 +8,25 @@ const testimonials = [
     name: "Honey Pathkar",
     role: "Founder, Fynace",
     quote:
-      "We built Fynace to make personal finance calm, private, and practical. Every feature is crafted to help people make better money decisions faster, with less stress and more confidence.",
+      "I built Fynace to make personal finance calm, private, and practical. Every feature is crafted to help people make better money decisions faster, with less stress and more confidence.",
     avatarImage:
       "https://res.cloudinary.com/dbfyjoiub/image/upload/v1771066355/20251116_214519_ncsapv.jpg",
     avatar: "HP",
   },
   {
-    name: "Priya Patel",
-    role: "Software Engineer",
+    name: "Suryansh Patwa",
+    role: "Student at IIT Madras",
     quote:
-      "It has the polish of premium fintech apps but remains simple. I open it daily because it is actually useful.",
-    avatar: "PP",
+      "It’s the kind of app I never thought I needed. It helped me manage my budget and reduce unnecessary spending by a lot. Now I’m spending 40% less and actually saving money. Thanks, Fynace.",
+    avatarImage:
+      "https://res.cloudinary.com/dbfyjoiub/image/upload/v1777194390/portfolio/o1yq0zy8p1nzoiorzt3e.jpg",
+    avatar: "SP",
   },
   {
     name: "Rohan Gupta",
     role: "Influencer",
     quote:
-      "Budget automation removed manual tracking from my routine. I finally feel in control of cash flow each month.",
+      "Budget automation removed manual tracking from my routine. I finally feel in control of my cash flow each month.",
     avatar: "RG",
   },
 ];
