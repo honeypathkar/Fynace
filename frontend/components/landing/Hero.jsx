@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Play } from "@phosphor-icons/react";
+import { ArrowRight } from "@phosphor-icons/react";
 import Image from "next/image";
+import Link from "next/link";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 
@@ -63,10 +64,20 @@ export default function Hero({ onCtaClick }) {
               Get Started
               <ArrowRight size={16} className="ml-2" />
             </Button>
-            <Button size="xl" variant="secondary" onClick={onCtaClick}>
-              <Play size={16} className="mr-2" />
-              Watch Demo
-            </Button>
+            <Link
+              href="https://play.google.com/store/apps/details?id=com.fynace.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="relative h-12 w-40 overflow-hidden transition-all hover:opacity-90 active:scale-[0.98]"
+            >
+              <Image
+                src="/images/image.png"
+                alt="Get it on Google Play"
+                fill
+                className="object-contain"
+                priority
+              />
+            </Link>
           </motion.div>
         </div>
 
