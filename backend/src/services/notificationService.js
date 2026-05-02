@@ -5,16 +5,18 @@ const admin = require("../config/firebase");
  * @param {Array} deviceTokens - Array of FCM tokens
  * @param {Object} payload - Notification payload { title, body, data }
  */
-const sendNotification = async (deviceTokens, { title, body, data = {} }) => {
+const sendNotification = async (deviceTokens, { title, body, image, data = {} }) => {
   if (!deviceTokens || deviceTokens.length === 0) return;
 
   const message = {
     notification: {
       title,
       body,
+      ...(image && { image }),
     },
     data: {
       ...data,
+      ...(image && { image }),
       click_action: "FLUTTER_NOTIFICATION_CLICK", // Standard for some handlers
     },
     tokens: deviceTokens,
@@ -25,19 +27,16 @@ const sendNotification = async (deviceTokens, { title, body, data = {} }) => {
     console.log(`Successfully sent ${response.successCount} notifications`);
 
     if (response.failureCount > 0) {
-      const failedTokens = [];
-      response.responses.forEach((resp, idx) => {
-        if (!resp.success) {
-          failedTokens.push(deviceTokens[idx]);
-          console.error(`Failed to send to token ${idx}:`, resp.error);
-        }
-      });
-      // Optionally clean up failed tokens here
+      // Tokens that failed can be handled here (e.g., removed from DB if they are invalid)
+      // We are removing the loud console logs as requested
     }
 
     return response;
   } catch (error) {
-    console.error("Error sending multicast message:", error);
+    // Only log critical multicast errors
+    if (error.code !== 'messaging/invalid-argument') {
+      console.error("Multicast delivery failed:", error.message);
+    }
   }
 };
 

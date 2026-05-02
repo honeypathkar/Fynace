@@ -6,6 +6,8 @@ import { getStyles } from './styles';
 import { usePrivacy } from '../../context/PrivacyContext';
 import { useAuth } from '../../hooks/useAuth';
 
+import { triggerHaptic } from '../../utils/hapticFeedback';
+
 const ExpenseCard = React.memo(
   ({ item, transformMonthLabel, formatItemTime, onEdit, onDelete }) => {
     const theme = useTheme();
@@ -58,7 +60,10 @@ const ExpenseCard = React.memo(
               )}
               {onEdit && (
                 <TouchableOpacity
-                  onPress={() => onEdit(item)}
+                  onPress={() => {
+                    triggerHaptic('impactMedium');
+                    onEdit(item);
+                  }}
                   style={styles.editButton}
                   activeOpacity={0.7}
                 >
@@ -67,7 +72,10 @@ const ExpenseCard = React.memo(
               )}
               {onDelete && (
                 <TouchableOpacity
-                  onPress={() => onDelete(item)}
+                  onPress={() => {
+                    triggerHaptic('impactMedium');
+                    onDelete(item);
+                  }}
                   style={styles.deleteButton}
                   activeOpacity={0.7}
                 >

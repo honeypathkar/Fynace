@@ -78,6 +78,10 @@ app.use("/api/landing", landingRoutes);
 app.use("/api/sync", require("./routes/syncRoutes"));
 app.use("/api/banks", require("./routes/bankRoutes"));
 app.use("/api/cron", require("./routes/cronRoutes"));
+app.use("/api/test", require("./routes/testRoutes"));
+app.use("/api/feedback", require("./routes/feedbackRoutes"));
+app.use("/api/upload", require("./routes/uploadRoutes"));
+app.use("/api/admin", require("./routes/adminRoutes"));
 
 // 404 handler
 app.use("*", (req, res) => {

@@ -6,6 +6,7 @@ import {
   View,
   ScrollView,
   StatusBar,
+  Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Text, useTheme } from 'react-native-paper';
@@ -23,11 +24,16 @@ import {
   Target,
   Clock,
   Palette,
+  MessageSquare,
+  ShieldCheck,
 } from 'lucide-react-native';
 import Fonts from '../../../assets/fonts';
 import { FRONTEND_URL } from '../../utils/BASE_URL';
 import { useAppTheme } from '../../context/ThemeContext';
 import BottomSheet from '../../components/BottomSheet';
+import FeedbackSheet from '../../components/profile/FeedbackSheet';
+
+import { triggerHaptic } from '../../utils/hapticFeedback';
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
@@ -37,6 +43,13 @@ const ProfileScreen = () => {
 
   const themeSheetRef = useRef(null);
   const logoutSheetRef = useRef(null);
+  const feedbackSheetRef = useRef(null);
+  const [imageError, setImageError] = React.useState(false);
+  
+  useEffect(() => {
+    setImageError(false);
+  }, [user?.userImage]);
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -45,7 +58,15 @@ const ProfileScreen = () => {
       duration: 500,
       useNativeDriver: true,
     }).start();
-  }, [fadeAnim]);
+
+    // Handle Deep Link for Feedback History
+    const params = navigation.getState()?.routes.find(r => r.name === 'Profile')?.params;
+    if (params?.openHistory) {
+      setTimeout(() => {
+        feedbackSheetRef.current?.open('history');
+      }, 600);
+    }
+  }, [fadeAnim, navigation]);
 
   const handleLogoutPress = () => {
     logoutSheetRef.current?.open();
@@ -84,7 +105,10 @@ const ProfileScreen = () => {
 
   const MenuItem = ({ icon: Icon, label, onPress, isDestructive = false, right }) => (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        onPress?.();
+        triggerHaptic('impactMedium');
+      }}
       style={({ pressed }) => [
         styles.menuItem, 
         pressed && { backgroundColor: theme.colors.elevation.level1 }
@@ -147,7 +171,15 @@ const ProfileScreen = () => {
                 borderColor: theme.colors.outlineVariant,
               }
             ]}>
-              <User size={52} color={theme.colors.secondary} />
+              {user?.userImage && !imageError ? (
+                <Image 
+                  source={{ uri: user.userImage }} 
+                  style={styles.avatarImage} 
+                  onError={() => setImageError(true)}
+                />
+              ) : (
+                <User size={52} color={theme.colors.secondary} />
+              )}
             </View>
             <Text style={[styles.userName, { color: theme.colors.text }]}>{user?.fullName || 'User Name'}</Text>
             <Text style={[styles.userEmail, { color: theme.colors.onSurfaceVariant }]}>{user?.email || 'user@example.com'}</Text>
@@ -195,7 +227,24 @@ const ProfileScreen = () => {
               }
             />
 
+            {user?.role === 'admin' && (
+              <>
+                <Text style={[styles.sectionLabel, { color: theme.colors.secondary }]}>Admin Operations</Text>
+                <MenuItem
+                  icon={ShieldCheck}
+                  label="Admin Panel"
+                  onPress={() => navigation.navigate('AdminPanel')}
+                />
+              </>
+            )}
+
             <Text style={[styles.sectionLabel, { color: theme.colors.secondary }]}>More</Text>
+
+            <MenuItem
+              icon={MessageSquare}
+              label="Send Feedback"
+              onPress={() => feedbackSheetRef.current?.open()}
+            />
 
             <MenuItem
               icon={Shield}
@@ -250,6 +299,8 @@ const ProfileScreen = () => {
           }
         }}
       />
+
+      <FeedbackSheet ref={feedbackSheetRef} />
     </SafeAreaView>
   );
 };
@@ -280,6 +331,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
     borderWidth: 1.5,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 55,
   },
   userName: {
     fontSize: 22,

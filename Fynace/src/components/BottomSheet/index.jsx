@@ -34,6 +34,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTheme } from 'react-native-paper';
 import { getStyles, getThemeColors, spacing } from './styles';
+import { triggerHaptic } from '../../utils/hapticFeedback';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -68,7 +69,7 @@ const BottomSheet = forwardRef(
     const SNAP_POINTS = {
       CLOSED: SCREEN_HEIGHT,
       MID: SCREEN_HEIGHT * (1 - initialHeight),
-      FULL: SCREEN_HEIGHT * 0.1,
+      FULL: Math.min(SCREEN_HEIGHT * 0.05, SCREEN_HEIGHT * (1 - initialHeight)),
     };
 
     const translateY = useSharedValue(SNAP_POINTS.CLOSED);
@@ -222,6 +223,7 @@ const BottomSheet = forwardRef(
     });
 
     const handleSelect = value => {
+      triggerHaptic('impactMedium');
       if (onSelect) {
         onSelect(value);
       }
@@ -347,7 +349,10 @@ const BottomSheet = forwardRef(
                           </Text>
                         ) : null}
                         <TouchableOpacity
-                          onPress={close}
+                          onPress={() => {
+                            triggerHaptic('impactMedium');
+                            close();
+                          }}
                           style={styles.modalCloseButton}
                           activeOpacity={0.85}
                         >

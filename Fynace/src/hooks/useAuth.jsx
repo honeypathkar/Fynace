@@ -108,7 +108,16 @@ export const AuthProvider = ({ children }) => {
           setTokenState(storedToken);
           setAuthToken(storedToken);
 
-          if (storedUser) {
+          // Try to get freshest data from local DB first
+          const localUserRecord = await database.get('users').query().fetch();
+          if (localUserRecord.length > 0) {
+            const localUser = localUserRecord[0];
+            setUser({
+              fullName: localUser.name,
+              email: localUser.email,
+              userImage: localUser.userImage,
+            });
+          } else if (storedUser) {
             setUser(JSON.parse(storedUser));
           }
 
@@ -118,7 +127,6 @@ export const AuthProvider = ({ children }) => {
               'Bootstrap silent refresh failed (likely offline):',
               err.message,
             );
-            // We keep the stored user data if refresh fails
           });
         }
       } catch (error) {
@@ -130,6 +138,28 @@ export const AuthProvider = ({ children }) => {
 
     bootstrap();
   }, [refreshProfileInternal]);
+
+  // Subscribe to local User changes from SyncManager/WatermelonDB
+  useEffect(() => {
+    if (!token) return;
+
+    const userCollection = database.get('users');
+    const observable = userCollection.query().observe();
+    
+    const subscription = observable.subscribe(records => {
+      if (records.length > 0) {
+        const localUser = records[0];
+        setUser(prev => ({
+          ...prev,
+          fullName: localUser.name,
+          email: localUser.email,
+          userImage: localUser.userImage,
+        }));
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [token]);
 
   const checkUser = useCallback(async email => {
     try {
@@ -345,6 +375,29 @@ export const AuthProvider = ({ children }) => {
       if (userData) {
         setUser(userData);
         await AsyncStorage.setItem(USER_KEY, JSON.stringify(userData));
+        
+        // Update local WatermelonDB record for offline persistence
+        const userCollection = database.get('users');
+        const existingUsers = await userCollection.query().fetch();
+        
+        await database.write(async () => {
+          if (existingUsers.length > 0) {
+            await existingUsers[0].update(record => {
+              record.name = userData.fullName;
+              record.userImage = userData.userImage;
+              record.synced = true;
+              record.updatedAt = Date.now();
+            });
+          } else {
+            await userCollection.create(record => {
+              record.name = userData.fullName;
+              record.email = userData.email;
+              record.userImage = userData.userImage;
+              record.synced = true;
+              record.updatedAt = Date.now();
+            });
+          }
+        });
       }
     } catch (error) {
       const apiError = parseApiError(error);

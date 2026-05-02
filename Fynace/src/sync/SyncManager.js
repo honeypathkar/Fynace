@@ -185,10 +185,36 @@ class SyncManager {
         transactions = [],
         categories = [],
         budgets = [],
+        user: remoteUser,
       } = response.data.data || {};
       const remoteTimestamp = response.data.timestamp || Date.now();
 
       await database.write(async () => {
+        // Sync User Profile
+        if (remoteUser) {
+          const userCollection = database.get('users');
+          const existingUsers = await userCollection.query().fetch();
+          
+          if (existingUsers.length === 0) {
+            await userCollection.create(record => {
+              record.name = remoteUser.fullName;
+              record.email = remoteUser.email;
+              record.userImage = remoteUser.userImage;
+              record.synced = true;
+              record.updatedAt = new Date(remoteUser.updatedAt || Date.now()).getTime();
+            });
+          } else {
+            const userRecord = existingUsers[0];
+            await userRecord.update(record => {
+              record.name = remoteUser.fullName;
+              record.email = remoteUser.email;
+              record.userImage = remoteUser.userImage;
+              record.synced = true;
+              record.updatedAt = new Date(remoteUser.updatedAt || Date.now()).getTime();
+            });
+          }
+        }
+
         // Sync Categories First (so we can map them)
         const catCollection = database.get('categories');
         for (const remote of categories) {

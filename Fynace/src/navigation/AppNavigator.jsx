@@ -21,6 +21,8 @@ import BankSmsConfigScreen from '../screens/Profile/BankSmsConfigScreen';
 import SmsFetchScreen from '../screens/Expenses/SmsFetchScreen';
 import RecurringTransactionsScreen from '../screens/Profile/RecurringTransactionsScreen';
 import BudgetScreen from '../screens/Profile/BudgetScreen';
+import AdminPanelScreen from '../screens/Admin/AdminPanelScreen';
+import ImageViewerScreen from '../screens/Common/ImageViewerScreen';
 import CustomTabBar from './CustomTabBar';
 
 const Tab = createBottomTabNavigator();
@@ -67,6 +69,7 @@ const AppTabs = () => {
 };
 
 import { navigationRef } from './navigationRef';
+import linking from './linking';
 
 const AppNavigator = () => {
   const paperTheme = useTheme();
@@ -88,7 +91,7 @@ const AppNavigator = () => {
   );
 
   return (
-    <NavigationContainer theme={navigationTheme} ref={navigationRef}>
+    <NavigationContainer theme={navigationTheme} ref={navigationRef} linking={linking}>
       <Stack.Navigator
         initialRouteName="Splash"
         screenOptions={{ headerShown: false }}
@@ -172,6 +175,21 @@ const AppNavigator = () => {
           name="Budgets"
           component={BudgetScreen}
           options={{ animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="FeedbackHistory"
+          component={ProfileScreen}
+          options={{ animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="AdminPanel"
+          component={AdminPanelScreen}
+          options={{ animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="ImageViewer"
+          component={ImageViewerScreen}
+          options={{ animation: 'fade' }}
         />
       </Stack.Navigator>
     </NavigationContainer>

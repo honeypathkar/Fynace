@@ -7,6 +7,15 @@ import {
 export default schemaMigrations({
   migrations: [
     {
+      toVersion: 11,
+      steps: [
+        addColumns({
+          table: 'users',
+          columns: [{ name: 'user_image', type: 'string', isOptional: true }],
+        }),
+      ],
+    },
+    {
       toVersion: 10,
       steps: [
         createTable({

@@ -41,6 +41,8 @@ import { Q } from '@nozbe/watermelondb';
 import { syncManager } from '../../sync/SyncManager';
 import BottomSheet from '../../components/BottomSheet';
 import { usePrivacy } from '../../context/PrivacyContext';
+import { updateAppWidget } from '../../utils/widgetHelper';
+import { triggerHaptic } from '../../utils/hapticFeedback';
 
 const HomeSkeleton = () => {
   const theme = useTheme();
@@ -451,6 +453,61 @@ const HomeScreen = () => {
     };
   }, [rawExpenses, rawMoneyIn]);
 
+  // Update Home Screen Widget whenever data changes
+  useEffect(() => {
+    if (user && rawExpenses.length > 0) {
+      // Calculate Current Month Spending for the Widget (Independent of HomeScreen filters)
+      const now = new Date();
+      const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      
+      const currentMonthExpenses = rawExpenses.filter(e => e.month === currentMonthKey);
+      const currentMonthIncome = rawMoneyIn.filter(m => m.month === currentMonthKey);
+      
+      const monthTotalOut = currentMonthExpenses.reduce((sum, e) => sum + (e.amountRupees || 0), 0);
+      const monthTotalIn = currentMonthIncome.reduce((sum, e) => sum + (e.amountRupees || 0), 0);
+
+      // Group expenses by day for the last 7 days for the Chart
+      const last7Days = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        last7Days.push(d.toISOString().split('T')[0]);
+      }
+
+      const dailyTotals = last7Days.map(date => {
+        return rawExpenses
+          .filter(e => new Date(e.date).toISOString().split('T')[0] === date)
+          .reduce((sum, e) => sum + (e.amountRupees || 0), 0);
+      });
+
+      // Top 3 Categories for the Widget
+      const categoryTotals = currentMonthExpenses.reduce((acc, e) => {
+        const cat = e.category || 'Other';
+        acc[cat] = (acc[cat] || 0) + (e.amountRupees || 0);
+        return acc;
+      }, {});
+
+      const sortedCategories = Object.entries(categoryTotals)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 3);
+
+      const top3 = {
+        cat1: sortedCategories[0]?.[0] || '',
+        cat2: sortedCategories[1]?.[0] || '',
+        cat3: sortedCategories[2]?.[0] || '',
+        weight1: monthTotalOut > 0 ? (sortedCategories[0]?.[1] || 0) / monthTotalOut : 0,
+        weight2: monthTotalOut > 0 ? (sortedCategories[1]?.[1] || 0) / monthTotalOut : 0,
+        weight3: monthTotalOut > 0 ? (sortedCategories[2]?.[1] || 0) / monthTotalOut : 0,
+      };
+
+      updateAppWidget({
+        amount: formatAmount(monthTotalOut, user?.currency),
+        range: formatMonth(currentMonthKey),
+        ...top3
+      });
+    }
+  }, [rawExpenses, rawMoneyIn, user, formatAmount, currentMonthKey]);
+
   const FilterChip = ({ label, active, onPress }) => (
     <TouchableOpacity
       style={[
@@ -458,7 +515,10 @@ const HomeScreen = () => {
         { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline },
         active && { backgroundColor: theme.colors.secondary, borderColor: theme.colors.secondary }
       ]}
-      onPress={onPress}
+      onPress={() => {
+        triggerHaptic('impactMedium');
+        onPress();
+      }}
     >
       <Text
         style={[
@@ -499,6 +559,7 @@ const HomeScreen = () => {
       <StatusBar backgroundColor={theme.colors.background} barStyle={theme.dark ? 'light-content' : 'dark-content'} />
       <HomeHeader
         userName={user?.fullName}
+        userImage={user?.userImage}
         onProfilePress={() => navigation.navigate('Profile')}
       />
 
@@ -540,6 +601,7 @@ const HomeScreen = () => {
               label="All Time"
               active={filterType === 'all_time'}
               onPress={() => {
+                triggerHaptic('impactMedium');
                 bottomSheetRef.current?.close();
                 InteractionManager.runAfterInteractions(() => {
                   setFilterType('all_time');
@@ -551,6 +613,7 @@ const HomeScreen = () => {
               label="Current Week"
               active={filterType === 'current_week'}
               onPress={() => {
+                triggerHaptic('impactMedium');
                 bottomSheetRef.current?.close();
                 InteractionManager.runAfterInteractions(() => {
                   setFilterType('current_week');
@@ -562,6 +625,7 @@ const HomeScreen = () => {
               label="Last Week"
               active={filterType === 'last_week'}
               onPress={() => {
+                triggerHaptic('impactMedium');
                 bottomSheetRef.current?.close();
                 InteractionManager.runAfterInteractions(() => {
                   setFilterType('last_week');
@@ -580,6 +644,7 @@ const HomeScreen = () => {
                 label={y.toString()}
                 active={filterType === 'yearly' && filterValue === y.toString()}
                 onPress={() => {
+                  triggerHaptic('impactMedium');
                   bottomSheetRef.current?.close();
                   InteractionManager.runAfterInteractions(() => {
                     setFilterType('yearly');
@@ -599,6 +664,7 @@ const HomeScreen = () => {
                 label={formatMonth(m)}
                 active={filterType === 'monthly' && filterValue === m}
                 onPress={() => {
+                  triggerHaptic('impactMedium');
                   bottomSheetRef.current?.close();
                   InteractionManager.runAfterInteractions(() => {
                     setFilterType('monthly');

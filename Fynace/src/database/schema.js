@@ -1,13 +1,14 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 10,
+  version: 11,
   tables: [
     tableSchema({
       name: 'users',
       columns: [
         { name: 'name', type: 'string' },
         { name: 'email', type: 'string' },
+        { name: 'user_image', type: 'string', isOptional: true },
         { name: 'synced', type: 'boolean' },
         { name: 'updated_at', type: 'number' },
         { name: 'is_deleted', type: 'boolean' },

@@ -72,6 +72,7 @@ import { getStyles as getExpenseStyles } from '../../components/expenses/styles'
 import { database } from '../../database';
 import { Q } from '@nozbe/watermelondb';
 import { syncManager } from '../../sync/SyncManager';
+import { triggerHaptic } from '../../utils/hapticFeedback';
 
 if (
   Platform.OS === 'android' &&
@@ -764,11 +765,13 @@ const ExpensesScreen = () => {
   };
 
   const handleOpenFilters = () => {
+    triggerHaptic('impactMedium');
     filterSheetRef.current?.open();
     fetchFilters();
   };
 
   const handleAddManually = () => {
+    triggerHaptic('impactMedium');
     fabMenuSheetRef.current?.close();
     setTimeout(() => {
       setActionMenuOpen(false);
@@ -777,6 +780,7 @@ const ExpensesScreen = () => {
   };
 
   const handleImportExcel = () => {
+    triggerHaptic('impactMedium');
     fabMenuSheetRef.current?.close();
     setTimeout(() => {
       setActionMenuOpen(false);
@@ -785,6 +789,7 @@ const ExpensesScreen = () => {
   };
 
   const handleSmsFetch = () => {
+    triggerHaptic('impactMedium');
     fabMenuSheetRef.current?.close();
     setTimeout(() => {
       setActionMenuOpen(false);
@@ -906,7 +911,10 @@ const ExpensesScreen = () => {
         renderRightComponent={() => (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Pressable
-              onPress={() => togglePrivacyMode()}
+              onPress={() => {
+                triggerHaptic('impactMedium');
+                togglePrivacyMode();
+              }}
               style={({ pressed }) => [
                 {
                   padding: 8,

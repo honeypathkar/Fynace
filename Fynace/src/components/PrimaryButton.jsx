@@ -4,6 +4,8 @@ import LinearGradient from 'react-native-linear-gradient';
 import { themeAssets } from '../theme';
 import Fonts from '../../assets/fonts';
 
+import { triggerHaptic } from '../utils/hapticFeedback';
+
 const DEFAULT_GRADIENT = ['#000000', '#000000', '#000000'];
 const DISABLED_GRADIENT = ['#333333', '#333333'];
 
@@ -31,7 +33,10 @@ const PrimaryButton = ({
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={(e) => {
+        triggerHaptic('impactMedium');
+        onPress?.(e);
+      }}
       disabled={disabled || loading}
       style={({ pressed }) => [
         styles.pressable,

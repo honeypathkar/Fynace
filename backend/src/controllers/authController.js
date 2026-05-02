@@ -61,7 +61,10 @@ const sendOTPForLogin = async (req, res) => {
         code: otp,
         expiresAt,
       };
-      user.authMethod = "otp";
+      // ONLY set authMethod if it's not already set (safety)
+      if (!user.authMethod) {
+        user.authMethod = "otp";
+      }
       await user.save();
     } else {
       // If new user, fullName is required
@@ -210,6 +213,7 @@ const verifyOTP = async (req, res) => {
         currency: user.currency,
         notificationSettings: user.notificationSettings,
         authMethod: user.authMethod,
+        role: user.role,
       },
     });
   } catch (error) {
@@ -264,6 +268,8 @@ const googleLoginRegister = async (req, res) => {
         id: user._id,
         fullName: user.fullName,
         email: user.email,
+        userImage: user.userImage,
+        role: user.role,
       },
     });
   } catch (error) {
@@ -293,8 +299,10 @@ const getProfile = async (req, res) => {
         phone: user.phone,
         authMethod: user.authMethod,
         currency: user.currency,
+        userImage: user.userImage,
         notificationSettings: user.notificationSettings,
         isVerified: user.isVerified,
+        role: user.role,
         createdAt: user.createdAt,
       },
     });
@@ -310,7 +318,7 @@ const getProfile = async (req, res) => {
 // Update user profile
 const updateProfile = async (req, res) => {
   try {
-    const { fullName, email, phone, currency, notificationSettings } = req.body;
+    const { fullName, email, phone, currency, notificationSettings, userImage } = req.body;
 
     const user = await User.findById(req.userId);
 
@@ -325,6 +333,7 @@ const updateProfile = async (req, res) => {
     if (email) user.email = email;
     if (phone) user.phone = phone;
     if (currency) user.currency = currency;
+    if (userImage !== undefined) user.userImage = userImage;
     if (notificationSettings) {
       user.notificationSettings = {
         ...(user.notificationSettings
@@ -346,8 +355,10 @@ const updateProfile = async (req, res) => {
         email: user.email,
         phone: user.phone,
         currency: user.currency,
+        userImage: user.userImage,
         notificationSettings: user.notificationSettings,
         authMethod: user.authMethod,
+        role: user.role,
       },
     });
   } catch (error) {
@@ -468,6 +479,7 @@ const refreshToken = async (req, res) => {
         currency: user.currency,
         notificationSettings: user.notificationSettings,
         authMethod: user.authMethod,
+        role: user.role,
       },
     });
   } catch (error) {

@@ -1,5 +1,5 @@
 import { useEffect, useCallback } from 'react';
-import { Platform, PermissionsAndroid, Alert } from 'react-native';
+import { Platform, PermissionsAndroid, Alert, Linking } from 'react-native';
 import messaging from '@react-native-firebase/messaging';
 import notifee, { AndroidImportance, EventType, AndroidStyle } from '@notifee/react-native';
 import DeviceInfo from 'react-native-device-info';
@@ -39,19 +39,25 @@ export const useNotifications = () => {
       importance: AndroidImportance.HIGH,
     });
 
+    const imageUrl = remoteMessage.notification?.android?.imageUrl || remoteMessage.data?.image;
+
     // Display notification using Notifee
     await notifee.displayNotification({
       title: remoteMessage.notification?.title || 'Fynace Update',
-      body:
-        remoteMessage.notification?.body || 'New financial insight available',
+      body: remoteMessage.notification?.body || 'New financial insight available',
       android: {
         channelId,
-        smallIcon: 'ic_stat_name', // Using the monochrome icon for Android
+        smallIcon: 'ic_launcher_monochrome', // Using the monochrome launcher icon for better visibility on Android
         color: '#6060FF', // Tinting the icon with the app's primary color
-        style: {
-          type: AndroidStyle.BIGTEXT,
-          text: remoteMessage.notification?.body || 'New financial insight available',
-        },
+        style: imageUrl
+          ? {
+              type: AndroidStyle.BIGPICTURE,
+              picture: imageUrl,
+            }
+          : {
+              type: AndroidStyle.BIGTEXT,
+              text: remoteMessage.notification?.body || 'New financial insight available',
+            },
         pressAction: {
           id: 'default',
         },
@@ -84,11 +90,33 @@ export const useNotifications = () => {
   };
 
   const navigateToScreen = useCallback(data => {
-    if (!data || !data.screen) return;
+    if (!data) return;
+
+    // Handle URLs (Deep Link or Web Link)
+    if (data.url) {
+      const url = data.url;
+      console.log('🔗 Handling URL:', url);
+      
+      Linking.canOpenURL(url).then(supported => {
+        if (supported) {
+          Linking.openURL(url).catch(err => {
+            console.error('Failed to open URL:', err);
+            // Fallback: If it's a deep link that failed, maybe try navigating manually if possible
+          });
+        } else {
+          console.warn('Don\'t know how to open URI: ' + url);
+          // If it's a web link, try opening it anyway as browsers usually handle it
+          if (url.startsWith('http')) {
+            Linking.openURL(url).catch(err => console.error('Browser open failed:', err));
+          }
+        }
+      });
+      return;
+    }
+
+    if (!data.screen) return;
 
     console.log('🎯 Navigating to screen:', data.screen);
-    // Add logic for specific screens if needed
-    // For now, we match basic route names
     const routeName = data.screen;
 
     // Use a small delay to ensure navigation is ready

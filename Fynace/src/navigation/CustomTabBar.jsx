@@ -14,6 +14,8 @@ import Fonts from '../../assets/fonts';
 import { QrCode, Plus } from 'lucide-react-native';
 import { useBottomBar } from '../context/BottomBarContext';
 
+import { triggerHaptic } from '../utils/hapticFeedback';
+
 const Tab = createBottomTabNavigator();
 
 const CustomTabBar = ({ state, descriptors, navigation }) => {
@@ -38,6 +40,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
         : route.name;
 
     const onPress = () => {
+      triggerHaptic('impactMedium');
       const event = navigation.emit({
         type: 'tabPress',
         target: route.key,
@@ -67,7 +70,14 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
         activeOpacity={0.7}
       >
         <View style={styles.tabContent}>
-          {isFocused && <View style={[styles.activeIndicator, { backgroundColor: theme.colors.secondary }]} />}
+          {isFocused && (
+            <View
+              style={[
+                styles.activeIndicator,
+                { backgroundColor: theme.colors.secondary },
+              ]}
+            />
+          )}
           <View style={styles.iconContainer}>
             {IconComponent && (
               <IconComponent focused={isFocused} color={iconColor} size={24} />
@@ -89,18 +99,26 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
     );
   };
 
-  const renderMiddleButton = (theme) => {
+  const renderMiddleButton = theme => {
     if (currentRouteName === 'Home') {
       return (
         <TouchableOpacity
-          onPress={() => navigation.navigate('QRScanner')}
+          onPress={() => {
+            triggerHaptic('impactMedium');
+            navigation.navigate('QRScanner');
+          }}
           style={styles.middleButtonContainer}
           activeOpacity={0.8}
         >
-          <View style={[styles.middleButton, { 
-            backgroundColor: theme.colors.secondary,
-            shadowColor: theme.colors.secondary 
-          }]}>
+          <View
+            style={[
+              styles.middleButton,
+              {
+                backgroundColor: theme.colors.secondary,
+                shadowColor: theme.colors.secondary,
+              },
+            ]}
+          >
             <QrCode color={theme.colors.onSecondary} size={24} />
           </View>
         </TouchableOpacity>
@@ -110,14 +128,22 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
     // Default middle button (Plus) for all other screens (Expenses, Profile, etc.)
     return (
       <TouchableOpacity
-        onPress={() => setActionMenuOpen(true)}
+        onPress={() => {
+          triggerHaptic('impactMedium');
+          setActionMenuOpen(true);
+        }}
         style={styles.middleButtonContainer}
         activeOpacity={0.8}
       >
-        <View style={[styles.middleButton, { 
-          backgroundColor: theme.colors.secondary,
-          shadowColor: theme.colors.secondary 
-        }]}>
+        <View
+          style={[
+            styles.middleButton,
+            {
+              backgroundColor: theme.colors.secondary,
+              shadowColor: theme.colors.secondary,
+            },
+          ]}
+        >
           <Plus color={theme.colors.onSecondary} size={24} />
         </View>
       </TouchableOpacity>
@@ -127,10 +153,13 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
   return (
     <View style={styles.floatingContainer}>
       <View
-        style={[styles.barStyle, { 
-          backgroundColor: theme.colors.surface,
-          paddingBottom: Math.max(insets.bottom, 8) 
-        }]}
+        style={[
+          styles.barStyle,
+          {
+            backgroundColor: theme.colors.surface,
+            paddingBottom: Math.max(insets.bottom, 8),
+          },
+        ]}
       >
         {renderTab(state.routes[0], 0, theme)}
         {renderMiddleButton(theme)}
@@ -207,10 +236,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 8,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
+    // elevation: 8,
+    // shadowOffset: { width: 0, height: 4 },
+    // shadowOpacity: 0.5,
+    // shadowRadius: 10,
   },
 });
 

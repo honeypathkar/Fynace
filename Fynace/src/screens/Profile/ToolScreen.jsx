@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -25,6 +25,7 @@ import {
   Search,
   Clock,
   AlertTriangle,
+  Vibrate,
 } from 'lucide-react-native';
 import GlobalHeader from '../../components/GlobalHeader';
 import BottomSheet from '../../components/BottomSheet';
@@ -41,11 +42,16 @@ import {
   openSettings,
 } from 'react-native-permissions';
 
+import { triggerHaptic, getHapticEnabled, setHapticEnabled } from '../../utils/hapticFeedback';
+
 const CustomToggle = ({ value, onValueChange }) => {
   const theme = useTheme();
   return (
     <TouchableOpacity
-      onPress={() => onValueChange(!value)}
+      onPress={() => {
+        onValueChange(!value);
+        triggerHaptic('impactMedium');
+      }}
       style={{
         width: 50,
         height: 26,
@@ -68,19 +74,54 @@ const CustomToggle = ({ value, onValueChange }) => {
   );
 };
 
+const MenuItem = ({ icon: Icon, label, onPress, right, theme }) => (
+  <Pressable
+    onPress={() => {
+      onPress?.();
+      triggerHaptic('impactMedium');
+    }}
+    style={({ pressed }) => [
+      styles.menuItem,
+      { backgroundColor: pressed ? theme.colors.surfaceVariant : 'transparent' },
+    ]}
+  >
+    <View style={styles.menuItemLeft}>
+      <View style={[styles.iconContainer, { backgroundColor: theme.colors.surfaceVariant }]}>
+        <Icon size={20} color={theme.colors.text} />
+      </View>
+      <Text style={[styles.menuItemLabel, { color: theme.colors.text }]}>{label}</Text>
+    </View>
+    <View style={styles.menuItemRight}>
+      {right ? (
+        right
+      ) : (
+        <ChevronRight size={20} color={theme.colors.onSurfaceVariant} />
+      )}
+    </View>
+  </Pressable>
+);
+
 const ToolScreen = () => {
   const navigation = useNavigation();
   const theme = useTheme();
-  const isDark = theme.dark;
-  const isFocused = useIsFocused();
   const { user, updateProfile, refreshProfile } = useAuth();
   const { isPrivacyMode, togglePrivacyMode } = usePrivacy();
   const { isBiometricEnabled, toggleBiometric, isSupported } = useSecurity();
-  const [hasSystemPermission, setHasSystemPermission] = useState(true); // Default to true to avoid flicker
-  const [smsTrackingEnabled, setSmsTrackingEnabled] = useState(false);
+  const [hasSystemPermission, setHasSystemPermission] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
-  const currencySheetRef = React.useRef(null);
+  const [hapticEnabled, setHapticEnabledState] = useState(true);
   const alertSheetRef = React.useRef(null);
+
+  // Load Haptic Preference
+  useEffect(() => {
+    getHapticEnabled().then(setHapticEnabledState);
+  }, []);
+
+  const handleHapticToggle = async (value) => {
+    await setHapticEnabled(value);
+    setHapticEnabledState(value);
+    if (value) triggerHaptic('impactMedium');
+  };
   const [alertConfig, setAlertConfig] = useState({
     title: '',
     message: '',
@@ -91,7 +132,7 @@ const ToolScreen = () => {
     type: 'info',
   });
 
-  const showAlert = (title, message, options = {}) => {
+  const showAlert = React.useCallback((title, message, options = {}) => {
     setAlertConfig({
       title,
       message,
@@ -102,18 +143,14 @@ const ToolScreen = () => {
       type: options.type || 'info',
     });
     alertSheetRef.current?.open();
-  };
+  }, []);
 
-  // Use a ref to track if we've already checked permissions in this focus session
   const hasCheckedPerms = React.useRef(false);
 
   useFocusEffect(
     React.useCallback(() => {
       const task = InteractionManager.runAfterInteractions(async () => {
-        // Refresh profile to sync settings
         await refreshProfile();
-
-        // Check permissions
         try {
           let notifGranted = false;
           if (Platform.OS === 'android') {
@@ -134,8 +171,11 @@ const ToolScreen = () => {
           }
           setHasSystemPermission(notifGranted);
 
-          // If backend says ON but system says OFF, prompt for permission (only once)
-          if (user?.notificationSettings?.pushNotificationsEnabled && !notifGranted && !hasCheckedPerms.current) {
+          if (
+            user?.notificationSettings?.pushNotificationsEnabled &&
+            !notifGranted &&
+            !hasCheckedPerms.current
+          ) {
             hasCheckedPerms.current = true;
             handleNotificationToggle(true);
           }
@@ -225,53 +265,6 @@ const ToolScreen = () => {
     }
   };
 
-  const handleSmsToggle = async value => {
-    if (Platform.OS !== 'android') {
-      ToastAndroid.show(
-        'Automatic SMS tracking is only available on Android devices.',
-        ToastAndroid.SHORT,
-      );
-      return;
-    }
-
-    if (value) {
-      showAlert(
-        'Automatic Tracking',
-        'Fynace can read bank SMS alerts to automatically log your expenses. We only scan financial messages.',
-        {
-          confirmText: 'Enable',
-          showCancel: true,
-          onConfirm: async () => {
-            try {
-              const status = await PermissionsAndroid.request(
-                PermissionsAndroid.PERMISSIONS.READ_SMS,
-                {
-                  title: 'SMS Permission',
-                  message:
-                    'Fynace needs access to your SMS to automatically track bank transactions.',
-                  buttonPositive: 'OK',
-                },
-              );
-              if (status === PermissionsAndroid.RESULTS.GRANTED) {
-                await PermissionsAndroid.request(
-                  PermissionsAndroid.PERMISSIONS.RECEIVE_SMS,
-                );
-                setSmsTrackingEnabled(true);
-              } else {
-                setSmsTrackingEnabled(false);
-              }
-            } catch (err) {
-              console.warn(err);
-              setSmsTrackingEnabled(false);
-            }
-          },
-        },
-      );
-    } else {
-      setSmsTrackingEnabled(false);
-    }
-  };
-
   const handleSettingToggle = async (key, value) => {
     try {
       setIsUpdating(true);
@@ -293,186 +286,13 @@ const ToolScreen = () => {
     }
   };
 
-  const MenuItem = ({ icon: Icon, label, onPress, right }) => (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.menuItem,
-        pressed && styles.menuItemPressed,
-      ]}
-    >
-      <View style={styles.menuItemLeft}>
-        <View style={styles.iconContainer}>
-          <Icon size={20} color={theme.colors.text} />
-        </View>
-        <Text style={styles.menuItemLabel}>{label}</Text>
-      </View>
-      <View style={styles.menuItemRight}>
-        {right ? right : <ChevronRight size={20} color={theme.colors.onSurfaceVariant} />}
-      </View>
-    </Pressable>
-  );
-
-  const styles = useMemo(() => StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    scrollContent: {
-      paddingHorizontal: 24,
-      paddingTop: 20,
-      paddingBottom: 40,
-    },
-    sectionLabel: {
-      fontSize: 12,
-      fontFamily: Fonts.bold,
-      color: theme.colors.onSurfaceVariant,
-      textTransform: 'uppercase',
-      letterSpacing: 1,
-      marginTop: 24,
-      marginBottom: 8,
-      marginLeft: 8,
-    },
-    menuContainer: {
-      width: '100%',
-    },
-    menuItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingVertical: 12,
-      paddingHorizontal: 8,
-      borderRadius: 16,
-      marginBottom: 4,
-    },
-    menuItemPressed: {
-      backgroundColor: theme.colors.surfaceVariant,
-    },
-    menuItemLeft: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 16,
-    },
-    iconContainer: {
-      width: 40,
-      height: 40,
-      borderRadius: 12,
-      backgroundColor: theme.colors.surfaceVariant,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    menuItemLabel: {
-      fontSize: 16,
-      fontFamily: Fonts.medium,
-      color: theme.colors.text,
-    },
-    explanationCard: {
-      borderRadius: 10,
-      paddingBottom: 12,
-      borderWidth: 1,
-      borderColor: theme.colors.outlineVariant,
-    },
-    explanationText: {
-      fontSize: 12,
-      color: theme.colors.onSurfaceVariant,
-      fontFamily: Fonts.regular,
-      paddingHorizontal: 16,
-      lineHeight: 18,
-      marginTop: -4,
-    },
-    settingsGroup: {
-      paddingTop: 8,
-    },
-    menuItemRight: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    currencyBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: theme.colors.surfaceVariant,
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 12,
-      gap: 4,
-    },
-    currencyBadgeText: {
-      color: theme.colors.secondary,
-      fontFamily: Fonts.bold,
-      fontSize: 14,
-    },
-    menuContent: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: 12,
-    },
-    menuItemText: {
-      color: theme.colors.text,
-      fontFamily: Fonts.medium,
-    },
-    alertContent: {
-      padding: 0,
-      paddingBottom: 40,
-      gap: 20,
-    },
-    alertHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-    },
-    alertIconContainer: {
-      width: 48,
-      height: 48,
-      borderRadius: 12,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    alertTitle: {
-      fontSize: 20,
-      fontFamily: Fonts.bold,
-      color: theme.colors.text,
-    },
-    alertMessage: {
-      color: theme.colors.onSurfaceVariant,
-      fontSize: 16,
-      lineHeight: 24,
-      fontFamily: Fonts.medium,
-    },
-    alertActions: {
-      flexDirection: 'row',
-      gap: 12,
-    },
-    alertButton: {
-      flex: 1,
-      height: 50,
-      borderRadius: 16,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    alertButtonPrimary: {
-      backgroundColor: theme.colors.primary,
-    },
-    alertButtonSecondary: {
-      backgroundColor: theme.colors.surfaceVariant,
-    },
-    alertButtonTextPrimary: {
-      color: theme.colors.onPrimary,
-      fontFamily: Fonts.bold,
-      fontSize: 16,
-    },
-    alertButtonTextSecondary: {
-      color: theme.colors.onSurfaceVariant,
-      fontFamily: Fonts.bold,
-      fontSize: 16,
-    },
-    divider: {
-      backgroundColor: theme.colors.outlineVariant,
-      marginVertical: 4,
-      marginHorizontal: 16,
-    },
-  }), [theme]);
+  const containerBg = { backgroundColor: theme.colors.background };
+  const explanationCardBorder = { borderColor: theme.colors.outlineVariant };
+  const explanationTextColor = { color: theme.colors.onSurfaceVariant };
+  const dividerColor = { backgroundColor: theme.colors.outlineVariant };
 
   return (
-    <SafeAreaView edges={['top']} style={styles.container}>
+    <SafeAreaView edges={['top']} style={[styles.container, containerBg]}>
       <GlobalHeader
         title="Tools & Settings"
         titleColor={theme.colors.text}
@@ -482,19 +302,26 @@ const ToolScreen = () => {
         leftIconColor={theme.colors.text}
         onLeftIconPress={() => navigation.goBack()}
         rightIconComponent={
-          isUpdating ? <ActivityIndicator size="small" color={theme.colors.secondary} /> : null
+          isUpdating ? (
+            <ActivityIndicator size="small" color={theme.colors.secondary} />
+          ) : null
         }
       />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.menuContainer}>
-          <Text style={styles.sectionLabel}>Privacy & Security</Text>
+          <Text
+            style={[styles.sectionLabel, { color: theme.colors.onSurfaceVariant }]}
+          >
+            Privacy & Security
+          </Text>
 
           {isSupported && (
             <MenuItem
               icon={Fingerprint}
               label="Biometric Lock"
               onPress={toggleBiometric}
+              theme={theme}
               right={
                 <CustomToggle
                   value={isBiometricEnabled}
@@ -508,6 +335,7 @@ const ToolScreen = () => {
             icon={EyeOff}
             label="Privacy Mode"
             onPress={togglePrivacyMode}
+            theme={theme}
             right={
               <CustomToggle
                 value={isPrivacyMode}
@@ -516,12 +344,30 @@ const ToolScreen = () => {
             }
           />
 
-          <Text style={styles.sectionLabel}>Notifications & Automation</Text>
+          <MenuItem
+            icon={Vibrate}
+            label="Haptic Feedback"
+            onPress={() => handleHapticToggle(!hapticEnabled)}
+            theme={theme}
+            right={
+              <CustomToggle
+                value={hapticEnabled}
+                onValueChange={handleHapticToggle}
+              />
+            }
+          />
 
-          <View style={styles.explanationCard}>
+          <Text
+            style={[styles.sectionLabel, { color: theme.colors.onSurfaceVariant }]}
+          >
+            Notifications & Automation
+          </Text>
+
+          <View style={[styles.explanationCard, explanationCardBorder]}>
             <MenuItem
               icon={Bell}
               label="Push Notifications"
+              theme={theme}
               onPress={() =>
                 handleNotificationToggle(
                   !user?.notificationSettings?.pushNotificationsEnabled,
@@ -534,66 +380,63 @@ const ToolScreen = () => {
                 />
               }
             />
-            <Text style={styles.explanationText}>
+            <Text style={[styles.explanationText, explanationTextColor]}>
               Get alerts for budget limits, spending milestones, and bill
               reminders.
             </Text>
 
             {user?.notificationSettings?.pushNotificationsEnabled && (
               <View style={styles.settingsGroup}>
-                <Divider style={styles.divider} />
+                <Divider style={[styles.divider, dividerColor]} />
                 <MenuItem
                   icon={ChevronRight}
                   label="Daily Reminders"
+                  theme={theme}
                   right={
                     <CustomToggle
                       value={user?.notificationSettings?.dailyReminder}
-                      onValueChange={v =>
-                        handleSettingToggle('dailyReminder', v)
-                      }
+                      onValueChange={v => handleSettingToggle('dailyReminder', v)}
                     />
                   }
                 />
                 <MenuItem
                   icon={ChevronRight}
                   label="Monthly Summaries"
+                  theme={theme}
                   right={
                     <CustomToggle
                       value={user?.notificationSettings?.monthlySummary}
-                      onValueChange={v =>
-                        handleSettingToggle('monthlySummary', v)
-                      }
+                      onValueChange={v => handleSettingToggle('monthlySummary', v)}
                     />
                   }
                 />
                 <MenuItem
                   icon={ChevronRight}
                   label="Budget Alerts"
+                  theme={theme}
                   right={
                     <CustomToggle
                       value={user?.notificationSettings?.budgetAlerts}
-                      onValueChange={v =>
-                        handleSettingToggle('budgetAlerts', v)
-                      }
+                      onValueChange={v => handleSettingToggle('budgetAlerts', v)}
                     />
                   }
                 />
                 <MenuItem
                   icon={ChevronRight}
                   label="Smart Insights"
+                  theme={theme}
                   right={
                     <CustomToggle
                       value={user?.notificationSettings?.smartInsights}
-                      onValueChange={v =>
-                        handleSettingToggle('smartInsights', v)
-                      }
+                      onValueChange={v => handleSettingToggle('smartInsights', v)}
                     />
                   }
                 />
-                <Divider style={styles.divider} />
+                <Divider style={[styles.divider, dividerColor]} />
                 <MenuItem
                   icon={ChevronRight}
                   label="Recurring Transactions"
+                  theme={theme}
                   right={
                     <CustomToggle
                       value={
@@ -630,22 +473,41 @@ const ToolScreen = () => {
                   <AlertTriangle
                     size={24}
                     color={
-                      alertConfig.type === 'danger' ? theme.colors.error : theme.colors.secondary
+                      alertConfig.type === 'danger'
+                        ? theme.colors.error
+                        : theme.colors.secondary
                     }
                   />
                 </View>
-                <Text style={styles.alertTitle}>{alertConfig.title}</Text>
+                <Text style={[styles.alertTitle, { color: theme.colors.text }]}>
+                  {alertConfig.title}
+                </Text>
               </View>
 
-              <Text style={styles.alertMessage}>{alertConfig.message}</Text>
+              <Text
+                style={[
+                  styles.alertMessage,
+                  { color: theme.colors.onSurfaceVariant },
+                ]}
+              >
+                {alertConfig.message}
+              </Text>
 
               <View style={styles.alertActions}>
                 {alertConfig.showCancel && (
-                  <TouchableOpacity 
-                    onPress={() => alertSheetRef.current?.close()} 
-                    style={[styles.alertButton, styles.alertButtonSecondary]}
+                  <TouchableOpacity
+                    onPress={() => alertSheetRef.current?.close()}
+                    style={[
+                      styles.alertButton,
+                      { backgroundColor: theme.colors.surfaceVariant },
+                    ]}
                   >
-                    <Text style={styles.alertButtonTextSecondary}>
+                    <Text
+                      style={[
+                        styles.alertButtonTextSecondary,
+                        { color: theme.colors.onSurfaceVariant },
+                      ]}
+                    >
                       {alertConfig.cancelText}
                     </Text>
                   </TouchableOpacity>
@@ -655,9 +517,17 @@ const ToolScreen = () => {
                     alertSheetRef.current?.close();
                     if (alertConfig.onConfirm) alertConfig.onConfirm();
                   }}
-                  style={[styles.alertButton, styles.alertButtonPrimary]}
+                  style={[
+                    styles.alertButton,
+                    { backgroundColor: theme.colors.primary },
+                  ]}
                 >
-                  <Text style={styles.alertButtonTextPrimary}>
+                  <Text
+                    style={[
+                      styles.alertButtonTextPrimary,
+                      { color: theme.colors.onPrimary },
+                    ]}
+                  >
                     {alertConfig.confirmText}
                   </Text>
                 </TouchableOpacity>
@@ -669,5 +539,121 @@ const ToolScreen = () => {
     </SafeAreaView>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 40,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontFamily: Fonts.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginTop: 24,
+    marginBottom: 8,
+    marginLeft: 8,
+  },
+  menuContainer: {
+    width: '100%',
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 16,
+    marginBottom: 4,
+  },
+  menuItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  menuItemLabel: {
+    fontSize: 16,
+    fontFamily: Fonts.medium,
+  },
+  explanationCard: {
+    borderRadius: 10,
+    paddingBottom: 12,
+    borderWidth: 1,
+  },
+  explanationText: {
+    fontSize: 12,
+    fontFamily: Fonts.regular,
+    paddingHorizontal: 16,
+    lineHeight: 18,
+    marginTop: -4,
+  },
+  settingsGroup: {
+    paddingTop: 8,
+  },
+  menuItemRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  alertContent: {
+    padding: 0,
+    paddingBottom: 40,
+    gap: 20,
+  },
+  alertHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  alertIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  alertTitle: {
+    fontSize: 20,
+    fontFamily: Fonts.bold,
+  },
+  alertMessage: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontFamily: Fonts.medium,
+  },
+  alertActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  alertButton: {
+    flex: 1,
+    height: 50,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  alertButtonTextPrimary: {
+    fontFamily: Fonts.bold,
+    fontSize: 16,
+  },
+  alertButtonTextSecondary: {
+    fontFamily: Fonts.bold,
+    fontSize: 16,
+  },
+  divider: {
+    marginVertical: 4,
+    marginHorizontal: 16,
+  },
+});
 
 export default ToolScreen;

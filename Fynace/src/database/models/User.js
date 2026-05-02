@@ -6,6 +6,7 @@ export default class User extends Model {
 
   @field('name') name;
   @field('email') email;
+  @field('user_image') userImage;
   @field('synced') synced;
   @field('updated_at') updatedAt;
   @field('is_deleted') isDeleted;

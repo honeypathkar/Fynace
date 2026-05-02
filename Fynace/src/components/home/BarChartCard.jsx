@@ -16,6 +16,7 @@ import Fonts from '../../../assets/fonts';
 import { usePrivacy } from '../../context/PrivacyContext';
 import { useAuth } from '../../hooks/useAuth';
 import { categoryConfigs, paletteColors } from '../../theme/theme';
+import { triggerHaptic } from '../../utils/hapticFeedback';
 
 const MONTH_NAMES = [
   'Jan',
@@ -501,7 +502,13 @@ const BarChartCard = ({
             })}
           </Text>
         </View>
-        <TouchableOpacity onPress={onFilterPress} style={styles.filterBtn}>
+        <TouchableOpacity
+          onPress={() => {
+            triggerHaptic('impactMedium');
+            onFilterPress();
+          }}
+          style={styles.filterBtn}
+        >
           <FilterIcon size={20} color={theme.colors.onSurfaceVariant} />
         </TouchableOpacity>
       </View>
@@ -554,6 +561,7 @@ const BarChartCard = ({
                   key={item.key}
                   activeOpacity={0.7}
                   onPress={() => {
+                    triggerHaptic('impactMedium');
                     setLocalSelectedKey(item.key);
                     if (onSelectPeriod) onSelectPeriod(item.key);
                   }}
@@ -652,7 +660,10 @@ const BarChartCard = ({
           ['expense', 'income'].map(t => (
             <TouchableOpacity
               key={t}
-              onPress={() => onTypeChange && onTypeChange(t)}
+              onPress={() => {
+                triggerHaptic('impactMedium');
+                onTypeChange && onTypeChange(t);
+              }}
               style={[
                 styles.typeTab,
                 activeType === t && {
@@ -701,7 +712,10 @@ const BarChartCard = ({
               <TouchableOpacity
                 key={index}
                 style={styles.categoryItem}
-                onPress={() => onCategoryPress && onCategoryPress(cat.category)}
+                onPress={() => {
+                  triggerHaptic('impactMedium');
+                  onCategoryPress && onCategoryPress(cat.category);
+                }}
                 activeOpacity={0.7}
               >
                 <View
